@@ -207,11 +207,15 @@ else:
     truncate = online and lastseg[1] == dataend
 
 # if segment is shorter than one chunk, leave it until later
-if truncate and abs(lastseg) < chunkdur:
-    logger.info("The final segment is too short. Presumably this is an active "
-                "segment, so this segment will be removed so that it can be "
+if truncate and (
+        (not statechannel and abs(lastseg) < chunkdur) or
+        (statechannel and abs(lastseg) < (chunkdur + segdur))):
+    logger.info("The final segment is too short, but ends at the limit of "
+                "available data, presumably this is an active segment. "
+                "It will be removed so that it can be "
                 "processed properly later")
     segs = segs[:-1]
+    dataend = lastseg[0]
 # if long enough and no state required, restrict to an integer number of chunks
 elif truncate and (not statechannel or abs(lastseg) >= (chunkdur + segdur)):
     logger.info("Truncating to process only complete chunks...")
@@ -226,11 +230,15 @@ elif truncate and (not statechannel or abs(lastseg) >= (chunkdur + segdur)):
 dataspan = type(segs)([segments.Segment(datastart, dataend)])
 
 # find the frames
-cache = data.find_frames(ifo, frametype, datastart, dataend, on_missing='warn')
+cache = data.find_frames(ifo, frametype, datastart, dataend, on_gaps='warn')
 if not online and len(cache) == 0:
     raise RuntimeError("No frames found for %s-%s" % (ifo[0], frametype))
-cachesegs = (segments.cache_segments(cache) & dataspan).coalesce()
-alldata = cachesegs == dataspan
+try:
+    cachesegs = (segments.cache_segments(cache) & dataspan).coalesce()
+except TypeError:
+    alldata = False
+else:
+    alldata = cachesegs == dataspan
 
 # if all of the data are available, but no segments, record segments.txt
 if len(segs) == 0 and online and alldata:
