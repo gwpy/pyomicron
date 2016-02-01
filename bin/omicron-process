@@ -435,7 +435,7 @@ dag.write_dag()
 dag.write_script()
 dagfile = dag.get_dag_file()
 with open(dagfile, 'a') as f:
-    print('DOT %s.dot' % os.path.splitext(dagfile), file=f)
+    print('DOT %s.dot' % os.path.splitext(dagfile)[0], file=f)
 logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
 print(os.path.abspath(dagfile))
 
