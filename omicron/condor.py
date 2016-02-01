@@ -19,6 +19,7 @@
 """Condor interaction utilities
 """
 
+import os.path
 import re
 from time import sleep
 from os import stat
@@ -127,7 +128,7 @@ def iterate_dag_status(clusterid, interval=2):
 
 # -- custom jobs --------------------------------------------------------------
 
-class OmicronProcessJob(pipeline.CondorJob):
+class OmicronProcessJob(pipeline.CondorDAGJob):
     """`~glue.pipe.CondorJob` as part of Omicron processing
     """
     logtag = '$(cluster)-$(process)'
