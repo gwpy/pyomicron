@@ -1,0 +1,53 @@
+#!/usr/bin/python
+# Copyright (C) Duncan Macleod (2016)
+#
+# This file is part of LIGO-Omicron.
+#
+# LIGO-Omicron is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LIGO-Omicron is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with LIGO-Omicron.  If not, see <http://www.gnu.org/licenses/>.
+
+"""Merge multiple Omicron ROOT files into one
+"""
+
+import os.path
+import argparse
+
+import ROOT
+
+from omicron import io
+
+__author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('filename', nargs='+', help='file to merge')
+parser.add_argument('output', help='output file name')
+parser.add_argument('-m', '--keep-all-metadata', action='store_true',
+                    default=False,
+                    help='preserve all metadata, default: %(default)s '
+                         '(keep metadata for first file')
+parser.add_argument('-d', '--remove-input', action='store_true', default=False,
+                    help='remove input files after writing output, '
+                         'default: %(default)s')
+parser.add_argument('-s', '--strict', action='store_true', default=False,
+                    help='only merge contiguous data, default: %(default)s')
+
+args = parser.parse_args()
+io.merge_root_files(args.filename, args.output, strict=args.strict,
+                    all_metadata=args.keep_all_metadata)
+
+# remove input files
+if args.remove_input:
+    for f in args.filename:
+        if os.path.samefile(f, args.output):
+            continue
+        os.remove(f)

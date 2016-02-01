@@ -45,9 +45,13 @@ def integer_segments(f):
     return decorated_method
 
 
+def read_segments(filename, coltype=int):
+   with open(filename, 'r') as fp:
+        return fromsegwizard(fp, coltype=coltype)
+
+
 def get_last_run_segment(segfile):
-    with open(segfile, 'r') as fp:
-        return fromsegwizard(fp, coltype=int)[-1]
+    return read_segments(segfile, coltype=int)[-1]
 
 
 def write_segments(segmentlist, outfile, coltype=int):
@@ -80,3 +84,14 @@ def cache_segments(cache, span=None):
     segmentlist = SegmentList(e.segment for e in
                               cache.checkfilesexist(on_missing='warn')[0])
     return segmentlist.coalesce()
+
+
+def segmentlist_from_tree(tree, coalesce=False):
+    """Read a `~glue.segments.segmentlist` from a 'segments' `ROOT.Tree`
+    """
+    segs = SegmentList()
+    for i in range(tree.GetEntries()):
+        tree.GetEntry(i)
+        segs.append(Segment(tree.start, tree.end))
+    return segs
+

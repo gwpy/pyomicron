@@ -88,6 +88,6 @@ def generate_parameters_files(config, section, cachefile, rundir,
             for c in channels:
                 print('{0: <10}'.format('DATA'), '{0: <16}'.format('CHANNELS'),
                       str(c), file=f, sep=' ')
-        parfiles.append(pfile)
+        parfiles.append((pfile, channels))
         i += 1
     return parfiles

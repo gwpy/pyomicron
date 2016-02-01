@@ -25,6 +25,8 @@ import os
 import sys
 from subprocess import Popen, PIPE, CalledProcessError
 
+from . import const
+
 
 def which(program):
     """Find full path of executable program
@@ -60,3 +62,15 @@ def shell(cmd, stdout=PIPE, **kwargs):
     if proc.returncode:
         raise CalledProcessError(proc.returncode, ' '.join(cmd))
     return out
+
+
+def get_output_directory(args):
+    """Return the output directory as parsed from the command-line args
+    """
+    if args.gps is None and not args.output_dir:
+        args.output_dir = os.path.join(const.OMICRON_PROD, args.group)
+    elif not args.output_dir:
+        start, end = args.gps
+        args.output_dir = os.path.join(
+            const.OMICRON_PROD, '%s-%d-%d' % (args.group, start, end))
+    return os.path.abspath(args.output_dir)

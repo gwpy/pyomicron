@@ -19,10 +19,13 @@
 """Process Omicron triggers online for LIGO
 """
 
+from __future__ import print_function
+
 import argparse
 import os
 import sys
 import shutil
+import re
 from time import sleep
 from glob import glob
 from getpass import getuser
@@ -35,6 +38,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from glue import pipeline
+from glue.lal import CacheEntry
 
 from omicron import (const, segments, log, data, parameters, utils, condor)
 
@@ -55,6 +59,9 @@ outg = parser.add_argument_group('Output options')
 outg.add_argument('-o', '--output-dir',
                   help='path to output directory, '
                        'default under ~/Omicron/Prod somewhere')
+outg.add_argument('-a', '--archive', action='store_true', default=False,
+                  help='archive created files under %s, default: %%(default)s'
+                       % const.OMICRON_ARCHIVE)
 
 condorg = parser.add_argument_group('Condor options')
 condorg.add_argument('--no-submit', action='store_true', default=False,
@@ -89,6 +96,8 @@ group = args.group
 online = args.gps is None
 
 logger.info("--- Welcome to the Omicron processor ---")
+
+tempfiles = []
 
 # -- parse configuration file and get parameters ------------------------------
 
@@ -125,13 +134,7 @@ else:
         raise
     logger.debug("State channel = %s" % statechannel)
 
-if online and not args.output_dir:
-    args.output_dir = os.path.join(const.OMICRON_PROD, group)
-elif not args.output_dir:
-    start, end = args.gps
-    args.output_dir = os.path.join(
-        const.OMICRON_PROD, '%s-%d-%d' % (group, start, end))
-rundir = os.path.abspath(args.output_dir)
+rundir = utils.get_output_directory(args)
 
 # -- find run segment
 
@@ -151,8 +154,6 @@ if online:
         logger.debug("Online segment record recovered")
 else:
     start, end = args.gps
-    rundir = args.output_dir or os.path.join(
-        const.OMICRON_PROD, '%s-%d-%d' % (group, start, end))
 rundir = os.path.abspath(rundir)
 segfile = os.path.join(rundir, 'segments.txt')
 
@@ -191,6 +192,9 @@ logger.info("Using run directory\n%s" % rundir)
 if os.path.isfile(os.path.join(rundir, 'omicron.dag.lock')):
     raise RuntimeError("omicron.dag.lock found in %s, DAG already running"
                        % rundir)
+elif any(map(os.path.isfile, glob(
+        os.path.join(rundir, 'omicron.dag.rescue[0-9][0-9][0-9]')))):
+    raise RuntimeError("rescue DAG found in %s, will not continue" % rundir)
 
 # -- find segments and frame files --------------------------------------------
 
@@ -296,9 +300,13 @@ data.write_cache(cache, cachefile)
 
 # -- make parameters files then generate the DAG ------------------------------
 
+condir = os.path.join(rundir, 'condor')
+if not os.path.isdir(condir):
+    os.makedirs(condir)
+
 # generate a 'master' parameters.txt file for archival purposes
-tmpparfile = parameters.generate_parameters_files(cp, group, cachefile, rundir,
-                                                  channellimit=int(1e8))[0]
+tmpparfile = parameters.generate_parameters_files(
+    cp, group, cachefile, rundir, channellimit=int(1e8))[0][0]
 parfile = os.path.join(rundir, 'parameters.txt')
 logger.debug("Create master parameters file\n%s" % parfile)
 shutil.move(tmpparfile, parfile)
@@ -311,32 +319,124 @@ if not os.path.isdir(logdir):
     os.mkdir(logdir)
 
 dag = pipeline.CondorDAG(os.path.join(logdir, 'omicron.log'))
-dag.set_dag_file(os.path.join(rundir, 'omicron'))
+dag.set_dag_file(os.path.join(condir, 'omicron'))
 
-job = pipeline.CondorDAGJob(args.universe, args.executable)
-job.set_sub_file(os.path.join(rundir, 'omicron.sub'))
-job.set_log_file(os.path.join(logdir, 'omicron-$(cluster)-$(process).log'))
-job.set_stderr_file(os.path.join(logdir, 'omicron-$(cluster)-$(process).err'))
-job.set_stdout_file(os.path.join(logdir, 'omicron-$(cluster)-$(process).out'))
-job.add_condor_cmd('getenv', 'True')
-job.add_condor_cmd('accounting_group', args.condor_accounting_group)
-job.add_condor_cmd('accounting_group_user', args.condor_accounting_group_user)
-job.add_condor_cmd('+OmicronGroup', '"%s"' % group)
+accounting = {'accounting_group': args.condor_accounting_group,
+              'accounting_group_user': args.condor_accounting_group_user}
+
+# get omicron job
+ojob = condor.OmicronProcessJob(args.universe, args.executable, subdir=condir,
+                                logdir=logdir, **accounting)
+ojob.add_condor_cmd('+OmicronGroup', '"%s"' % group)
+
+# get merge job
+mjob = condor.OmicronProcessJob(args.universe,
+                                utils.which('omicron-root-merge'),
+                                subdir=condir, logdir=logdir, **accounting)
+mjob.add_opt('strict', '')
+mjob.add_opt('remove-input', '')
+
+# get ligolw_add job
+xjob = condor.OmicronProcessJob(args.universe, utils.which('ligolw_add'),
+                                subdir=condir, logdir=logdir, **accounting)
+xjob.add_opt('remove-input', '')
+
+# get gzip job
+zjob = condor.OmicronProcessJob(args.universe, utils.which('gzip'),
+                                subdir=condir, logdir=logdir, **accounting)
+
+# get archive job
+mv = utils.which('mv')
+vjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
+                                subdir=condir, logdir=logdir, **accounting)
 
 for s, e in segs:
-    for pf in jobfiles:
-        node = pipeline.CondorDAGNode(job)
+    # work out job segments
+    filesegments = segments.SegmentList()
+    t = s + padding
+    while t < e - padding:
+        e_ = min(t + chunkdur-overlap, e - padding)
+        filesegments.append(segments.Segment(t, e_))
+        t = e_
+
+    gzipnodes = []
+    xmlfiles = []
+    rootfiles = {}
+
+    # build node for each parameter file
+    for pf, chanlist in jobfiles:
+        node = pipeline.CondorDAGNode(ojob)
         node.set_category('omicron')
         node.set_retry(str(args.condor_retry))
         node.add_var_arg(str(s))
         node.add_var_arg(str(e))
         node.add_var_arg(os.path.abspath(pf))
         dag.add_node(node)
+        # build post-processing nodes for each channel
+        for c in chanlist:
+            chandir = os.path.join(rundir, 'triggers', c)
+            cname = re.sub('[:_-]', '_', c).replace('_', '-', 1)
+            # add omicron-root-merge node
+            out = os.path.join(chandir, '%s_OMICRON-%d-%d.root'
+                                        % (cname, span[0][0], abs(span)))
+            mnode = pipeline.CondorDAGNode(mjob)
+            mnode.set_category('omicron-root-merge')
+            mnode.add_parent(node)
+            mnode.add_var_arg(' '.join(
+                os.path.join(chandir, '%s_%d_%d.root' % (c, fs, fe-fs)) for
+                (fs, fe) in filesegments))
+            mnode.add_var_arg(out)
+            rootfiles[out] = mnode
+            dag.add_node(mnode)
+            # add ligolw_add node
+            out = os.path.join(chandir, '%s_OMICRON-%d-%d.xml'
+                                        % (cname, span[0][0], abs(span)))
+            xnode = pipeline.CondorDAGNode(xjob)
+            xnode.set_category('ligolw_add')
+            xnode.add_parent(node)
+            xnode.add_var_arg(' '.join(
+                os.path.join(chandir,
+                             '%s_Omicron-%d-%d.xml' % (cname, fs, fe-fs)) for
+                (fs, fe) in filesegments))
+            xnode.add_var_opt('output', out)
+            dag.add_node(xnode)
+            xmlfiles.append(out)
+            gzipnodes.append(xnode)
+
+    # gzip node
+    znode = pipeline.CondorDAGNode(zjob)
+    znode.set_category('gzip')
+    for node in gzipnodes:
+        znode.add_parent(node)
+    znode.add_var_arg(' '.join(xmlfiles))
+    dag.add_node(znode)
+
+    # build archive nodes
+    mvscript = os.path.join(condir, 'mv-%d-%d.sh' % (s, e-s))
+    vnode = pipeline.CondorDAGNode(vjob)
+    vnode.add_var_arg(mvscript)
+    with open(mvscript, 'w') as f:
+        print('#!/bin/bash -e', file=f)
+        gzipfiles = ['%s.gz' % xml for xml in xmlfiles]
+        for xml, root in zip(gzipfiles, rootfiles):
+            e = CacheEntry.from_T050017(xml)
+            target = os.path.join(const.OMICRON_ARCHIVE, e.observatory,
+                                  e.description, str(int(e.segment[0]))[:5])
+            print('mkdir -p %s' % target, file=f)
+            print('%s %s %s %s\n' % (mv, xml, root, target), file=f)
+            vnode.add_parent(rootfiles[root])
+    vnode.add_parent(znode)
+    vnode.set_category('archive')
+    dag.add_node(vnode)
+    tempfiles.append(mvscript)
+
 dag.write_sub_files()
 dag.write_dag()
 dag.write_script()
-logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
 dagfile = dag.get_dag_file()
+with open(dagfile, 'a') as f:
+    print('DOT %s.dot' % os.path.splitext(dagfile), file=f)
+logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
 print(os.path.abspath(dagfile))
 
 if args.no_submit:
@@ -354,28 +454,32 @@ for i in range(args.submit_rescue_dag + 1):
     sleep(15)
     # find lock file and monitor
     logger.info("Monitoring DAG via ID...")
-    states = ['ready', 'queued', 'failed', 'done']
-    colors = ['white', 'blue', 'red', 'green']
+    states = ['unready', 'ready', 'queued', 'failed', 'done']
+    colors = ['white', 'magenta', 'blue', 'red', 'green']
     old = dict((k, -1) for k in states)
     logger.debug("Dag Status (%d nodes total):" % (len(dag.get_nodes())))
-    logger.debug('-' * 40)
-    logger.debug('  {0} |  {1} |  {2} |    {3}'.format(
+    logger.debug('-' * 47)
+    logger.debug(' {0} |  {1} |  {2} |  {3} |    {4}'.format(
              *[log.color_text(s, c) for s, c in zip(states, colors)]))
-    logger.debug('-' * 40)
+    logger.debug('-' * 47)
     for job in condor.iterate_dag_status(dagid):
         for state in states:
             if job[state] != old[state]:
                 logger.debug(' | '.join(['%7s' % job[s] for s in states]))
                 break
         old = job
-    logger.debug('-' * 40)
-    logger.info("DAG has exited with status %d" % job['exitcode'])
+    logger.debug('-' * 47)
+    if job['exitcode']:
+        logger.critical("DAG has exited with status %d" % job['exitcode'])
+    else:
+        logger.info("DAG has exited with status %d" % job['exitcode'])
     if job['exitcode'] == 0:
         break
-    elif i == args.submit_rescue_dag + 1:
+    elif i == args.submit_rescue_dag:
         raise RuntimeError("DAG has failed to complete %d times"
                            % args.submit_rescue_dag + 1)
     else:
+        sleep(2)
         rescue = condor.find_rescue_dag(dagfile)
         logger.warning("Rescue DAG %s was generated" % rescue)
 
@@ -392,9 +496,10 @@ for f in ['%s.dagman.out' % dagfile, segfile, cachefile, parfile]:
     logger.debug("Archived file\n%s --> %s" % (f, archive))
 
 # clean up temporary files
-for ffl in glob(os.path.join(rundir, 'triggers', 'ffconvert.*.ffl')):
-    os.remove(ffl)
-    logger.debug('Deleted file %r' % ffl)
+tempfiles.extend(glob(os.path.join(rundir, 'triggers', 'ffconvert.*.ffl')))
+for f in tempfiles:
+    os.remove(f)
+    logger.debug('Deleted file %r' % f)
 
 # and exit
 logger.info("---- Processing complete -----------")

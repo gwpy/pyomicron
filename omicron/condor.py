@@ -26,6 +26,8 @@ from glob import glob
 
 import htcondor
 
+from glue import pipeline
+
 from .utils import (shell, which)
 
 re_dagman_cluster = re.compile('(?<=submitted\sto\scluster )[0-9]+')
@@ -121,3 +123,56 @@ def iterate_dag_status(clusterid, interval=2):
         else:
             yield dict((s, job[c]) for s, c in zip(states, classads))
             sleep(interval)
+
+
+# -- custom jobs --------------------------------------------------------------
+
+class OmicronProcessJob(pipeline.CondorJob):
+    """`~glue.pipe.CondorJob` as part of Omicron processing
+    """
+    logtag = '$(cluster)-$(process)'
+
+    def __init__(self, universe, executable, tag=None, subdir=None,
+                 logdir=None, **cmds):
+        pipeline.CondorDAGJob.__init__(self, universe, executable)
+        if tag is None:
+            tag = os.path.basename(os.path.splitext(executable)[0])
+        if subdir:
+            subdir = os.path.abspath(subdir)
+            self.set_sub_file(os.path.join(subdir, '%s.sub' % (tag)))
+        if logdir:
+            logdir = os.path.abspath(logdir)
+            self.set_log_file(os.path.join(
+                logdir, '%s-%s.log' % (tag, self.logtag)))
+            self.set_stderr_file(os.path.join(
+                logdir, '%s-%s.err' % (tag, self.logtag)))
+            self.set_stdout_file(os.path.join(
+                logdir, '%s-%s.out' % (tag, self.logtag)))
+        cmds.setdefault('getenv', 'True')
+        for key, val in cmds.iteritems():
+            if hasattr(self, 'set_%s' % key.lower()):
+                getattr(self, 'set_%s' % key.lower())(val)
+            else:
+                self.add_condor_cmd(key, val)
+        # add sub-command option
+        self._command = None
+
+    def add_opt(self, opt, value=''):
+        pipeline.CondorDAGJob.add_opt(self, opt, str(value))
+    add_opt.__doc__ = pipeline.CondorDAGJob.add_opt.__doc__
+
+    def set_command(self, command):
+        self._command = command
+
+    def get_command(self):
+        return self._command
+
+    def write_sub_file(self):
+        pipeline.CondorDAGJob.write_sub_file(self)
+        if self.get_command():
+            with open(self.get_sub_file(), 'r') as f:
+                sub = f.read()
+            sub = sub.replace('arguments = "', 'arguments = " %s'
+                              % self.get_command())
+            with open(self.get_sub_file(), 'w') as f:
+                f.write(sub)
