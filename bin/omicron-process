@@ -66,6 +66,11 @@ outg.add_argument('-g', '--file-tag', default='',
                   help='additional file tag to be appended to final '
                        'file descriptions')
 
+procg = parser.add_argument_group('Processing options')
+procg.add_argument('--max-chunks-per-job', type=int, default=4,
+                   help='maximum number of chunks to process in a single '
+                        'condor job, default: %(default)s')
+
 condorg = parser.add_argument_group('Condor options')
 condorg.add_argument('--no-submit', action='store_true', default=False,
                      help='do not submit the DAG to condor, '
@@ -354,6 +359,7 @@ accounting = {'accounting_group': args.condor_accounting_group,
 ojob = condor.OmicronProcessJob(args.universe, args.executable, subdir=condir,
                                 logdir=logdir, **accounting)
 ojob.add_condor_cmd('+OmicronProcess', '"%s"' % group)
+nperjob = args.max_chunks_per_job
 
 # create post-processing job
 ppjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
@@ -368,17 +374,33 @@ for s, e in segs:
     filesegments = segments.omicron_output_segments(
         s, e, chunkdur, segdur, overlap)
 
+    # separate long segments into shorter chunks
+    j = k = 0
+    nodesegs = []
+    while k < len(filesegments):
+        k = j + nperjob
+        if k + nperjob > len(filesegments):
+            k = len(filesegments)
+        nodesegs.append(filesegments[j:k])
+        j += nperjob
+
     # build node for each parameter file
     for i, (pf, chanlist) in enumerate(jobfiles):
-        # process
-        if not args.skip_omicron:
-            node = pipeline.CondorDAGNode(ojob)
-            node.set_category('omicron')
-            node.set_retry(str(args.condor_retry))
-            node.add_var_arg(str(s))
-            node.add_var_arg(str(e))
-            node.add_var_arg(os.path.abspath(pf))
-            dag.add_node(node)
+
+        nodes = []
+        for subseg in nodesegs:
+            s2 = subseg[0][0] - padding
+            e2 = subseg[-1][1] + padding
+            # process
+            if not args.skip_omicron:
+                node = pipeline.CondorDAGNode(ojob)
+                node.set_category('omicron')
+                node.set_retry(str(args.condor_retry))
+                node.add_var_arg(str(s2))
+                node.add_var_arg(str(e2))
+                node.add_var_arg(os.path.abspath(pf))
+                dag.add_node(node)
+                nodes.append(node)
 
         # post-process
         if not args.skip_postprocessing:
@@ -433,7 +455,8 @@ for s, e in segs:
             ppnode.add_var_arg(script)
             ppnode.set_category('postprocessing')
             if not args.skip_omicron:
-                ppnode.add_parent(node)
+                for node in nodes:
+                    ppnode.add_parent(node)
             dag.add_node(ppnode)
             tempfiles.append(script)
 
