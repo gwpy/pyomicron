@@ -404,7 +404,7 @@ for s, e in segs:
                     else:
                         root = os.path.join(
                             chandir, '%s%s_OMICRON-%d-%d.root'
-                                     % (cname, filetag, span[0][0], abs(span)))
+                                     % (cname, filetag, s, e - s))
                         print('%s %s %s --remove-input --strict'
                               % (rootmerge, roots, root), file=f)
                     # add ligolw_add
@@ -416,7 +416,7 @@ for s, e in segs:
                     else:
                         xml = os.path.join(
                             chandir, '%s%s_OMICRON-%d-%d.xml'
-                                     % (cname, filetag, span[0][0], abs(span)))
+                                     % (cname, filetag, s, e - s))
                         print('%s %s --output %s --remove-input'
                               % (ligolw_add, xmls, xml), file=f)
                     # add gzip
