@@ -37,9 +37,11 @@ except KeyError:
         IFO = 'V1'
     else:
         IFO = None
-ifo = os.getenv('ifo', IFO.lower())
+    ifo = os.getenv('ifo')
+else:
+    ifo = os.getenv('ifo', IFO.lower())
 SITE = os.getenv('SITE')
-site = os.getenv('site', SITE.lower())
+site = os.getenv('site', SITE and SITE.lower() or None)
 
 # omicron directories
 HOME = os.path.expanduser('~')
