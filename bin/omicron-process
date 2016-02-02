@@ -365,12 +365,8 @@ gzip = utils.which('gzip')
 
 for s, e in segs:
     # work out job segments
-    filesegments = segments.SegmentList()
-    t = s + padding
-    while t < e - padding:
-        e_ = min(t + chunkdur-overlap, e - padding)
-        filesegments.append(segments.Segment(t, e_))
-        t = e_
+    filesegments = segments.omicron_output_segments(
+        s, e, chunkdur, segdur, overlap)
 
     # build node for each parameter file
     for i, (pf, chanlist) in enumerate(jobfiles):

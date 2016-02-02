@@ -95,3 +95,52 @@ def segmentlist_from_tree(tree, coalesce=False):
         segs.append(Segment(tree.start, tree.end))
     return segs
 
+
+@integer_segments
+def omicron_output_segments(start, end, chunk, segment, overlap):
+    """Work out the segments written to disk by an Omicron instance
+
+    The Omicron process writes multiple files per process depending on
+    the chunk duration, segment duration, and overlap, this method works out
+    the segments that will be represented by those files.
+
+    Parameters
+    ----------
+    start : `int`
+        the start GPS time of the Omicron job
+    end : `int`
+        the end GPS time of the Omicron job
+    chunk : `int`
+        the CHUNKDURATION parameter for this configuration
+    segment : `int`
+        the SEGMENTDURATION parameter for this configuration
+    overlap : `int`
+        the OVERLAPDURATION parameter for this configuration
+
+    Returns
+    -------
+    filesegs : `~glue.segments.segmentlist`
+        a `~glue.segments.segmentlist`, one `~glue.segments.segment` for each
+        file that _should_ be written by Omicron
+    """
+    padding = overlap / 2.
+    out = SegmentList()
+    fstart = start + padding
+    fend = end - padding
+    fdur = chunk - overlap
+    fseg = segment - overlap
+    t = fstart
+    while t < fend:
+        e = min(t + fdur, fend)
+        seg = Segment(t, e)
+        # if shorter than a chunk, but longer than a segment, omicron will
+        # write files of length 'segment' until exhausted
+        if fseg < abs(seg) < fdur:
+            while t < e:
+                seg = Segment(t, min(t + fseg, fend))
+                out.append(seg)
+                t += fseg
+        else:
+            out.append(seg)
+        t = e
+    return out
