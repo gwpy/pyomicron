@@ -89,7 +89,8 @@ pipeg = parser.add_argument_group('Pipeline options')
 pipeg.add_argument('--skip-omicron', action='store_true', default=False,
                    help='skip running omicron, default: %(default)s')
 pipeg.add_argument('--skip-root-merge', action='store_true', default=False,
-                   help='skip running omicron-root-merge, default: %(default)s')
+                   help='skip running omicron-root-merge, '
+                        'default: %(default)s')
 pipeg.add_argument('--skip-ligolw_add', action='store_true', default=False,
                    help='skip running ligolw_add, default: %(default)s')
 pipeg.add_argument('--skip-gzip', action='store_true', default=False,
@@ -219,7 +220,7 @@ elif any(map(os.path.isfile, glob(
 # validate span is long enough
 if dataduration < chunkdur:
     logger.info("Segment is too short (%d < %d), please try again later"
-             % (duration, chunkdur - padding * 2))
+                % (duration, chunkdur - padding * 2))
     sys.exit(0)
 
 # find run segments
@@ -286,7 +287,7 @@ if len(segs) == 0 and online and alldata:
     segments.write_segments(cachesegs, segfile)
     logger.info("Segments written to\n%s" % segfile)
     sys.exit(0)
-# otherwise not all data are available, so 
+# otherwise not all data are available, so
 elif len(segs) == 0 and online:
     logger.info("No segments found, please try again later")
     sys.exit(0)
@@ -417,13 +418,13 @@ for s, e in segs:
 
                     # add archive
                     if args.archive:
-                         x = CacheEntry.from_T050017(xml)
-                         target = os.path.join(const.OMICRON_ARCHIVE,
-                                               x.observatory,
-                                               x.description,
-                                               str(int(x.segment[0]))[:5])
-                         print('mkdir -p %s' % target, file=f)
-                         print('mv %s %s %s\n' % (xml, root, target), file=f)
+                        x = CacheEntry.from_T050017(xml)
+                        target = os.path.join(const.OMICRON_ARCHIVE,
+                                              x.observatory,
+                                              x.description,
+                                              str(int(x.segment[0]))[:5])
+                        print('mkdir -p %s' % target, file=f)
+                        print('mv %s %s %s\n' % (xml, root, target), file=f)
             ppnode = pipeline.CondorDAGNode(ppjob)
             ppnode.add_var_arg(script)
             ppnode.set_category('postprocessing')
@@ -450,7 +451,7 @@ if args.no_submit:
 logger.info("--- Submitting DAG to condor -------")
 
 for i in range(args.submit_rescue_dag + 1):
-    dagid = condor.submit_dag(dagfile, force=i==0)
+    dagid = condor.submit_dag(dagfile, force=i == 0)
     logger.info("Condor ID = %d" % dagid)
     logger.debug("Sleep for 15 seconds while DAGMan starts up")
     sleep(15)
