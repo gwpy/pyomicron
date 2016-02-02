@@ -64,6 +64,8 @@ setup(name=DISTNAME,
       scripts=scripts,
       requires=[
           'glue',
+          'htcondor',
+          'lal',
       ],
       install_requires=[
       ],
