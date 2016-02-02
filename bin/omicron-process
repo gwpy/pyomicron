@@ -62,6 +62,9 @@ outg.add_argument('-o', '--output-dir',
 outg.add_argument('-a', '--archive', action='store_true', default=False,
                   help='archive created files under %s, default: %%(default)s'
                        % const.OMICRON_ARCHIVE)
+outg.add_argument('-g', '--file-tag', default='',
+                  help='additional file tag to be appended to final '
+                       'file descriptions')
 
 condorg = parser.add_argument_group('Condor options')
 condorg.add_argument('--no-submit', action='store_true', default=False,
@@ -113,6 +116,10 @@ ifo = args.ifo
 llhoft = data.ligo_low_latency_hoft_type(ifo)
 group = args.group
 online = args.gps is None
+filetag = args.file_tag
+if filetag and not filetag.startswith('_'):
+    filetag = '_%s' % filetag
+filetag = re.sub('[:_\s-]', '_', filetag.upper())
 
 logger.info("--- Welcome to the Omicron processor ---")
 
@@ -396,8 +403,8 @@ for s, e in segs:
                         root = roots
                     else:
                         root = os.path.join(
-                            chandir, '%s_OMICRON-%d-%d.root'
-                                     % (cname, span[0][0], abs(span)))
+                            chandir, '%s%s_OMICRON-%d-%d.root'
+                                     % (cname, filetag, span[0][0], abs(span)))
                         print('%s %s %s --remove-input --strict'
                               % (rootmerge, roots, root), file=f)
                     # add ligolw_add
@@ -408,8 +415,8 @@ for s, e in segs:
                         xml = xmls
                     else:
                         xml = os.path.join(
-                            chandir, '%s_OMICRON-%d-%d.xml'
-                                     % (cname, span[0][0], abs(span)))
+                            chandir, '%s%s_OMICRON-%d-%d.xml'
+                                     % (cname, filetag, span[0][0], abs(span)))
                         print('%s %s --output %s --remove-input'
                               % (ligolw_add, xmls, xml), file=f)
                     # add gzip
