@@ -346,11 +346,12 @@ accounting = {'accounting_group': args.condor_accounting_group,
 # create omicron job
 ojob = condor.OmicronProcessJob(args.universe, args.executable, subdir=condir,
                                 logdir=logdir, **accounting)
-ojob.add_condor_cmd('+OmicronGroup', '"%s"' % group)
+ojob.add_condor_cmd('+OmicronProcess', '"%s"' % group)
 
 # create post-processing job
 ppjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
                                  subdir=condir, logdir=logdir, **accounting)
+ppjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 rootmerge = utils.which('omicron-root-merge')
 ligolw_add = utils.which('ligolw_add')
 gzip = utils.which('gzip')
