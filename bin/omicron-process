@@ -85,11 +85,29 @@ condorg.add_argument('--submit-rescue-dag', type=int, default=0,
                      help='number of times to automatically submit the '
                           'rescue DAG, default: %(default)s')
 
+pipeg = parser.add_argument_group('Pipeline options')
+pipeg.add_argument('--skip-omicron', action='store_true', default=False,
+                   help='skip running omicron, default: %(default)s')
+pipeg.add_argument('--skip-root-merge', action='store_true', default=False,
+                   help='skip running omicron-root-merge, default: %(default)s')
+pipeg.add_argument('--skip-ligolw_add', action='store_true', default=False,
+                   help='skip running ligolw_add, default: %(default)s')
+pipeg.add_argument('--skip-gzip', action='store_true', default=False,
+                   help='skip running gzip, default: %(default)s')
+pipeg.add_argument('--skip-postprocessing', action='store_true', default=False,
+                   help='skip all post-processing, equivalent to '
+                        '--skip-root-merge --skip-lioglw_add --skip-gzip, '
+                        'default: %(default)s')
+
 args = parser.parse_args()
 
 if args.ifo is None:
     raise parser.error("Cannot determine IFO prefix from sytem"
                        ", please pass --ifo on the command line")
+if all((args.skip_root_merge, args.skip_ligolw_add, args.skip_gzip,
+        not args.archive)):
+    args.skip_postprocessing = True
+
 ifo = args.ifo
 llhoft = data.ligo_low_latency_hoft_type(ifo)
 group = args.group
@@ -324,31 +342,17 @@ dag.set_dag_file(os.path.join(condir, 'omicron'))
 accounting = {'accounting_group': args.condor_accounting_group,
               'accounting_group_user': args.condor_accounting_group_user}
 
-# get omicron job
+# create omicron job
 ojob = condor.OmicronProcessJob(args.universe, args.executable, subdir=condir,
                                 logdir=logdir, **accounting)
 ojob.add_condor_cmd('+OmicronGroup', '"%s"' % group)
 
-# get merge job
-mjob = condor.OmicronProcessJob(args.universe,
-                                utils.which('omicron-root-merge'),
-                                subdir=condir, logdir=logdir, **accounting)
-mjob.add_opt('strict', '')
-mjob.add_opt('remove-input', '')
-
-# get ligolw_add job
-xjob = condor.OmicronProcessJob(args.universe, utils.which('ligolw_add'),
-                                subdir=condir, logdir=logdir, **accounting)
-xjob.add_opt('remove-input', '')
-
-# get gzip job
-zjob = condor.OmicronProcessJob(args.universe, utils.which('gzip'),
-                                subdir=condir, logdir=logdir, **accounting)
-
-# get archive job
-mv = utils.which('mv')
-vjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
-                                subdir=condir, logdir=logdir, **accounting)
+# create post-processing job
+ppjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
+                                 subdir=condir, logdir=logdir, **accounting)
+rootmerge = utils.which('omicron-root-merge')
+ligolw_add = utils.which('ligolw_add')
+gzip = utils.which('gzip')
 
 for s, e in segs:
     # work out job segments
@@ -359,76 +363,74 @@ for s, e in segs:
         filesegments.append(segments.Segment(t, e_))
         t = e_
 
-    gzipnodes = []
-    xmlfiles = []
-    rootfiles = {}
-
     # build node for each parameter file
-    for pf, chanlist in jobfiles:
-        node = pipeline.CondorDAGNode(ojob)
-        node.set_category('omicron')
-        node.set_retry(str(args.condor_retry))
-        node.add_var_arg(str(s))
-        node.add_var_arg(str(e))
-        node.add_var_arg(os.path.abspath(pf))
-        dag.add_node(node)
-        # build post-processing nodes for each channel
-        for c in chanlist:
-            chandir = os.path.join(rundir, 'triggers', c)
-            cname = re.sub('[:_-]', '_', c).replace('_', '-', 1)
-            # add omicron-root-merge node
-            out = os.path.join(chandir, '%s_OMICRON-%d-%d.root'
-                                        % (cname, span[0][0], abs(span)))
-            mnode = pipeline.CondorDAGNode(mjob)
-            mnode.set_category('omicron-root-merge')
-            mnode.add_parent(node)
-            mnode.add_var_arg(' '.join(
-                os.path.join(chandir, '%s_%d_%d.root' % (c, fs, fe-fs)) for
-                (fs, fe) in filesegments))
-            mnode.add_var_arg(out)
-            rootfiles[out] = mnode
-            dag.add_node(mnode)
-            # add ligolw_add node
-            out = os.path.join(chandir, '%s_OMICRON-%d-%d.xml'
-                                        % (cname, span[0][0], abs(span)))
-            xnode = pipeline.CondorDAGNode(xjob)
-            xnode.set_category('ligolw_add')
-            xnode.add_parent(node)
-            xnode.add_var_arg(' '.join(
-                os.path.join(chandir,
-                             '%s_Omicron-%d-%d.xml' % (cname, fs, fe-fs)) for
-                (fs, fe) in filesegments))
-            xnode.add_var_opt('output', out)
-            dag.add_node(xnode)
-            xmlfiles.append(out)
-            gzipnodes.append(xnode)
+    for i, (pf, chanlist) in enumerate(jobfiles):
+        # process
+        if not args.skip_omicron:
+            node = pipeline.CondorDAGNode(ojob)
+            node.set_category('omicron')
+            node.set_retry(str(args.condor_retry))
+            node.add_var_arg(str(s))
+            node.add_var_arg(str(e))
+            node.add_var_arg(os.path.abspath(pf))
+            dag.add_node(node)
 
-    # gzip node
-    znode = pipeline.CondorDAGNode(zjob)
-    znode.set_category('gzip')
-    for node in gzipnodes:
-        znode.add_parent(node)
-    znode.add_var_arg(' '.join(xmlfiles))
-    dag.add_node(znode)
+        # post-process
+        if not args.skip_postprocessing:
+            script = os.path.join(
+                condir, 'post-process-%d-%d-%d.sh' % (s, e, i))
+            with open(script, 'w') as f:
+                print('#!/bin/bash -e\n', file=f)
+                # build post-processing nodes for each channel
+                for c in chanlist:
+                    print("# %s" % c, file=f)
+                    chandir = os.path.join(rundir, 'triggers', c)
+                    cname = re.sub('[:_-]', '_', c).replace('_', '-', 1)
+                    roots = ' '.join(
+                        os.path.join(chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
+                        for (fs, fe) in filesegments)
+                    # add omicron-root-merge
+                    if args.skip_root_merge:
+                        root = roots
+                    else:
+                        root = os.path.join(
+                            chandir, '%s_OMICRON-%d-%d.root'
+                                     % (cname, span[0][0], abs(span)))
+                        print('%s %s %s --remove-input --strict'
+                              % (rootmerge, roots, root), file=f)
+                    # add ligolw_add
+                    xmls = ' '.join(os.path.join(
+                        chandir, '%s_Omicron-%d-%d.xml' % (cname, fs, fe-fs))
+                        for (fs, fe) in filesegments)
+                    if args.skip_ligolw_add:
+                        xml = xmls
+                    else:
+                        xml = os.path.join(
+                            chandir, '%s_OMICRON-%d-%d.xml'
+                                     % (cname, span[0][0], abs(span)))
+                        print('%s %s --output %s --remove-input'
+                              % (ligolw_add, xmls, xml), file=f)
+                    # add gzip
+                    if not args.skip_gzip:
+                        print('%s %s' % (gzip, xml), file=f)
+                        xml = '%s.gz' % xml
 
-    # build archive nodes
-    mvscript = os.path.join(condir, 'mv-%d-%d.sh' % (s, e-s))
-    vnode = pipeline.CondorDAGNode(vjob)
-    vnode.add_var_arg(mvscript)
-    with open(mvscript, 'w') as f:
-        print('#!/bin/bash -e', file=f)
-        gzipfiles = ['%s.gz' % xml for xml in xmlfiles]
-        for xml, root in zip(gzipfiles, rootfiles):
-            e = CacheEntry.from_T050017(xml)
-            target = os.path.join(const.OMICRON_ARCHIVE, e.observatory,
-                                  e.description, str(int(e.segment[0]))[:5])
-            print('mkdir -p %s' % target, file=f)
-            print('%s %s %s %s\n' % (mv, xml, root, target), file=f)
-            vnode.add_parent(rootfiles[root])
-    vnode.add_parent(znode)
-    vnode.set_category('archive')
-    dag.add_node(vnode)
-    tempfiles.append(mvscript)
+                    # add archive
+                    if args.archive:
+                         x = CacheEntry.from_T050017(xml)
+                         target = os.path.join(const.OMICRON_ARCHIVE,
+                                               x.observatory,
+                                               x.description,
+                                               str(int(x.segment[0]))[:5])
+                         print('mkdir -p %s' % target, file=f)
+                         print('mv %s %s %s\n' % (xml, root, target), file=f)
+            ppnode = pipeline.CondorDAGNode(ppjob)
+            ppnode.add_var_arg(script)
+            ppnode.set_category('postprocessing')
+            if not args.skip_omicron:
+                ppnode.add_parent(node)
+            dag.add_node(ppnode)
+            tempfiles.append(script)
 
 dag.write_sub_files()
 dag.write_dag()
