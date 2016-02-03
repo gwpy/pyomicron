@@ -388,6 +388,7 @@ ppjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
                                  subdir=condir, logdir=logdir,
                                  tag='post-processing', **condorcmds)
 ppjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
+ppjob.add_short_opt('e', '')
 rootmerge = utils.which('omicron-root-merge')
 ligolw_add = utils.which('ligolw_add')
 gzip = utils.which('gzip')
@@ -437,7 +438,7 @@ for s, e in segs:
                         root = os.path.join(
                             chandir, '%s%s_OMICRON-%d-%d.root'
                                      % (cname, filetag, s, e - s))
-                        print('%s %s %s --remove-input --strict'
+                        print('%s %s %s --strict'
                               % (rootmerge, roots, root), file=f)
                     # add ligolw_add
                     xmls = ' '.join(os.path.join(
@@ -449,7 +450,7 @@ for s, e in segs:
                         xml = os.path.join(
                             chandir, '%s%s_OMICRON-%d-%d.xml'
                                      % (cname, filetag, s, e - s))
-                        print('%s %s --output %s --remove-input'
+                        print('%s %s --output %s'
                               % (ligolw_add, xmls, xml), file=f)
                     # add gzip
                     if not args.skip_gzip:
@@ -465,6 +466,9 @@ for s, e in segs:
                                               str(int(x.segment[0]))[:5])
                         print('mkdir -p %s' % target, file=f)
                         print('mv %s %s %s\n' % (xml, root, target), file=f)
+
+                    # add rm jobs
+                    print('rm -f %s %s' % (roots, xmls), file=f)
             ppnode = pipeline.CondorDAGNode(ppjob)
             ppnode.add_var_arg(script)
             ppnode.set_category('postprocessing')
