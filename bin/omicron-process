@@ -67,7 +67,7 @@ outg.add_argument('-g', '--file-tag', default='',
                        'file descriptions')
 
 procg = parser.add_argument_group('Processing options')
-procg.add_argument('--max-chunks-per-job', type=int, default=4,
+procg.add_argument('-C', '--max-chunks-per-job', type=int, default=4,
                    help='maximum number of chunks to process in a single '
                         'condor job, default: %(default)s')
 
