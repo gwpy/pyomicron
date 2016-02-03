@@ -156,10 +156,13 @@ segdur = cp.getint(group, 'segment-duration')
 logger.debug("segdur = %s" % segdur)
 overlap = cp.getint(group, 'overlap-duration')
 logger.debug("overlap = %s" % overlap)
-if overlap % 2:
-    raise ValueError("Cannot proceed with odd overlap (%d seconds)" % overlap)
 padding = int(overlap / 2)
 logger.debug("padding = %s" % padding)
+frange = map(float, cp.get(group, 'frequency-range').split())
+logger.debug('frequencyrange = [%s, %s)' % tuple(frange))
+sampling = cp.getfloat(group, 'sample-frequency')
+logger.debug('samplingfrequency = %s' % sampling)
+parameters.validate_parameters(chunkdur, segdur, overlap, frange, sampling)
 try:
     stateflag = cp.get(group, 'state-flag')
 except configparser.NoOptionError:

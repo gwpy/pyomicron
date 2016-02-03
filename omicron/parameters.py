@@ -19,8 +19,9 @@
 """Read/write/modify Omicron-format parameters files
 """
 
-from __future__ import print_function
+from __future__ import (division, print_function)
 
+from math import (ceil, exp, floor, log)
 import os.path
 
 DEFAULTS = {
@@ -91,3 +92,45 @@ def generate_parameters_files(config, section, cachefile, rundir,
         parfiles.append((pfile, channels))
         i += 1
     return parfiles
+
+
+def validate_parameters(chunk, segment, overlap, frange, sampling):
+    """Validate that Omicron will accept the segment parameters
+
+    Parameters
+    ----------
+    chunk : `int`
+        omicron CHUNKDURATION parameter
+    segment : `int`
+        omicron SEGMENTDURATION parameter
+    overlap : `int`
+        omicron OVERLAPDURATION parameter
+    frange : `tuple` of `float`
+        omicron FREQUENCYRANGE parameter
+
+    Raises
+    ------
+    AssertionError
+        if any of the parameters isn't acceptable for Omicron to process
+    """
+    assert segment <= chunk, "Segment length is greater than chunk length"
+    assert overlap <= segment, "Overlap length is greater than segment length"
+    assert overlap % 2 == 0, "Padding (overlap/2) is non-integer"
+    dchunk = chunk - overlap
+    dseg = segment - overlap
+    assert dchunk % dseg == 0, (
+        "Chunk duration doesn't allow an integer number of segments, "
+        "%ds too large" % (dchunk % dseg))
+    if frange[0] < 1:
+        x = 10 * floor(sampling / frange[0])
+        psdsize = 2 * int(2 ** ceil(log(x) / log(2.)))
+    else:
+        psdsize = 2 * sampling
+    psdlen = psdsize / sampling
+    chunkp = chunk * sampling
+    overlapp = overlap * sampling
+    flow = 5 * sampling / exp(log((chunk - overlap)/4., 2))
+    assert (chunkp - overlapp) >= 2 * psdsize, (
+        "Chunk duration not large enough to resolve lower-frequency bound, "
+        "Omicron needs at least %ds. Minimum lower-frequency bound for "
+        "this chunk duration is %.2gHz" % (2 * psdlen, flow))
