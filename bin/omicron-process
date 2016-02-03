@@ -348,16 +348,18 @@ if not os.path.isdir(condir):
 tmpparfile = parameters.generate_parameters_files(
     cp, group, cachefile, rundir, channellimit=int(1e8))[0][0]
 parfile = os.path.join(rundir, 'parameters.txt')
-logger.debug("Create master parameters file\n%s" % parfile)
+logger.debug("Created master parameters file\n%s" % parfile)
 shutil.move(tmpparfile, parfile)
 
 # then generate actual parameters files for submission (channel groups)
 jobfiles = parameters.generate_parameters_files(cp, group, cachefile, rundir)
 
+# create log directory
 logdir = os.path.join(rundir, 'logs')
 if not os.path.isdir(logdir):
     os.mkdir(logdir)
 
+# create dag
 dag = pipeline.CondorDAG(os.path.join(logdir, 'omicron.log'))
 dag.set_dag_file(os.path.join(condir, 'omicron'))
 
@@ -521,7 +523,7 @@ for i in range(args.submit_rescue_dag + 1):
         break
     elif i == args.submit_rescue_dag:
         raise RuntimeError("DAG has failed to complete %d times"
-                           % args.submit_rescue_dag + 1)
+                           % (args.submit_rescue_dag + 1))
     else:
         sleep(2)
         rescue = condor.find_rescue_dag(dagfile)
