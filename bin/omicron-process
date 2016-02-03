@@ -92,6 +92,11 @@ condorg.add_argument('--condor-accounting-group-user', default=getuser(),
 condorg.add_argument('--submit-rescue-dag', type=int, default=0,
                      help='number of times to automatically submit the '
                           'rescue DAG, default: %(default)s')
+condorg.add_argument('-c', '--condor-command', action='append', type=str,
+                     default=[],
+                     help="Extra condor submit commands to add to "
+                          "gw_summary submit file. Can be given "
+                          "multiple times in the form \"key=value\"")
 
 pipeg = parser.add_argument_group('Pipeline options')
 pipeg.add_argument('--skip-omicron', action='store_true', default=False,
@@ -352,18 +357,23 @@ if not os.path.isdir(logdir):
 dag = pipeline.CondorDAG(os.path.join(logdir, 'omicron.log'))
 dag.set_dag_file(os.path.join(condir, 'omicron'))
 
-accounting = {'accounting_group': args.condor_accounting_group,
+# set up condor commands for all jobs
+condorcmds = {'accounting_group': args.condor_accounting_group,
               'accounting_group_user': args.condor_accounting_group_user}
+for cmd_ in args.condor_command:
+    key, value = cmd_.split('=', 1)
+    condorcmds[key.rstrip().lower()] = value.strip()
 
 # create omicron job
 ojob = condor.OmicronProcessJob(args.universe, args.executable, subdir=condir,
-                                logdir=logdir, **accounting)
+                                logdir=logdir, **condorcmds)
 ojob.add_condor_cmd('+OmicronProcess', '"%s"' % group)
 nperjob = args.max_chunks_per_job
 
 # create post-processing job
 ppjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
-                                 subdir=condir, logdir=logdir, **accounting)
+                                 subdir=condir, logdir=logdir,
+                                 tag='post-processing', **condorcmds)
 ppjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 rootmerge = utils.which('omicron-root-merge')
 ligolw_add = utils.which('ligolw_add')
