@@ -398,29 +398,20 @@ for s, e in segs:
         s, e, chunkdur, segdur, overlap)
 
     # separate long segments into shorter chunks
-    j = k = 0
-    nodesegs = []
-    while k < len(filesegments):
-        k = j + nperjob
-        if k + nperjob > len(filesegments):
-            k = len(filesegments)
-        nodesegs.append(filesegments[j:k])
-        j += nperjob
+    nodesegs = segments.parallel_omicron_segments(
+        s, e, chunkdur, overlap, nperjob)
 
     # build node for each parameter file
     for i, (pf, chanlist) in enumerate(jobfiles):
-
         nodes = []
         for subseg in nodesegs:
-            s2 = subseg[0][0] - padding
-            e2 = subseg[-1][1] + padding
             # process
             if not args.skip_omicron:
                 node = pipeline.CondorDAGNode(ojob)
                 node.set_category('omicron')
                 node.set_retry(str(args.condor_retry))
-                node.add_var_arg(str(s2))
-                node.add_var_arg(str(e2))
+                node.add_var_arg(str(subseg[0]))
+                node.add_var_arg(str(subseg[1]))
                 node.add_var_arg(os.path.abspath(pf))
                 dag.add_node(node)
                 nodes.append(node)

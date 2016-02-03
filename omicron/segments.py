@@ -144,3 +144,45 @@ def omicron_output_segments(start, end, chunk, segment, overlap):
             out.append(seg)
         t = e
     return out
+
+
+@integer_segments
+def parallel_omicron_segments(start, end, chunk, overlap, nperjob=1):
+    """Determine processing segments to separate an Omicron job into chunks
+
+    This function is meant to return a `segmentlist` of job [start, stop)
+    times to pass to condor. Each segment will have duration `chunk * nperjob`
+    *OR* `chunk * nperjob + remainder` if the remainder until the `end` is
+    less than 1 chunk.
+
+    Parameters
+    ----------
+    start : `int`
+        the start GPS time of the Omicron job
+    end : `int`
+        the end GPS time of the Omicron job
+    chunk : `int`
+        the CHUNKDURATION parameter for this configuration
+    overlap : `int`
+        the OVERLAPDURATION parameter for this configuration
+    nperjob : `int`
+        the number of chunks to put into each job
+
+    Returns
+    -------
+    jobsegs : `~glue.segments.segmentlist`
+        a `segmentlist` of [start, stop) times over which to distribute
+        a single segment under condor
+    """
+    out = SegmentList()
+    t = start
+    while t < end - overlap:
+        seg = Segment(t, t)
+        while abs(seg) < chunk * nperjob and seg[1] < end:
+            seg = Segment(seg[0], min(seg[1] + chunk, end))
+        if abs(seg) < chunk:
+            out[-1] += seg
+        else:
+            out.append(seg)
+        t = seg[1] - overlap
+    return out
