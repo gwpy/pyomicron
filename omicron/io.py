@@ -20,6 +20,7 @@
 """
 
 import warnings
+import os.path
 
 from glue.lal import Cache
 
@@ -28,7 +29,7 @@ from .segments import segmentlist_from_tree
 
 def merge_root_files(inputfiles, outputfile,
                      trees=['segments', 'triggers', 'metadata'],
-                     all_metadata=False, strict=True):
+                     all_metadata=False, strict=True, on_missing='raise'):
     """Merge several ROOT files into a single file
 
     Parameters
@@ -47,6 +48,17 @@ def merge_root_files(inputfiles, outputfile,
     """
     import ROOT
     chains = {}
+
+    # validate input files
+    for f in inputfiles:
+        missing = not os.path.isfile(f)
+        msg = "No such file or directory: %r" % f
+        if on_missing == 'ignore':
+            pass
+        elif missing and on_missing == 'warn':
+            warnings.warn(msg)
+        elif missing:
+            raise IOError(msg)
 
     for tree in trees:
         chains[tree] = ROOT.TChain(tree)
