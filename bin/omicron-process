@@ -163,9 +163,14 @@ pipeg.add_argument('--skip-postprocessing', action='store_true', default=False,
 
 args = parser.parse_args()
 
+# validate command line arguments
 if args.ifo is None:
-    raise parser.error("Cannot determine IFO prefix from sytem"
-                       ", please pass --ifo on the command line")
+    parser.error("Cannot determine IFO prefix from sytem, "
+                 "please pass --ifo on the command line")
+if args.executable is None:
+    parser.error("Cannot find omicron.exe on path, please pass "
+                 "--executable on the command line")
+
 if all((args.skip_root_merge, args.skip_ligolw_add, args.skip_gzip,
         not args.archive)):
     args.skip_postprocessing = True
