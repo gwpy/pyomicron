@@ -16,7 +16,40 @@
 # You should have received a copy of the GNU General Public License
 # along with LIGO-Omicron.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Process Omicron triggers online for LIGO
+"""Process LIGO data using the Omicron event trigger generator (ETG)
+
+This utility can be used to process one or more channels or LIGO data using
+Omicron with minimal manual labour in determining segments, finding data,
+and configuring HTCondor.
+
+The input to this should be an INI-format configuration file that lists the
+processing parameters and channels that pass to Omicron, something like:
+
+```ini
+[GW]
+q-range = 3.3166 150
+frequency-range = 4.0 8192.0
+frametype = H1_HOFT_C00
+state-flag = H1:DMT-CALIBRATED:1
+sample-frequency = 16384
+chunk-duration = 124
+segment-duration = 64
+overlap-duration = 4
+mismatch-max = 0.2
+snr-threshold = 5
+channels = H1:GDS-CALIB_STRAIN
+```
+
+The above 'GW' group name should then be passed to `omicron-process` along
+with any customisations available from the command line, e.g.
+
+```
+omicron-process GW --config-file ./config.ini
+```
+
+The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
+*automatically* submitted to condor for processing.
+
 """
 
 from __future__ import print_function
@@ -45,7 +78,19 @@ from omicron import (const, segments, log, data, parameters, utils, condor)
 logger = log.Logger('omicron-process')
 
 # -- parse command line
-parser = argparse.ArgumentParser(description=__doc__)
+epilog = """This source code for this project is available here:
+
+https://git.ligo.org/detchar/ligo-omicron/
+
+All issues regarding this software should be raised using GitLab, bug reports and feature requests are encouraged.
+"""
+
+parser = argparse.ArgumentParser(
+    description=__doc__,
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog=epilog)
+parser._positionals.title = 'Positional arguments'
+parser._optionals.title = 'Optional arguments'
 
 parser.add_argument('group', help='name of configuration group to process')
 parser.add_argument('-f', '--config-file', default=const.OMICRON_CHANNELS_FILE,
