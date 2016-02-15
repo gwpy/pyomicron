@@ -571,7 +571,7 @@ for i in range(args.submit_rescue_dag + 1):
     # find lock file and monitor
     logger.info("Monitoring DAG via ID...")
     states = ['unready', 'ready', 'idle', 'running', 'held', 'failed', 'done']
-    colors = ['white', 'magenta', 'white', 'blue', 'red', 'red', 'green']
+    colors = ['white', 'magenta', 'white', 'blue', 'yellow', 'red', 'green']
     old = dict((k, -1) for k in states)
     logger.debug("Dag Status (%d nodes total):" % (len(dag.get_nodes())))
     logger.debug('-' * 68)
