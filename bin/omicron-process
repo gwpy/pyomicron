@@ -124,6 +124,7 @@ condorg.add_argument('--no-submit', action='store_true', default=False,
                      help='do not submit the DAG to condor, '
                           'default: %(default)s')
 condorg.add_argument('--universe', default='vanilla',
+                     choices=['vanilla', 'local'],
                      help='condor universe, default: %(default)s')
 condorg.add_argument('--executable', default=utils.which('omicron.exe'),
                      help='omicron executable, default: %(default)s')
