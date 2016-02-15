@@ -33,6 +33,35 @@ from .utils import (shell, which)
 
 re_dagman_cluster = re.compile('(?<=submitted\sto\scluster )[0-9]+')
 
+JOB_STATUS = [
+    'Unexpanded',
+    'Idle',
+    'Running',
+    'Removed',
+    'Completed',
+    'Held',
+    'Submission error',
+]
+JOB_STATUS_MAP = dict((v.lower(), k) for k, v in enumerate(JOB_STATUS))
+
+
+JOB_UNIVERSE = [
+    'Min',
+    'Standard',
+    'Pipe',
+    'Linda',
+    'PVM',
+    'Vanilla',
+    'PVMD',
+    'Scheduler',
+    'MPI',
+    'Grid',
+    'Java',
+    'Parallel',
+    'Local',
+    'Max',
+]
+
 
 def submit_dag(dagfile, force=False):
     """Submit a DAG to condor and return the cluster ID
@@ -109,21 +138,75 @@ def iterate_dag_status(clusterid, interval=2):
     """Monitor a DAG by querying condor for status information periodically
     """
     schedd = htcondor.Schedd()
+    while True:
+        status = get_dag_status(clusterid, schedd=schedd, detailed=True)
+        yield status
+        if 'exitcode' in status:
+            break
+        sleep(interval)
+
+
+def get_dag_status(dagmanid, schedd=None, detailed=True):
+    """Return the status of a given DAG
+
+    Parameters
+    ----------
+    dagmanid : `int`
+        the ClusterId of the DAG
+    schedd : `htcondor.Schedd`, optional
+        the open connection to the scheduler
+    held : `bool`, optional
+        check jobs as held
+
+    Returns
+    -------
+    status : `dict`
+        a `dict` summarising the DAG status with the following keys
+
+        - 'total': the total number of jobs
+        - 'done': the number of completed jobs
+        - 'queued': the number of queued jobs (excluding held if `held=True`)
+        - 'ready': the number of jobs ready to be submitted
+        - 'unready': the number of jobs not ready to be submitted
+        - 'failed': the number of failed jobs
+        - 'held': the number of failed jobs (only non-zero if `held=True`)
+
+        Iff the DAG is completed, the 'exitcode' of the DAG will be included
+        in the returned status `dict`
+    """
+    # connect to scheduler
+    if schedd is None:
+        schedd = htcondor.Schedd()
+    # find running DAG job
     states = ['total', 'done', 'queued', 'ready', 'unready', 'failed']
     classads = ['DAG_Nodes%s' % s.title() for s in states]
-    while True:
-        try:
-            job = schedd.query('ClusterId == %d' % clusterid, classads)[0]
-        except IndexError:
-            job = list(schedd.history('ClusterId == %d' % clusterid,
-                                      classads+['ExitCode'], 1))[0]
-            history = dict((s, job[c]) for s, c in zip(states, classads))
-            history['exitcode'] = job['ExitCode']
-            yield history
-            break
-        else:
-            yield dict((s, job[c]) for s, c in zip(states, classads))
-            sleep(interval)
+    try:
+        job = schedd.query('ClusterId == %d' % dagmanid, classads)[0]
+    # DAG has exited
+    except IndexError:
+        job = list(schedd.history('ClusterId == %d' % dagmanid,
+                                  classads+['ExitCode'], 1))[0]
+        history = dict((s, job[c]) for s, c in zip(states, classads))
+        history['exitcode'] = job['ExitCode']
+        return history
+    # DAG is running, get status
+    else:
+        status = dict((s, job[c]) for s, c in zip(states, classads))
+        # find node status details
+        if detailed:
+            status['held'] = 0
+            status['running'] = 0
+            status['idle'] = 0
+            nodes = schedd.query('DAGManJobId == %d' % dagmanid)
+            for node in nodes:
+                if dict(node)['JobStatus'] == JOB_STATUS_MAP['held']:
+                    status['held'] += 1
+                elif dict(node)['JobStatus'] == JOB_STATUS_MAP['running']:
+                    status['running'] += 1
+                elif dict(node)['JobStatus'] == JOB_STATUS_MAP['idle']:
+                    status['idle'] += 1
+        return status
+
 
 
 # -- custom jobs --------------------------------------------------------------

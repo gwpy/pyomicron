@@ -564,21 +564,22 @@ for i in range(args.submit_rescue_dag + 1):
     sleep(15)
     # find lock file and monitor
     logger.info("Monitoring DAG via ID...")
-    states = ['unready', 'ready', 'queued', 'failed', 'done']
-    colors = ['white', 'magenta', 'blue', 'red', 'green']
+    states = ['unready', 'ready', 'idle', 'running', 'held', 'failed', 'done']
+    colors = ['white', 'magenta', 'white', 'blue', 'red', 'red', 'green']
     old = dict((k, -1) for k in states)
     logger.debug("Dag Status (%d nodes total):" % (len(dag.get_nodes())))
-    logger.debug('-' * 47)
-    logger.debug(' {0} |  {1} |  {2} |  {3} |    {4}'.format(
+    logger.debug('-' * 68)
+    logger.debug('{0} |   {1} |    {2} | {3} |    {4} |  {5} |'
+                 '    {6}'.format(
              *[log.color_text(s, c) for s, c in zip(states, colors)]))
-    logger.debug('-' * 47)
+    logger.debug('-' * 68)
     for job in condor.iterate_dag_status(dagid):
         for state in states:
             if job[state] != old[state]:
                 logger.debug(' | '.join(['%7s' % job[s] for s in states]))
                 break
         old = job
-    logger.debug('-' * 47)
+    logger.debug('-' * 68)
     if job['exitcode']:
         logger.critical("DAG has exited with status %d" % job['exitcode'])
     else:
