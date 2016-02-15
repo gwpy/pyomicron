@@ -30,10 +30,14 @@ from glue.segments import (segmentlist as SegmentList, segment as Segment)
 from . import (const, data)
 
 STATE_CHANNEL = {
-    'H1:DMT-UP:1': 'H1:GRD-ISC_LOCK_OK',
-    'L1:DMT-UP:1': 'L1:GRD-ISC_LOCK_OK',
-    'H1:DMT-CALIBRATED:1': 'H1:GDS-CALIB_STATE_VECTOR',
-    'L1:DMT-CALIBRATED:1': 'L1:GDS-CALIB_STATE_VECTOR',
+    'H1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('H1:GRD-ISC_LOCK_OK', [0]),
+    'L1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('L1:GRD-ISC_LOCK_OK', [0]),
+    'H1:DMT-UP:1': ('H1:GDS-CALIB_STATE_VECTOR', [2]),
+    'L1:DMT-UP:1': ('L1:GDS-CALIB_STATE_VECTOR' [2]),
+    'H1:DMT-CALIBRATED:1': ('H1:GDS-CALIB_STATE_VECTOR', [0]),
+    'L1:DMT-CALIBRATED:1': ('L1:GDS-CALIB_STATE_VECTOR', [0]),
+    'H1:DMT-ANALYSIS_READY:1': ('H1:GDS-CALIB_STATE_VECTOR', [0, 1, 2]),
+    'L1:DMT-ANALYSIS_READY:1': ('L1:GDS-CALIB_STATE_VECTOR', [0, 1, 2]),
 }
 
 
@@ -61,7 +65,18 @@ def write_segments(segmentlist, outfile, coltype=int):
 
 
 @integer_segments
+def query_state_segments(flag, start, end, url='https://segments.ligo.org'):
+    """Query a segment database for active segments associated with a flag
+    """
+    from gwpy.segments import DataQualityFlag
+    segs = DataQualityFlag.query(flag, start, end, url=url)
+    return segs.active
+
+
+@integer_segments
 def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1):
+    """Read state segments from a state-vector channel in the frames
+    """
     from gwpy.timeseries import StateVector
     obs = channel[0]
     cache = data.find_frames(obs, frametype, start, end)

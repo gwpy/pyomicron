@@ -228,12 +228,13 @@ except configparser.NoOptionError:
     statechannel = None
 else:
     logger.debug("State flag = %s" % stateflag)
-    try:
-        statechannel = segments.STATE_CHANNEL[stateflag]
-    except KeyError as e:
-        e.args = ('Cannot map state flag %r to channel' % stateflag,)
-        raise
-    logger.debug("State channel = %s" % statechannel)
+    if online:
+        try:
+            statechannel, statebits = segments.STATE_CHANNEL[stateflag]
+        except KeyError as e:
+            e.args = ('Cannot map state flag %r to channel' % stateflag,)
+            raise
+        logger.debug("State channel = %s" % statechannel)
 
 rundir = utils.get_output_directory(args)
 
@@ -306,10 +307,13 @@ if dataduration < chunkdur:
     sys.exit(0)
 
 # find run segments
-if statechannel:
+if online and statechannel:
     logger.info("Finding segments for relevant state...")
     segs = segments.get_state_segments(statechannel, frametype,
-                                       datastart, dataend)
+                                       datastart, dataend, bits=statebits)
+elif stateflag:
+    logger.info("Querying segments for relevant state...")
+    segs = segments.query_state_segments(stateflag, datastart, dataend)
 else:
     segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
 
