@@ -109,9 +109,8 @@ parser.add_argument('-i', '--ifo', default=const.IFO,
                     help='IFO prefix to process, default: %(default)s')
 
 outg = parser.add_argument_group('Output options')
-outg.add_argument('-o', '--output-dir',
-                  help='path to output directory, '
-                       'default under ~/Omicron/Prod somewhere')
+outg.add_argument('-o', '--output-dir', default=os.curdir,
+                  help='path to output directory, default: %(default)s')
 outg.add_argument('-a', '--archive', action='store_true', default=False,
                   help='archive created files under %s, default: %%(default)s'
                        % const.OMICRON_ARCHIVE)
