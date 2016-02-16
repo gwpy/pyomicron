@@ -193,8 +193,10 @@ def parallel_omicron_segments(start, end, chunk, overlap, nperjob=1):
     t = start
     while t < end - overlap:
         seg = Segment(t, t)
+        c = chunk
         while abs(seg) < chunk * nperjob and seg[1] < end:
-            seg = Segment(seg[0], min(seg[1] + chunk, end))
+            seg = Segment(seg[0], min(seg[1] + c, end))
+            c = chunk - overlap
         if abs(seg) < chunk:
             out[-1] += seg
         else:
