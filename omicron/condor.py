@@ -21,11 +21,16 @@
 
 import os.path
 import re
+import datetime
+import time
 from time import sleep
 from os import stat
 from glob import glob
+from getpass import getuser
 
 import htcondor
+
+import numpy
 
 from glue import pipeline
 
@@ -207,6 +212,96 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
                     status['idle'] += 1
         return status
 
+
+def get_job_duration_history_shell(classad, value, user=getuser(), maxjobs=None):
+    """Return the durations of history condor jobs
+
+    This method calls to `condor_history` in the shell.
+
+    Parameters
+    ----------
+    classad : `str`
+        name of classad providing unique identifier for job type
+    value :
+        value of classad
+    user : `str`, optional
+        name of submitting user
+    maxjobs : `int`, optional
+        maximum number of matches to return
+
+    Returns
+    -------
+    times, durations : `tuple` of `numpy.ndarray`
+        two arrays with the job end time and durations of each matched
+        condor process
+    """
+    from gwpy.time import to_gps
+    if isinstance(value, str):
+        value = '"%s"' % value
+    cmd = ['condor_history', '-constraint',
+           '\'%s==%s && Owner=="%s"\'' % (classad, value, user),
+           '-autof', 'EnteredCurrentStatus',
+           '-autof', 'JobStartDate']
+    if maxjobs is not None:
+        cmd.extend(['-match', str(maxjobs)])
+    history = shell(' '.join(cmd), shell=True)
+    lines = history.rstrip('\n').split('\n')
+    times = numpy.zeros(len(lines))
+    jobdur = numpy.zeros(times.size)
+    for i, line in enumerate(lines):
+        try:
+            e, s = map(int, line.split())
+        except ValueError:
+            times = times[:i]
+            jobdur = jobdur[:i]
+            break
+        times[i] = to_gps(datetime.datetime.fromtimestamp(e)) + time.timezone
+        jobdur[i] = e - s
+    return times, jobdur
+
+
+def get_job_duration_history(classad, value, user=getuser(), maxjobs=0,
+                             schedd=None):
+    """Return the durations of history condor jobs
+
+    This method uses the python bindings for `htcondor`, which seems
+    to have network transfer limits, do not use for large job numbers
+    (>2000), instead use `get_job_duration_history_shell` which calls
+    to `condor_history` in the shell.
+
+    Parameters
+    ----------
+    classad : `str`
+        name of classad providing unique identifier for job type
+    value :
+        value of classad
+    user : `str`, optional
+        name of submitting user
+    maxjobs : `int`, optional
+        maximum number of matches to return
+
+    Returns
+    -------
+    times, durations : `tuple` of `numpy.ndarray`
+        two arrays with the job end time and durations of each matched
+        condor process
+    """
+    from gwpy.time import to_gps
+    if schedd is None:
+        schedd = htcondor.Schedd()
+    if isinstance(value, str):
+        value = '"%s"' % value
+    history = list(schedd.history(
+        '%s==%s && Owner=="%s"' % (classad, value, user),
+        ['EnteredCurrentStatus', 'JobStartDate'], maxjobs))
+    times = numpy.zeros(len(history))
+    jobdur = numpy.zeros(len(history))
+    for i, h in enumerate(history):
+        times[i] = (
+            to_gps(datetime.datetime.fromtimestamp(h['EnteredCurrentStatus']))
+            + time.timezone)
+        jobdur[i] = h['EnteredCurrentStatus'] - h['JobStartDate']
+    return times, jobdur
 
 
 # -- custom jobs --------------------------------------------------------------
