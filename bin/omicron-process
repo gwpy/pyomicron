@@ -463,6 +463,10 @@ ligolw_add = utils.which('ligolw_add')
 gzip = utils.which('gzip')
 
 for s, e in segs:
+    ts = s + padding
+    te = e - padding
+    td = te - ts
+
     # work out job segments
     filesegments = segments.omicron_output_segments(
         s, e, chunkdur, segdur, overlap)
@@ -505,8 +509,8 @@ for s, e in segs:
                         root = roots
                     else:
                         root = os.path.join(
-                            chandir, '%s%s_OMICRON-%d-%d.root'
-                                     % (cname, filetag, s, e - s))
+                            chandir, '%s%s_Omicron-%d-%d.root'
+                                     % (cname, filetag, ts, td))
                         print('%s %s %s --strict'
                               % (rootmerge, roots, root), file=f)
                     # add ligolw_add
@@ -517,8 +521,8 @@ for s, e in segs:
                         xml = xmls
                     else:
                         xml = os.path.join(
-                            chandir, '%s%s_OMICRON-%d-%d.xml'
-                                     % (cname, filetag, s, e - s))
+                            chandir, '%s%s_Omicron-%d-%d.xml'
+                                     % (cname, filetag, ts, td))
                         print('%s %s --output %s'
                               % (ligolw_add, xmls, xml), file=f)
                     # add gzip
