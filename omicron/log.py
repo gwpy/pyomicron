@@ -20,6 +20,7 @@
 """
 
 import logging
+import sys
 
 from lal import GPSTimeNow as gps_time_now
 
@@ -53,6 +54,15 @@ class ColoredFormatter(logging.Formatter):
         return logging.Formatter.format(self, record)
 
 
+class MaxLevelFilter(logging.Filter):
+    '''Filters (lets through) all messages with level < LEVEL'''
+    def __init__(self, level):
+        self.level = level
+
+    def filter(self, record):
+        return record.levelno < self.level
+
+
 class Logger(logging.Logger):
     """`~logging.Logger` with a nice format
     """
@@ -63,10 +73,19 @@ class Logger(logging.Logger):
             super(Logger, self).__init__(name, level=level)
         except TypeError:
             logging.Logger.__init__(self, name, level=level)
+
+        # set up handlers for WARNING and above to go to stderr
         colorformatter = ColoredFormatter(self.FORMAT)
-        console = logging.StreamHandler()
-        console.setFormatter(colorformatter)
-        self.addHandler(console)
+        stdouthandler = logging.StreamHandler(sys.stdout)
+        stdouthandler.setFormatter(colorformatter)
+        stderrhandler = logging.StreamHandler(sys.stderr)
+        stderrhandler.setFormatter(colorformatter)
+        errfilter = MaxLevelFilter(logging.WARNING)
+        stdouthandler.addFilter(errfilter)
+        stdouthandler.setLevel(logging.DEBUG)
+        stderrhandler.setLevel(logging.WARNING)
+        self.addHandler(stdouthandler)
+        self.addHandler(stderrhandler)
 
 
 def color_text(text, color):
