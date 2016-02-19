@@ -212,6 +212,16 @@ if not cp.has_section(group):
     raise configparser.NoSectionError(group)
 
 # get params
+channels = cp.get(group, 'channels').strip('\n').rstrip('\n').split('\n')
+try:  # allow two-column 'channel samplerate' format
+    channels, crates = zip(*[c.split(' ', 1) for c in channels])
+except ValueError:
+    crates = []
+else:
+    crates = set(crates)
+finally:
+    cp.set(group, 'channels', '\n'.join(channels))
+logger.debug("%d channels read" % len(channels))
 frametype = cp.get(group, 'frametype')
 logger.debug("frametype = %s" % frametype)
 chunkdur = cp.getint(group, 'chunk-duration')
@@ -224,8 +234,19 @@ padding = int(overlap / 2)
 logger.debug("padding = %s" % padding)
 frange = map(float, cp.get(group, 'frequency-range').split())
 logger.debug('frequencyrange = [%s, %s)' % tuple(frange))
-sampling = cp.getfloat(group, 'sample-frequency')
-logger.debug('samplingfrequency = %s' % sampling)
+try:
+    sampling = cp.getfloat(group, 'sample-frequency')
+except configparser.NoOptionError:
+    if len(crates) == 1:
+        sampling = float(crates[0])
+    elif len(crates) > 1:
+        raise ValueError("No sample-frequency parameter given, and multiple "
+                         "sample frequencies parsed from channels list, "
+                         "cannot continue")
+    else:
+        sampling = None
+if sampling:
+    logger.debug('samplingfrequency = %s' % sampling)
 parameters.validate_parameters(chunkdur, segdur, overlap, frange, sampling)
 try:
     stateflag = cp.get(group, 'state-flag')
