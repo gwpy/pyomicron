@@ -21,10 +21,11 @@
 
 import warnings
 import os.path
+import glob
 
 from glue.lal import Cache
 
-from .segments import segmentlist_from_tree
+from .segments import (Segment, segmentlist_from_tree)
 
 
 def merge_root_files(inputfiles, outputfile,
@@ -101,3 +102,61 @@ def root_cache(rootfiles):
         else:
             append(ce)
     return out
+
+
+def _find_files_in_gps_directory(channel, basepath, gps5, ext, filetag=None):
+    """Internal method to glob Omicron files from a directory structure
+    """
+    ifo, name = channel.split(':', 1)
+    n = name.replace('-', '_')
+    if filetag and not filetag.startswith('_'):
+        filetag = '_%s' % filetag
+    elif not filetag:
+        filetag = ''
+    out = Cache()
+    for etgtag in ['Omicron', 'OMICRON']:
+        d = os.path.join(basepath, ifo, '%s_%s' % (n, etgtag), str(gps5))
+        if os.path.isdir(d):
+            g = os.path.join(
+                d, '%s-%s%s_%s-*.%s' % (ifo, n, filetag, etgtag, ext))
+            out.extend(Cache.from_urls(glob.iglob(g)))
+    return out
+
+
+def find_omicron_files(channel, start, end, basepath, ext='xml.gz',
+                       filetag=None):
+    """Find Omicron files under a given starting directory
+    """
+    gps5 = int(str(start)[:5])
+    cache = Cache()
+    while gps5 <= int(str(end)[:5]):
+        cache.extend(_find_files_in_gps_directory(channel, basepath, gps5,
+                                                  ext, filetag=filetag))
+        gps5 += 1
+    return cache.sieve(segment=Segment(start, end))
+
+
+def find_latest_omicron_file(channel, basepath, ext='xml.gz', filetag=None,
+                             gps=None):
+    """Find the most recent Omicron file for a given channel
+    """
+    from gwpy.time import tconvert
+    if gps is None:
+        gps = tconvert('now').seconds
+    gps5 = int(str(gps)[:5])
+    while gps5:
+        cache = _find_files_in_gps_directory(channel, basepath, gps5,
+                                             ext, filetag=filetag)
+        try:
+            return cache[-1].path
+        except IndexError:
+            pass
+        gps5 -= 1
+    raise RuntimeError("Failed to find any Omicron files for %r" % channel)
+
+
+def find_pending_files(channel, proddir, ext='xml.gz'):
+    """Find files that have just been created, pending archival
+    """
+    g = os.path.join(proddir, 'triggers', channel, '*.%s' % ext)
+    return Cache.from_urls(glob.iglob(g))
