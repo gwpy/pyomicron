@@ -189,10 +189,12 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
         job = schedd.query('ClusterId == %d' % dagmanid, classads)[0]
     # DAG has exited
     except IndexError:
+        sleep(1)
         job = list(schedd.history('ClusterId == %d' % dagmanid,
                                   classads+['ExitCode'], 1))[0]
         history = dict((s, job[c]) for s, c in zip(states, classads))
         history['exitcode'] = job['ExitCode']
+        history['held'] = history['running'] = history['idle'] = 0
         return history
     # DAG is running, get status
     else:
