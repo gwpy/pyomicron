@@ -362,8 +362,7 @@ elif truncate and (not statechannel or abs(lastseg) >= (chunkdur + segdur)):
 dataspan = type(segs)([segments.Segment(datastart, dataend)])
 
 # find the frames
-cache = data.find_frames(ifo, frametype, datastart-overlap, dataend+overlap,
-                         on_gaps='warn')
+cache = data.find_frames(ifo, frametype, datastart, dataend, on_gaps='warn')
 if not online and len(cache) == 0:
     raise RuntimeError("No frames found for %s-%s" % (ifo[0], frametype))
 try:
