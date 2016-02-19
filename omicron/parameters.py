@@ -21,6 +21,11 @@
 
 from __future__ import (division, print_function)
 
+try:
+    import ConfigParser as configparser
+except ImportError:  # python 2.x
+    import configparser
+
 from math import (ceil, exp, floor, log)
 import os.path
 
@@ -51,6 +56,21 @@ def generate_parameters_files(config, section, cachefile, rundir,
     for d in [pardir, trigdir]:
         if not os.path.isdir(d):
             os.makedirs(d)
+
+    # reformat from LCF format
+    for (range_, low_, high_) in [('frequency-range', 'flow', 'fhigh'),
+                                  ('q-range', 'qlow', 'qhigh')]:
+        if (not config.has_option(section, range_) and
+                config.has_option(section, low_)):
+            config.set(
+                section, range_,
+                '%s %s' % (config.getfloat(section, low_),
+                           config.getfloat(section, high_)))
+        for opt in (low_, high_):
+            try:
+                config.remove_option(section, opt)
+            except configparser.NoOptionError:
+                pass
 
     # get parameters
     params = DEFAULTS.copy()
