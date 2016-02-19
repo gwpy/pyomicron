@@ -562,7 +562,8 @@ for s, e in segs:
                     # add archive
                     if args.archive:
                         x = CacheEntry.from_T050017(xml)
-                        target = os.path.join(const.OMICRON_ARCHIVE,
+                        epoch = const.epoch_at_gps(x.segment[0])
+                        target = os.path.join(const.OMICRON_ARCHIVE, epoch,
                                               x.observatory,
                                               x.description,
                                               str(int(x.segment[0]))[:5])
