@@ -230,6 +230,7 @@ parameters.validate_parameters(chunkdur, segdur, overlap, frange, sampling)
 try:
     stateflag = cp.get(group, 'state-flag')
 except configparser.NoOptionError:
+    stateflag = None
     statechannel = None
 else:
     logger.debug("State flag = %s" % stateflag)
