@@ -351,10 +351,11 @@ if truncate and (
 elif truncate and (not statechannel or abs(lastseg) >= (chunkdur + segdur)):
     logger.info("Truncating to process only complete chunks...")
     t, e = lastseg
-    step = chunkdur - overlap
+    step = chunkdur
     while t + chunkdur <= e:
         t += step
-    segs[-1] = type(segs[-1])(lastseg[0], t + overlap)
+        step = chunkdur - overlap
+    segs[-1] = type(segs[-1])(lastseg[0], t)
     dataend = segs[-1][1]
     logger.info("This analysis will now run to %d" % dataend)
 
