@@ -57,10 +57,14 @@ def shell(cmd, stdout=PIPE, **kwargs):
     subprocess.CalledProcessError
         if the command returns a non-zero exit code
     """
+    if isinstance(cmd, (list, tuple)):
+        cmdstr = ' '.join(cmd)
+    else:
+        cmdstr = cmd
     proc = Popen(cmd, stdout=stdout, **kwargs)
     out, err = proc.communicate()
     if proc.returncode:
-        raise CalledProcessError(proc.returncode, ' '.join(cmd))
+        raise CalledProcessError(proc.returncode, cmdstr)
     return out
 
 
