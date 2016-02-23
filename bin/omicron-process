@@ -517,9 +517,16 @@ ppjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
                                  tag='post-processing', **condorcmds)
 ppjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 ppjob.add_short_opt('e', '')
+ppnodes = []
 rootmerge = utils.which('omicron-root-merge')
 ligolw_add = utils.which('ligolw_add')
 gzip = utils.which('gzip')
+
+if args.archive:
+    archivejob = condor.OmicronProcessJob(
+        args.universe, os.path.join(condir, 'archive.sh'),
+        subdir=condir, logdir=logdir, tag='archive', **condorcmds)
+    archivefiles = {}
 
 for s, e in segs:
     ts = s + padding
@@ -597,8 +604,10 @@ for s, e in segs:
                                               x.observatory,
                                               x.description,
                                               str(int(x.segment[0]))[:5])
-                        print('mkdir -p %s' % target, file=f)
-                        print('mv %s %s %s\n' % (xml, root, target), file=f)
+                        try:
+                            archivefiles[target].extend([xml, root])
+                        except KeyError:
+                            archivefiles[target] = [xml, root]
 
                     # add rm jobs
                     print('rm -f %s %s' % (roots, xmls), file=f)
@@ -609,7 +618,24 @@ for s, e in segs:
                 for node in nodes:
                     ppnode.add_parent(node)
             dag.add_node(ppnode)
+            ppnodes.append(ppnode)
             tempfiles.append(script)
+            os.chmod(script, 0o755)
+
+# do all archiving last, once all post-processing has completed
+if args.archive:
+    archivenode = pipeline.CondorDAGNode(archivejob)
+    with open(archivejob.get_executable(), 'w') as f:
+        print('#!/bin/bash -e\n', file=f)
+        for gpsdir, filelist in archivefiles.iteritems():
+            print("mkdir -p %s" % gpsdir, file=f)
+            print("mv %s %s" % (' '.join(filelist), gpsdir), file=f)
+    os.chmod(archivejob.get_executable(), 0o755)
+    for node in ppnodes:
+        archivenode.add_parent(node)
+    archivenode.set_category('archive')
+    dag.add_node(archivenode)
+    tempfiles.append(archivejob.get_executable())
 
 dag.write_sub_files()
 dag.write_dag()
