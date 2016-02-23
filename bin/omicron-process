@@ -256,20 +256,42 @@ except configparser.NoOptionError:
 if sampling:
     logger.debug('samplingfrequency = %s' % sampling)
 parameters.validate_parameters(chunkdur, segdur, overlap, frange, sampling)
+
+# get state channel
+try:
+    statechannel = cp.get(group, 'state-channel')
+except configparser.NoOptionError:
+    statechannel = None
+else:
+    try:
+        statebits = map(float, cp.get(group, 'state-bits').split(','))
+    except configparser.NoOptionError:
+        statebits = [0]
+    try:
+        stateft = cp.get(group, 'state-frametype')
+    except configparser.NoOptionError as e:
+        e.args = ('%s, this must be specified if state-channel is given'
+                  % str(e),)
+        raise
+
+# get state flag (if given)
 try:
     stateflag = cp.get(group, 'state-flag')
 except configparser.NoOptionError:
     stateflag = None
-    statechannel = None
 else:
     logger.debug("State flag = %s" % stateflag)
-    if online:
+    if online and not statechannel:
         try:
-            statechannel, statebits = segments.STATE_CHANNEL[stateflag]
+            statechannel, statebits, stateft = segments.STATE_CHANNEL[stateflag]
         except KeyError as e:
             e.args = ('Cannot map state flag %r to channel' % stateflag,)
             raise
-        logger.debug("State channel = %s" % statechannel)
+
+if statechannel:
+    logger.debug("State channel = %s" % statechannel)
+    logger.debug("State bits = %s" % ', '.join(map(str, statebits)))
+    logger.debug("State frametype = %s" % stateft)
 
 rundir = utils.get_output_directory(args)
 
@@ -308,17 +330,22 @@ span = (start, end)
 # -- double-check frametype for h(t)
 # don't use aggregated h(t) if running online
 
-if frametype == '%s_HOFT_C00' % ifo:
-    try:
-        data.check_data_availability(ifo, frametype, start, end)
-    except RuntimeError:
-        msg = ("Gaps found in %s availability, turning to %s"
-               % (frametype, llhoft))
-        if online:
-            logger.debug(msg)
-        else:
-            logger.warning(msg)
-        frametype = llhoft
+try:
+    data.check_data_availability(ifo, '%s_HOFT_C00' % ifo, start, end)
+except RuntimeError:
+    use_online_hoft = True
+    msg = "Gaps found in %s availability, turning to %s" % (frametype, llhoft)
+else:
+    use_online_hoft = False
+
+if frametype == '%s_HOFT_C00' % ifo and use_online_hoft:
+    if online:
+        logger.debug(msg)
+    else:
+        logger.warning(msg)
+    frametype = llhoft
+if statechannel and use_online_hoft and stateft == '%s_HOFT_C00' % ifo:
+    stateft = llhoft
 
 # -- set directories and check for an existing process ------------------------
 
@@ -342,9 +369,9 @@ if dataduration < chunkdur:
     sys.exit(0)
 
 # find run segments
-if online and statechannel:
+if (online and statechannel) or (statechannel and not stateflag):
     logger.info("Finding segments for relevant state...")
-    segs = segments.get_state_segments(statechannel, frametype,
+    segs = segments.get_state_segments(statechannel, stateft,
                                        datastart, dataend, bits=statebits)
 elif stateflag:
     logger.info("Querying segments for relevant state...")

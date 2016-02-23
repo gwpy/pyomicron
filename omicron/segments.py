@@ -30,14 +30,16 @@ from glue.segments import (segmentlist as SegmentList, segment as Segment)
 from . import (const, data)
 
 STATE_CHANNEL = {
-    'H1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('H1:GRD-ISC_LOCK_OK', [0]),
-    'L1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('L1:GRD-ISC_LOCK_OK', [0]),
-    'H1:DMT-UP:1': ('H1:GDS-CALIB_STATE_VECTOR', [2]),
-    'L1:DMT-UP:1': ('L1:GDS-CALIB_STATE_VECTOR', [2]),
-    'H1:DMT-CALIBRATED:1': ('H1:GDS-CALIB_STATE_VECTOR', [0]),
-    'L1:DMT-CALIBRATED:1': ('L1:GDS-CALIB_STATE_VECTOR', [0]),
-    'H1:DMT-ANALYSIS_READY:1': ('H1:GDS-CALIB_STATE_VECTOR', [0, 1, 2]),
-    'L1:DMT-ANALYSIS_READY:1': ('L1:GDS-CALIB_STATE_VECTOR', [0, 1, 2]),
+    'H1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('H1:GRD-ISC_LOCK_OK', [0], 'H1_R'),
+    'L1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('L1:GRD-ISC_LOCK_OK', [0], 'L1_R'),
+    'H1:DMT-UP:1': ('H1:GDS-CALIB_STATE_VECTOR', [2], 'H1_HOFT_C00'),
+    'L1:DMT-UP:1': ('L1:GDS-CALIB_STATE_VECTOR', [2], 'L1_HOFT_C00'),
+    'H1:DMT-CALIBRATED:1': ('H1:GDS-CALIB_STATE_VECTOR', [0], 'H1_HOFT_C00'),
+    'L1:DMT-CALIBRATED:1': ('L1:GDS-CALIB_STATE_VECTOR', [0], 'L1_HOFT_C00'),
+    'H1:DMT-ANALYSIS_READY:1': ('H1:GDS-CALIB_STATE_VECTOR', [0, 1, 2],
+                                'H1_HOFT_C00'),
+    'L1:DMT-ANALYSIS_READY:1': ('L1:GDS-CALIB_STATE_VECTOR', [0, 1, 2],
+                                'L1_HOFT_C00'),
 }
 
 
