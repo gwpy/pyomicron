@@ -115,8 +115,8 @@ def _find_files_in_gps_directory(channel, basepath, gps5, ext, filetag=None):
         filetag = ''
     out = Cache()
     for etgtag in ['Omicron', 'OMICRON']:
-        d = os.path.join(basepath, ifo, '%s_%s' % (n, etgtag), str(gps5))
-        if os.path.isdir(d):
+        dg = os.path.join(basepath, ifo, '%s_%s' % (n, etgtag), str(gps5))
+        for d in glob.iglob(dg):
             g = os.path.join(
                 d, '%s-%s%s_%s-*.%s' % (ifo, n, filetag, etgtag, ext))
             out.extend(Cache.from_urls(glob.iglob(g)))
