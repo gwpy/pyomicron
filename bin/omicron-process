@@ -379,6 +379,9 @@ elif stateflag:
 else:
     segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
 
+# remove segments that are too short
+segs = type(segs)([s for s in segs if abs(s) >= segdur])
+
 if len(segs):
     logger.info("State/frame segments recovered as")
     for seg in segs:
