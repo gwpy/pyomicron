@@ -191,6 +191,8 @@ def parallel_omicron_segments(start, end, chunk, overlap, nperjob=1):
         a `segmentlist` of [start, stop) times over which to distribute
         a single segment under condor
     """
+    if end - start <= chunk:
+        return SegmentList([Segment(start, end)])
     out = SegmentList()
     t = start
     while t < end - overlap:
