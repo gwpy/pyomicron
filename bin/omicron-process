@@ -353,11 +353,15 @@ if not os.path.isdir(rundir):
     os.makedirs(rundir)
 logger.info("Using run directory\n%s" % rundir)
 
-if os.path.isfile(os.path.join(rundir, 'omicron.dag.lock')):
+condir = os.path.join(rundir, 'condor')
+if not os.path.isdir(condir):
+    os.makedirs(condir)
+
+if os.path.isfile(os.path.join(condir, 'omicron.dag.lock')):
     raise RuntimeError("omicron.dag.lock found in %s, DAG already running"
                        % rundir)
 elif any(map(os.path.isfile, glob(
-        os.path.join(rundir, 'omicron.dag.rescue[0-9][0-9][0-9]')))):
+        os.path.join(condir, 'omicron.dag.rescue[0-9][0-9][0-9]')))):
     raise RuntimeError("rescue DAG found in %s, will not continue" % rundir)
 
 # -- find segments and frame files --------------------------------------------
@@ -473,10 +477,6 @@ cachefile = os.path.join(cachedir, 'frames.lcf')
 data.write_cache(cache, cachefile)
 
 # -- make parameters files then generate the DAG ------------------------------
-
-condir = os.path.join(rundir, 'condor')
-if not os.path.isdir(condir):
-    os.makedirs(condir)
 
 # generate a 'master' parameters.txt file for archival purposes
 tmpparfile = parameters.generate_parameters_files(
