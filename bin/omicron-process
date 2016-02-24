@@ -435,6 +435,19 @@ except TypeError:
 else:
     alldata = cachesegs == dataspan
 
+# write cache
+cachedir = os.path.join(rundir, 'cache')
+if not os.path.isdir(cachedir):
+    os.makedirs(cachedir)
+cachefile = os.path.join(cachedir, 'frames.lcf')
+data.write_cache(cache, cachefile)
+logger.info("Cache of %d frames written to\n%s" % (len(cache), cachefile))
+
+# restrict analysis to available data
+if segs - cachesegs:
+    logger.warning("Not all state times are available in frames")
+segs = (cachesegs & segs).coalesce()
+
 # if all of the data are available, but no segments, record segments.txt
 if len(segs) == 0 and online and alldata:
     logger.info("No segments found, but all data are available. "
@@ -467,14 +480,6 @@ logger.info("This will output triggers for")
 for seg in trigsegs:
     logger.info("    %d %d" % seg)
 logger.info("Duration = %d seconds" % abs(trigsegs))
-
-
-# write cache
-cachedir = os.path.join(rundir, 'cache')
-if not os.path.isdir(cachedir):
-    os.makedirs(cachedir)
-cachefile = os.path.join(cachedir, 'frames.lcf')
-data.write_cache(cache, cachefile)
 
 # -- make parameters files then generate the DAG ------------------------------
 
