@@ -153,10 +153,11 @@ def omicron_output_segments(start, end, chunk, segment, overlap):
         # if shorter than a chunk, but longer than a segment, omicron will
         # write files of length 'segment' until exhausted
         if fseg < abs(seg) < fdur:
-            while t < e:
-                seg = Segment(t, min(t + fseg, fend))
-                out.append(seg)
-                t += fseg
+            remaining = abs(seg)
+            nseg = remaining // fseg * fseg
+            out.append(Segment(t, t+nseg))
+            if nseg != remaining:
+                out.append(Segment(t+nseg, t+remaining))
         else:
             out.append(seg)
         t = e
