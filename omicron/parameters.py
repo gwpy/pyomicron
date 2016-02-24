@@ -114,7 +114,7 @@ def generate_parameters_files(config, section, cachefile, rundir,
     return parfiles
 
 
-def validate_parameters(chunk, segment, overlap, frange, sampling):
+def validate_parameters(chunk, segment, overlap, frange, sampling=None):
     """Validate that Omicron will accept the segment parameters
 
     Parameters
@@ -141,6 +141,8 @@ def validate_parameters(chunk, segment, overlap, frange, sampling):
     assert dchunk % dseg == 0, (
         "Chunk duration doesn't allow an integer number of segments, "
         "%ds too large" % (dchunk % dseg))
+    if sampling is None:
+        return
     if frange[0] < 1:
         x = 10 * floor(sampling / frange[0])
         psdsize = 2 * int(2 ** ceil(log(x) / log(2.)))
@@ -153,4 +155,4 @@ def validate_parameters(chunk, segment, overlap, frange, sampling):
     assert (chunkp - overlapp) >= 2 * psdsize, (
         "Chunk duration not large enough to resolve lower-frequency bound, "
         "Omicron needs at least %ds. Minimum lower-frequency bound for "
-        "this chunk duration is %.2gHz" % (2 * psdlen, flow))
+        "this chunk duration is %.2gHz" % (2 * psdlen + overlap, flow))
