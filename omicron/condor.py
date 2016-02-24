@@ -190,8 +190,17 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
     # DAG has exited
     except IndexError:
         sleep(1)
-        job = list(schedd.history('ClusterId == %d' % dagmanid,
-                                  classads+['ExitCode'], 1))[0]
+        try:
+            job = list(schedd.history('ClusterId == %d' % dagmanid,
+                                      classads+['ExitCode'], 1))[0]
+        except RuntimeError as e:
+            if 'timeout' in str(e).lower():
+                job = get_condor_history_shell(
+                    'ClusterId == %d' % dagmanid,
+                    classads+['ExitCode'], 1)[0]
+                job = dict((k, int(v)) for k, v in job.iteritems())
+            else:
+                raise
         history = dict((s, job[c]) for s, c in zip(states, classads))
         history['exitcode'] = job['ExitCode']
         history['held'] = history['running'] = history['idle'] = 0
@@ -215,7 +224,8 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
         return status
 
 
-def get_job_duration_history_shell(classad, value, user=getuser(), maxjobs=None):
+def get_job_duration_history_shell(classad, value, user=getuser(),
+                                   maxjobs=None):
     """Return the durations of history condor jobs
 
     This method calls to `condor_history` in the shell.
@@ -304,6 +314,38 @@ def get_job_duration_history(classad, value, user=getuser(), maxjobs=0,
             + time.timezone)
         jobdur[i] = h['EnteredCurrentStatus'] - h['JobStartDate']
     return times, jobdur
+
+
+def get_condor_history_shell(constraint, classads, maxjobs=None):
+    """Get condor_history from the shell
+
+    Parameters
+    ----------
+    constraint : `str`
+        `str` of the format 'ClassAd == "value"' defining the `-constraint`
+        to pass to `condor_history`
+    classads : `list` of `str`
+        list of class Ad names to get back from `condor_history`
+    maxjobs : `int`
+        the number of matches to return
+
+    Returns
+    -------
+    jobs : `list` of `dict`
+        list of dicts with same keys as defined by `get_dag_status`
+    """
+    cmd = ['condor_history', '-constraint', constraint]
+    for ad_ in classads:
+        cmd.extend(['-autof', ad_])
+    if maxjobs:
+        cmd.extend(['-match', str(maxjobs)])
+    history = shell(' '.join(cmd), shell=True)
+    lines = history.rstrip('\n').split('\n')
+    jobs = []
+    for line in lines:
+        values = line.split()
+        jobs.append(dict(zip(classads, values)))
+    return jobs
 
 
 # -- custom jobs --------------------------------------------------------------
