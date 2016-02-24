@@ -598,7 +598,7 @@ for s, e in segs:
                               % (ligolw_add, xmls, xml), file=f)
                     # add gzip
                     if not args.skip_gzip:
-                        print('%s %s' % (gzip, xml), file=f)
+                        print('%s --force %s' % (gzip, xml), file=f)
                         xml = '%s.gz' % xml
 
                     # add archive
