@@ -136,6 +136,8 @@ def validate_parameters(chunk, segment, overlap, frange, sampling=None):
     assert segment <= chunk, "Segment length is greater than chunk length"
     assert overlap <= segment, "Overlap length is greater than segment length"
     assert overlap % 2 == 0, "Padding (overlap/2) is non-integer"
+    assert segment >= (2 * overlap), (
+        "Overlap is too large, cannot be more than 50%")
     dchunk = chunk - overlap
     dseg = segment - overlap
     assert dchunk % dseg == 0, (
