@@ -63,9 +63,12 @@ setup(name=DISTNAME,
       include_package_data=True,
       scripts=scripts,
       requires=[
+          'numpy',
           'glue',
           'htcondor',
           'lal',
+          'gwpy',
+          'ROOT',
       ],
       install_requires=[
       ],
