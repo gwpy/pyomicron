@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) Duncan Macleod (2013)
+# Copyright (C) Duncan Macleod (2016)
 #
-# This file is part of LIGO-Omicron.
+# This file is part of PyOmicron.
 #
-# LIGO-Omicron is free software: you can redistribute it and/or modify
+# PyOmicron is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# LIGO-Omicron is distributed in the hope that it will be useful,
+# PyOmicron is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with LIGO-Omicron.  If not, see <http://www.gnu.org/licenses/>.
+# along with PyOmicron.  If not, see <http://www.gnu.org/licenses/>.
 
 """Utilities for controlling and processing Omicron in python
 """

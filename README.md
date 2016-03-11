@@ -1,5 +1,9 @@
 # PyOmicron
-Python utilities and extensions for the Omicron (C++) GW event trigger generator.
+Python utilities and extensions for the Omicron (C++) GW event trigger generator, accessible in python via
+
+```python
+>>> import omicron
+```
 
 This package augments the core functionality of the Omicron ETG by providing utilities for building an HTCondor workflow (DAG) to parallelise processing, including segment-selection logic, frame-file discovery, and post-processing.
 
