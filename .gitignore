@@ -1,9 +1,8 @@
 *.pyc
 *.png
-condor/omicron-online-[A-Z0-9]*.sub
-scripts/omicron-online-[A-Z0-9]*.sh
 
 # python package stuff
 /build/
 /dist/
 /*.egg-info/
+/.cache/
