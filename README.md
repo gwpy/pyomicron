@@ -13,3 +13,7 @@ This package is dependent upon the following packages
 - [`glue`](//www.lsc-group.phys.uwm.edu/daswg/projects/glue.html)
 - [`htcondor`](//research.cs.wisc.edu/htcondor/manual/v8.1/6_7Python_Bindings.html)
 - [`PyROOT`](//root.cern.ch/pyroot)
+
+## Project Status
+
+[![Build Status](https://travis-ci.org/duncanmmacleod/pyomicron.svg?branch=master)](https://travis-ci.org/duncanmmacleod/pyomicron)
