@@ -23,11 +23,14 @@ matrix:
 
 before_install:
   - pip install -q --upgrade pip
+  - pip install -q ${PRE} coveralls "pytest>=2.8" unittest2
 
 install:
   - pip install -r requirements.txt
+  - python setup.py build
 
 script:
+  - coverage run --source=omicron --omit="omicron/tests/*,omicron/version.py" -m py.test -v omicron/
   - pip install .
 
 cache:

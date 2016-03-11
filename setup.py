@@ -72,6 +72,7 @@ setup(name=DISTNAME,
       ],
       install_requires=[
       ],
+      tests_require=['pytest'],
       dependency_links=[
           'http://software.ligo.org/lscsoft/source/glue-1.49.1.tar.gz',
       ],
