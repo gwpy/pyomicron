@@ -19,7 +19,7 @@
 """Test parameter handling for Omicron
 """
 
-import unittest
+from compat import unittest
 
 from omicron.parameters import validate_parameters
 

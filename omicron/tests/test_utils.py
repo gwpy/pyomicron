@@ -16,16 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with PyOmicron.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Test parameter handling for Omicron
+"""Test utilies for Omicron
 """
 
 import os
 import sys
 
-if sys.version_info < (2, 7):
-    import unittest2 as unittest
-else:
-    import unittest
+from compat import unittest
 
 from omicron import utils
 
