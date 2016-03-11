@@ -51,6 +51,9 @@ OMICRON_BASE = os.path.join(HOME, 'Omicron')
 OMICRON_PROD = os.path.join(OMICRON_BASE, 'Prod')
 OMICRON_ARCHIVE = os.path.join(HOME, 'triggers')
 
+# omicron production version
+OMICRON_VERSION = 'v2r1'
+
 # omicron channel files
 if ifo is not None:
     OMICRON_GROUP_FILE = os.path.join(OMICRON_PROD, '%s-groups.txt' % ifo)
