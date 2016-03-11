@@ -29,6 +29,8 @@ except ImportError:  # python 2.x
 from math import (ceil, exp, floor, log)
 import os.path
 
+from . import (const, utils)
+
 DEFAULTS = {
     'PARAMETER': {
         'CLUSTERING': 'TIME',
@@ -50,7 +52,12 @@ OMICRON_PARAM_MAP = {
 
 
 def generate_parameters_files(config, section, cachefile, rundir,
-                              channellimit=10, **kwargs):
+                              channellimit=10, omicron_version=None, **kwargs):
+    if omicron_version is None:
+        try:
+            omicron_version = utils.get_omicron_version()
+        except KeyError:
+            omicron_version = utils.OmicronVersion(const.OMICRON_VERSION)
     pardir = os.path.join(rundir, 'parameters')
     trigdir = os.path.join(rundir, 'triggers')
     for d in [pardir, trigdir]:
@@ -96,6 +103,14 @@ def generate_parameters_files(config, section, cachefile, rundir,
                     params['PARAMETER'][okey] = d[key]
             else:
                 params[group][attr] = d[key]
+
+    # set segment parameters for this omicron version
+    if omicron_version >= 'v2r2':
+        params['PARAMETER']['PSDLENGTH'] = (
+            params['PARAMETER'].pop('CHUNKDURATION'))
+        params['PARAMETER']['TIMING'] = '%s %s' % (
+            params['PARAMETER'].pop('SEGMENTDURATION'),
+            params['PARAMETER'].pop('OVERLAPDURATION'))
 
     # write files
     parfiles = []

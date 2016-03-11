@@ -27,7 +27,7 @@ from functools import wraps
 from glue.segmentsUtils import fromsegwizard
 from glue.segments import (segmentlist as SegmentList, segment as Segment)
 
-from . import (const, data)
+from . import (const, data, utils)
 
 STATE_CHANNEL = {
     'H1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('H1:GRD-ISC_LOCK_OK', [0], 'H1_R'),
@@ -114,7 +114,8 @@ def segmentlist_from_tree(tree, coalesce=False):
 
 
 @integer_segments
-def omicron_output_segments(start, end, chunk, segment, overlap):
+def omicron_output_segments(start, end, chunk, segment, overlap,
+                            omicron_version=None):
     """Work out the segments written to disk by an Omicron instance
 
     The Omicron process writes multiple files per process depending on
@@ -140,13 +141,21 @@ def omicron_output_segments(start, end, chunk, segment, overlap):
         a `~glue.segments.segmentlist`, one `~glue.segments.segment` for each
         file that _should_ be written by Omicron
     """
+    if omicron_version is None:
+        try:
+            omicron_version = utils.get_omicron_version()
+        except KeyError:
+            omicron_version = utils.OmicronVersion(const.OMICRON_VERSION)
     padding = overlap / 2.
     out = SegmentList()
     fstart = start + padding
     fend = end - padding
-    fdur = chunk - overlap
     fseg = segment - overlap
     t = fstart
+    if omicron_version >= 'v2r2':
+        fdur = fseg
+    else:
+        fdur = chunk - overlap
     while t < fend:
         e = min(t + fdur, fend)
         seg = Segment(t, e)
