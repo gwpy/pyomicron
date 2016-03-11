@@ -68,15 +68,18 @@ JOB_UNIVERSE = [
 ]
 
 
-def submit_dag(dagfile, force=False):
+def submit_dag(dagfile, *arguments, **options):
     """Submit a DAG to condor and return the cluster ID
 
     Parameters
     ----------
     dagfile : `str`
         path to DAG file for submission
-    force : `bool`, default: `False`
-        add `-force` to `condor_submit_dag` command
+    *arguments
+        other command-line arguments to pass directly to condor_submit_dag
+    **options
+        other `(key, value)` pairs to append to the condor_submit_dag
+        command
 
     Returns
     -------
@@ -88,10 +91,11 @@ def submit_dag(dagfile, force=False):
     subprocess.CalledProcessError
         if the call to `condor_submit_dag` fails for some reason
     """
-    cmd = [which('condor_submit_dag')]
-    if force:
-        cmd.append('-force')
+    cmd = [which('condor_submit_dag')] + list(arguments)
+    for opt, val in options.iteritems():
+        cmd.extend([opt, val])
     cmd.append(dagfile)
+    print("$ %s"  % ' '.join(cmd))
     out = shell(cmd)
     print(out)
     try:

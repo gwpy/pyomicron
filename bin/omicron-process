@@ -152,10 +152,15 @@ condorg.add_argument('--submit-rescue-dag', type=int, default=0,
                      help='number of times to automatically submit the '
                           'rescue DAG, default: %(default)s')
 condorg.add_argument('-c', '--condor-command', action='append', type=str,
-                     default=[],
+                     default=[], metavar="\"key=value\"",
                      help="Extra condor submit commands to add to "
                           "gw_summary submit file. Can be given "
-                          "multiple times in the form \"key=value\"")
+                          "multiple times")
+condorg.add_argument('-d', '--dagman-option', action='append', type=str,
+                     default=['force'], metavar="\"opt | opt=value\"",
+                     help="Extra options to pass to condor_submit_dag as "
+                          "\"-{opt} [{value}]\". "
+                          "Can be given multiple times, default: %(default)s")
 
 pipeg = parser.add_argument_group('Pipeline options')
 pipeg.add_argument('--skip-omicron', action='store_true', default=False,
@@ -660,7 +665,17 @@ if args.no_submit:
 logger.info("--- Submitting DAG to condor -------")
 
 for i in range(args.submit_rescue_dag + 1):
-    dagid = condor.submit_dag(dagfile, force=i == 0)
+    dagmanargs = set()
+    dagmanopts = {}
+    for x in args.dagman_option:
+        x = '-%s' % x
+        try:
+            key, val = x.split('=', 1)
+        except ValueError:
+            dagmanargs.add(x)
+        else:
+            dagmanopts[key] = val
+    dagid = condor.submit_dag(dagfile, *list(dagmanargs), **dagmanopts)
     logger.info("Condor ID = %d" % dagid)
     logger.debug("Sleep for 15 seconds while DAGMan starts up")
     sleep(15)
