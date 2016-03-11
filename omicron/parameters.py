@@ -114,7 +114,7 @@ def generate_parameters_files(config, section, cachefile, rundir,
     return parfiles
 
 
-def validate_parameters(chunk, segment, overlap, frange, sampling=None):
+def validate_parameters(chunk, segment, overlap, frange=None, sampling=None):
     """Validate that Omicron will accept the segment parameters
 
     Parameters
@@ -143,7 +143,7 @@ def validate_parameters(chunk, segment, overlap, frange, sampling=None):
     assert dchunk % dseg == 0, (
         "Chunk duration doesn't allow an integer number of segments, "
         "%ds too large" % (dchunk % dseg))
-    if sampling is None:
+    if sampling is None or frange is None:
         return
     if frange[0] < 1:
         x = 10 * floor(sampling / frange[0])
