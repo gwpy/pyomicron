@@ -21,9 +21,11 @@
 
 from __future__ import print_function
 
+import re
 import os
 import sys
 from subprocess import Popen, PIPE, CalledProcessError
+from distutils.version import StrictVersion
 
 from . import const
 
@@ -78,3 +80,53 @@ def get_output_directory(args):
         args.output_dir = os.path.join(
             const.OMICRON_PROD, '%s-%d-%d' % (args.group, start, end))
     return os.path.abspath(args.output_dir)
+
+
+# -- version comparison utilities
+
+class OmicronVersion(StrictVersion):
+    version_re = re.compile(r'^v(\d+)r(\d+) (\. (\d+))? ([ab](\d+))?$',
+                            re.VERBOSE)
+
+    def __str__(self):
+        return 'v%sr%s' % (self.version[0], self.version[1])
+
+    def __cmp__(self, other):
+        if isinstance(other, str):
+            other = OmicronVersion(other)
+        return StrictVersion.__cmp__(self, other)
+
+
+def get_omicron_version(executable=None):
+    """Parse the version number from the Omicron executable path
+
+    Parameters
+    ----------
+    executable : `str`
+        path of Omicron executable
+
+    Returns
+    -------
+    version : `str`
+        the Omicron-format version string, e.g. `vXrY`
+
+    Examples
+    --------
+    >>> get_omicron_version("/home/detchar/opt/virgosoft/Omicron/v2r1/Linux-x86_64/omicron.exe")
+    'v2r1'
+    """
+    if executable:
+        executable = os.path.abspath(executable)
+        distdir = os.path.dirname(executable)
+        versiondir = os.path.dirname(distdir)
+        vstr = os.path.basename(versiondir)
+    elif os.getenv('OMICRON_VERSION'):
+        vstr = os.environ['OMICRON_VERSION']
+    else:
+        try:
+            vstr = os.path.basename(os.environ['OMICRONROOT'])
+        except KeyError as e:
+            e.args = ('Cannot parse Omicron version from environment, '
+                      'please specify the executable path',)
+            raise
+    return OmicronVersion(vstr)
