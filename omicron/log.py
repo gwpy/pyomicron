@@ -42,6 +42,14 @@ LEVEL_COLORS = {
 }
 
 
+def bold(text):
+    """Format a string of text as bold for the shell
+
+    Simply returns "\033[1m{text}\033[0m"
+    """
+    return ''.join([BOLD_SEQ, text, RESET_SEQ])
+
+
 class ColoredFormatter(logging.Formatter):
     """A `~logging.Formatter` that supports coloured output
     """
