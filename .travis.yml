@@ -3,6 +3,10 @@ language: python
 addons:
   apt:
     packages:
+      - gcc  # numpy/scipy
+      - gfortran  # numpy/scipy
+      - libblas-dev  # numpy/scipy
+      - liblapack-dev  # numpy/scipy
       - python-m2crypto  # glue
 
 matrix:
