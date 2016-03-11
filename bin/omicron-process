@@ -69,6 +69,7 @@ import re
 from time import sleep
 from glob import glob
 from getpass import getuser
+from tempfile import gettempdir
 
 # python 3
 try:
@@ -176,6 +177,9 @@ pipeg.add_argument('--skip-postprocessing', action='store_true', default=False,
                    help='skip all post-processing, equivalent to '
                         '--skip-root-merge --skip-lioglw_add --skip-gzip, '
                         'default: %(default)s')
+pipeg.add_argument('--rescue', action='store_true', default=False,
+                   help='rescue a failed DAG instead of creating a new one, '
+                        'default: %(default)s')
 
 args = parser.parse_args()
 
@@ -206,6 +210,14 @@ filetag = re.sub('[:_\s-]', '_', filetag.upper())
 logger.info("--- Welcome to the Omicron processor ---")
 
 tempfiles = []
+
+# check rescue against --dagman-option force
+if args.rescue and args.dagman_option.count('force') > 1:
+    parser.error('--rescue is incompatible with --dagman-option force')
+elif args.rescue:
+    args.dagman_option.pop(0)
+    logger.info("Running in RESCUE mode - the workflow will be re-generated "
+                "in memory without any files being written")
 
 # set omicron version for future use
 omicronv = utils.get_omicron_version(args.executable)
@@ -367,12 +379,22 @@ condir = os.path.join(rundir, 'condor')
 if not os.path.isdir(condir):
     os.makedirs(condir)
 
+# check dagman lock file
 if os.path.isfile(os.path.join(condir, 'omicron.dag.lock')):
     raise RuntimeError("omicron.dag.lock found in %s, DAG already running"
                        % rundir)
-elif any(map(os.path.isfile, glob(
-        os.path.join(condir, 'omicron.dag.rescue[0-9][0-9][0-9]')))):
-    raise RuntimeError("rescue DAG found in %s, will not continue" % rundir)
+
+# check dagman rescue files
+nrescue = any(map(os.path.isfile, glob(
+    os.path.join(condir, 'omicron.dag.rescue[0-9][0-9][0-9]'))))
+if args.rescue and nrescue == 0:
+    raise RuntimeError("--rescue given but no rescue DAG files found in %s"
+                       % condir)
+elif not args.rescue and nrescue > 1:
+    raise RuntimeError("rescue DAG found in %s, will not continue" % condir)
+elif args.rescue and not os.path.isfile(os.path.join(condir, 'omicron.dag')):
+    raise RuntimeError("--rescue given by omicron.dag file not found in %s"
+                       % condir)
 
 # -- find segments and frame files --------------------------------------------
 
@@ -450,7 +472,8 @@ cachedir = os.path.join(rundir, 'cache')
 if not os.path.isdir(cachedir):
     os.makedirs(cachedir)
 cachefile = os.path.join(cachedir, 'frames.lcf')
-data.write_cache(cache, cachefile)
+if not args.rescue:
+    data.write_cache(cache, cachefile)
 logger.info("Cache of %d frames written to\n%s" % (len(cache), cachefile))
 
 # restrict analysis to available data
@@ -459,7 +482,7 @@ if segs - cachesegs:
 segs = (cachesegs & segs).coalesce()
 
 # if all of the data are available, but no segments, record segments.txt
-if len(segs) == 0 and online and alldata:
+if not args.rescue and len(segs) == 0 and online and alldata:
     logger.info("No segments found, but all data are available. "
                 "A segments.txt file will be written so we don't have to "
                 "search these data again")
@@ -494,15 +517,20 @@ logger.info("Duration = %d seconds" % abs(trigsegs))
 # -- make parameters files then generate the DAG ------------------------------
 
 # generate a 'master' parameters.txt file for archival purposes
-tmpparfile = parameters.generate_parameters_files(
-    cp, group, cachefile, rundir, channellimit=int(1e8))[0][0]
-parfile = os.path.join(rundir, 'parameters.txt')
-logger.debug("Created master parameters file\n%s" % parfile)
-shutil.move(tmpparfile, parfile)
+if not args.rescue:
+    tmpparfile = parameters.generate_parameters_files(
+        cp, group, cachefile, rundir, channellimit=int(1e8))[0][0]
+    parfile = os.path.join(rundir, 'parameters.txt')
+    logger.debug("Created master parameters file\n%s" % parfile)
+    shutil.move(tmpparfile, parfile)
 
 # then generate actual parameters files for submission (channel groups)
+if args.rescue:
+    pardir = gettempdir()
+else:
+    pardir = rundir
 jobfiles = parameters.generate_parameters_files(
-    cp, group, cachefile, rundir, channellimit=args.max_channels_per_job)
+    cp, group, cachefile, pardir, channellimit=args.max_channels_per_job)
 
 # create log directory
 logdir = os.path.join(rundir, 'logs')
@@ -575,57 +603,59 @@ for s, e in segs:
         if not args.skip_postprocessing:
             script = os.path.join(
                 condir, 'post-process-%d-%d-%d.sh' % (s, e, i))
-            with open(script, 'w') as f:
-                print('#!/bin/bash -e\n', file=f)
-                # build post-processing nodes for each channel
-                for c in chanlist:
-                    print("# %s" % c, file=f)
-                    chandir = os.path.join(rundir, 'triggers', c)
-                    cname = re.sub('[:_-]', '_', c).replace('_', '-', 1)
-                    roots = ' '.join(
-                        os.path.join(chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
-                        for (fs, fe) in filesegments)
-                    # add omicron-root-merge
-                    if args.skip_root_merge:
-                        root = roots
-                    else:
-                        root = os.path.join(
-                            chandir, '%s%s_Omicron-%d-%d.root'
-                                     % (cname, filetag, ts, td))
-                        print('%s %s %s --strict'
-                              % (rootmerge, roots, root), file=f)
-                    # add ligolw_add
-                    xmls = ' '.join(os.path.join(
-                        chandir, '%s_Omicron-%d-%d.xml' % (cname, fs, fe-fs))
-                        for (fs, fe) in filesegments)
-                    if args.skip_ligolw_add:
-                        xml = xmls
-                    else:
-                        xml = os.path.join(
-                            chandir, '%s%s_Omicron-%d-%d.xml'
-                                     % (cname, filetag, ts, td))
-                        print('%s %s --output %s'
-                              % (ligolw_add, xmls, xml), file=f)
-                    # add gzip
-                    if not args.skip_gzip:
-                        print('%s --force %s' % (gzip, xml), file=f)
-                        xml = '%s.gz' % xml
+            if not args.rescue:
+                with open(script, 'w') as f:
+                    print('#!/bin/bash -e\n', file=f)
+                    # build post-processing nodes for each channel
+                    for c in chanlist:
+                        print("# %s" % c, file=f)
+                        chandir = os.path.join(rundir, 'triggers', c)
+                        cname = re.sub('[:_-]', '_', c).replace('_', '-', 1)
+                        roots = ' '.join(
+                            os.path.join(chandir,
+                                         '%s_%d_%d.root' % (c, fs, fe-fs))
+                            for (fs, fe) in filesegments)
+                        # add omicron-root-merge
+                        if args.skip_root_merge:
+                            root = roots
+                        else:
+                            root = os.path.join(
+                                chandir, '%s%s_Omicron-%d-%d.root'
+                                         % (cname, filetag, ts, td))
+                            print('%s %s %s --strict'
+                                  % (rootmerge, roots, root), file=f)
+                        # add ligolw_add
+                        xmls = ' '.join(os.path.join(
+                            chandir, '%s_Omicron-%d-%d.xml' % (cname, fs, fe-fs))
+                            for (fs, fe) in filesegments)
+                        if args.skip_ligolw_add:
+                            xml = xmls
+                        else:
+                            xml = os.path.join(
+                                chandir, '%s%s_Omicron-%d-%d.xml'
+                                         % (cname, filetag, ts, td))
+                            print('%s %s --output %s'
+                                  % (ligolw_add, xmls, xml), file=f)
+                        # add gzip
+                        if not args.skip_gzip:
+                            print('%s --force %s' % (gzip, xml), file=f)
+                            xml = '%s.gz' % xml
 
-                    # add archive
-                    if args.archive:
-                        x = CacheEntry.from_T050017(xml)
-                        epoch = const.epoch_at_gps(x.segment[0])
-                        target = os.path.join(const.OMICRON_ARCHIVE, epoch,
-                                              x.observatory,
-                                              x.description,
-                                              str(int(x.segment[0]))[:5])
-                        try:
-                            archivefiles[target].extend([xml, root])
-                        except KeyError:
-                            archivefiles[target] = [xml, root]
+                        # add archive
+                        if args.archive:
+                            x = CacheEntry.from_T050017(xml)
+                            epoch = const.epoch_at_gps(x.segment[0])
+                            target = os.path.join(const.OMICRON_ARCHIVE, epoch,
+                                                  x.observatory,
+                                                  x.description,
+                                                  str(int(x.segment[0]))[:5])
+                            try:
+                                archivefiles[target].extend([xml, root])
+                            except KeyError:
+                                archivefiles[target] = [xml, root]
 
-                    # add rm jobs
-                    print('rm -f %s %s' % (roots, xmls), file=f)
+                        # add rm jobs
+                        print('rm -f %s %s' % (roots, xmls), file=f)
             ppnode = pipeline.CondorDAGNode(ppjob)
             ppnode.add_var_arg(script)
             ppnode.set_category('postprocessing')
@@ -640,11 +670,12 @@ for s, e in segs:
 # do all archiving last, once all post-processing has completed
 if args.archive:
     archivenode = pipeline.CondorDAGNode(archivejob)
-    with open(archivejob.get_executable(), 'w') as f:
-        print('#!/bin/bash -e\n', file=f)
-        for gpsdir, filelist in archivefiles.iteritems():
-            print("mkdir -p %s" % gpsdir, file=f)
-            print("mv %s %s" % (' '.join(filelist), gpsdir), file=f)
+    if not args.rescue:
+        with open(archivejob.get_executable(), 'w') as f:
+            print('#!/bin/bash -e\n', file=f)
+            for gpsdir, filelist in archivefiles.iteritems():
+                print("mkdir -p %s" % gpsdir, file=f)
+                print("mv %s %s" % (' '.join(filelist), gpsdir), file=f)
     os.chmod(archivejob.get_executable(), 0o755)
     for node in ppnodes:
         archivenode.add_parent(node)
@@ -652,13 +683,17 @@ if args.archive:
     dag.add_node(archivenode)
     tempfiles.append(archivejob.get_executable())
 
-dag.write_sub_files()
-dag.write_dag()
-dag.write_script()
 dagfile = dag.get_dag_file()
-with open(dagfile, 'a') as f:
-    print('DOT %s.dot' % os.path.splitext(dagfile)[0], file=f)
-logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
+if args.rescue:
+    logger.info("In --rescue mode, this DAG has been reproduced in memory "
+                "for safety, but will not be written to disk, the file is:")
+else:
+    dag.write_sub_files()
+    dag.write_dag()
+    dag.write_script()
+    with open(dagfile, 'a') as f:
+        print('DOT %s.dot' % os.path.splitext(dagfile)[0], file=f)
+    logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
 print(os.path.abspath(dagfile))
 
 if args.no_submit:
@@ -667,7 +702,10 @@ if args.no_submit:
 # -- submit the DAG and babysit -----------------------------------------------
 
 # submit DAG
-logger.info("--- Submitting DAG to condor -------")
+if args.rescue:
+    logger.info("--- Submitting rescue DAG to condor -------")
+else:
+    logger.info("--- Submitting DAG to condor -------")
 
 for i in range(args.submit_rescue_dag + 1):
     dagmanargs = set()
