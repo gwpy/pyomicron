@@ -43,7 +43,7 @@ DEFAULTS = {
     }
 }
 
-UNUSED_PARAMS = ['state-flag', 'frametype']
+UNUSED_PARAMS = ['state-flag', 'frametype', 'state-channel', 'state-frametype']
 OMICRON_PARAM_MAP = {
     'sample-frequency': ('DATA', 'SAMPLEFREQUENCY')
 }
@@ -88,7 +88,12 @@ def generate_parameters_files(config, section, cachefile, rundir,
             try:
                 group, attr = OMICRON_PARAM_MAP[key]
             except KeyError:
-                params['PARAMETER'][''.join(key.split('-')).upper()] = d[key]
+                val = d[key]
+                okey = ''.join(key.split('-')).upper()
+                if val in [None, 'None', 'none', '']:  # unset default
+                    params['PARAMETER'].pop(okey, None)
+                else:
+                    params['PARAMETER'][okey] = d[key]
             else:
                 params[group][attr] = d[key]
 
