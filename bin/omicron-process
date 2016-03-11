@@ -207,6 +207,11 @@ logger.info("--- Welcome to the Omicron processor ---")
 
 tempfiles = []
 
+# set omicron version for future use
+omicronv = utils.get_omicron_version(args.executable)
+os.environ.setdefault('OMICRON_VERSION', str(omicronv))
+logger.debug('Omicron version: %s' % omicronv)
+
 # -- parse configuration file and get parameters ------------------------------
 
 cp = configparser.ConfigParser()
