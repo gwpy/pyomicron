@@ -335,6 +335,7 @@ if statechannel:
     logger.debug("State frametype = %s" % stateft)
 
 rundir = utils.get_output_directory(args)
+cachedir = os.path.join(rundir, 'cache')
 
 # -- find run segment
 
@@ -487,7 +488,6 @@ else:
     alldata = cachesegs == dataspan
 
 # write cache
-cachedir = os.path.join(rundir, 'cache')
 if not os.path.isdir(cachedir):
     os.makedirs(cachedir)
 cachefile = os.path.join(cachedir, 'frames.lcf')
