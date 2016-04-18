@@ -79,7 +79,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from glue import pipeline
-from glue.lal import CacheEntry
+from glue.lal import (Cache, CacheEntry)
 
 from omicron import (const, segments, log, data, parameters, utils, condor, io)
 
@@ -674,6 +674,7 @@ for s, e in segs:
 
                         # add rm jobs
                         print('rm -f %s %s' % (roots, xmls), file=f)
+
             ppnode = pipeline.CondorDAGNode(ppjob)
             ppnode.add_var_arg(script)
             ppnode.set_category('postprocessing')
@@ -688,13 +689,32 @@ for s, e in segs:
 # do all archiving last, once all post-processing has completed
 if args.archive:
     archivenode = pipeline.CondorDAGNode(archivejob)
+    xmlcache = Cache()
+    rootcache = Cache()
     if not args.rescue:
+        # write shell script to seed archive
         with open(archivejob.get_executable(), 'w') as f:
             print('#!/bin/bash -e\n', file=f)
             for gpsdir, filelist in archivefiles.iteritems():
+                # write 'mv' op to script
                 print("mkdir -p %s" % gpsdir, file=f)
                 print("mv %s %s" % (' '.join(filelist), gpsdir), file=f)
-    os.chmod(archivejob.get_executable(), 0o755)
+                # record archived files in caches
+                filenames = [os.path.join(gpsdir, os.path.basename(x)) for
+                             x in filelist]
+                xmlcache.extend(CacheEntry.from_T050017(x) for x in filenames
+                                if x.endswith('xml.gz'))
+                rootcache.extend(CacheEntry.from_T050017(x) for x in filenames
+                                if x.endswith('root'))
+        os.chmod(archivejob.get_executable(), 0o755)
+        # write caches to disk
+        xmlcachefile = os.path.join(cachedir, 'omicron-xml.lcf')
+        data.write_cache(xmlcache, xmlcachefile)
+        logger.debug("XML cache written to %s" % xmlcachefile)
+        rootcachefile = os.path.join(cachedir, 'omicron-root.lcf')
+        data.write_cache(rootcache, rootcachefile)
+        logger.debug("ROOT cache written to %s" % rootcachefile)
+    # add node to DAG
     for node in ppnodes:
         archivenode.add_parent(node)
     archivenode.set_category('archive')
