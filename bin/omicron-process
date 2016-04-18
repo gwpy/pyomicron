@@ -69,7 +69,7 @@ import re
 from time import sleep
 from glob import glob
 from getpass import getuser
-from tempfile import gettempdir
+from tempfile import (gettempdir, mkdtemp)
 
 # python 3
 try:
@@ -182,6 +182,11 @@ condorg.add_argument('-d', '--dagman-option', action='append', type=str,
                           "\"-{opt} [{value}]\". "
                           "Can be given multiple times, default: %(default)s")
 
+datag = parser.add_argument_group('Data options')
+datag.add_argument('--use-dev-shm', action='store_true', default=False,
+                   help='use low-latency frame buffer in /dev/shm, '
+                        'default: %(default)s')
+
 pipeg = parser.add_argument_group('Pipeline options')
 pipeg.add_argument('--skip-omicron', action='store_true', default=False,
                    help='skip running omicron, default: %(default)s')
@@ -218,7 +223,7 @@ if all((args.skip_root_merge, args.skip_ligolw_add, args.skip_gzip,
     args.skip_postprocessing = True
 
 ifo = args.ifo
-llhoft = data.ligo_low_latency_hoft_type(ifo)
+llhoft = data.ligo_low_latency_hoft_type(ifo, use_devshm=args.use_dev_shm)
 group = args.group
 online = args.gps is None
 filetag = args.file_tag
@@ -477,7 +482,13 @@ elif truncate and (not statechannel or abs(lastseg) >= (chunkdur + segdur)):
 dataspan = type(segs)([segments.Segment(datastart, dataend)])
 
 # find the frames
-cache = data.find_frames(ifo, frametype, datastart, dataend, on_gaps='warn')
+if args.use_dev_shm:
+    cache = data.find_frames(ifo, frametype, datastart, dataend,
+                             on_gaps='warn', tmpdir=cachedir)
+    tempfiles.extend(cache.pfnlist())
+else:
+    cache = data.find_frames(ifo, frametype, datastart, dataend,
+                             on_gaps='warn')
 if not online and len(cache) == 0:
     raise RuntimeError("No frames found for %s-%s" % (ifo[0], frametype))
 try:
