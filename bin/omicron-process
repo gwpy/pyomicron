@@ -85,7 +85,26 @@ from omicron import (const, segments, log, data, parameters, utils, condor)
 
 logger = log.Logger('omicron-process')
 
+
+# -- tempfile utilities
+
+def clean_exit(exitcode, tempfiles=[]):
+    clean_tempfiles(tempfiles)
+    sys.exit(exitcode)
+
+
+def clean_tempfiles(tempfiles):
+    for f in tempfiles:
+        if os.path.isdir(f):
+            shutil.rmtree(f)
+            logger.debug('Deleted directory %r' % f)
+        else:
+            os.remove(f)
+            logger.debug('Deleted file %r' % f)
+
+
 # -- parse command line
+
 epilog = """This source code for this project is available here:
 
 https://git.ligo.org/detchar/ligo-omicron/
@@ -402,7 +421,7 @@ elif args.rescue and not os.path.isfile(os.path.join(condir, 'omicron.dag')):
 if dataduration < chunkdur:
     logger.info("Segment is too short (%d < %d), please try again later"
                 % (duration, chunkdur - padding * 2))
-    sys.exit(0)
+    clean_exit(0, tempfiles)
 
 # find run segments
 if (online and statechannel) or (statechannel and not stateflag):
@@ -488,11 +507,11 @@ if not args.rescue and len(segs) == 0 and online and alldata:
                 "search these data again")
     segments.write_segments(cachesegs, segfile)
     logger.info("Segments written to\n%s" % segfile)
-    sys.exit(0)
+    clean_exit(0, tempfiles)
 # otherwise not all data are available, so
 elif len(segs) == 0 and online:
     logger.info("No segments found, please try again later")
-    sys.exit(0)
+    clean_exit(0, tempfiles)
 elif len(segs) == 0:
     raise RuntimeError("No segments found")
 
@@ -697,7 +716,7 @@ else:
 print(os.path.abspath(dagfile))
 
 if args.no_submit:
-    sys.exit(0)
+    clean_exit(0, tempfiles)
 
 # -- submit the DAG and babysit -----------------------------------------------
 
@@ -768,9 +787,7 @@ for f in ['%s.dagman.out' % dagfile, segfile, cachefile, parfile]:
 
 # clean up temporary files
 tempfiles.extend(glob(os.path.join(rundir, 'triggers', 'ffconvert.*.ffl')))
-for f in tempfiles:
-    os.remove(f)
-    logger.debug('Deleted file %r' % f)
+clean_tempfiles(tempfiles)
 
 # and exit
 logger.info("---- Processing complete -----------")
