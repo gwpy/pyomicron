@@ -194,9 +194,15 @@ if args.executable is None:
     parser.error("Cannot find omicron.exe on path, please pass "
                  "--executable on the command line")
 
+# validate processing options
 if all((args.skip_root_merge, args.skip_ligolw_add, args.skip_gzip,
         not args.archive)):
     args.skip_postprocessing = True
+if args.archive:
+    argsd = vars(args)
+    for arg in ['skip-root-merge', 'skip-ligolw-add', 'skip-gzip']:
+        if argsd[arg.replace('-', '_')]:
+            parser.error("Cannot use --%s with --archive" % arg)
 
 ifo = args.ifo
 llhoft = data.ligo_low_latency_hoft_type(ifo)
