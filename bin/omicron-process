@@ -354,8 +354,14 @@ if online:
     try:
         start = segments.get_last_run_segment(segfile)[1]
     except IOError:
-        logger.debug("No online segment record, starting with 4000 seconds")
-        start = end - 4000
+        if llhoft.endswith('llhoft'):
+            logger.debug("No online segment record, starting with %s seconds"
+                         % chunkdur)
+            start = end - chunkdur + padding
+        else:
+            logger.debug("No online segment record, starting with "
+                         "4000 seconds")
+            start = end - 4000
     else:
         logger.debug("Online segment record recovered")
 else:
