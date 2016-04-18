@@ -50,6 +50,8 @@ HOME = os.path.expanduser('~')
 OMICRON_BASE = os.path.join(HOME, 'Omicron')
 OMICRON_PROD = os.path.join(OMICRON_BASE, 'Prod')
 OMICRON_ARCHIVE = os.path.join(HOME, 'triggers')
+# tag Omicron itself places on XML files
+OMICRON_FILETAG = 'Omicron'
 
 # omicron production version
 OMICRON_VERSION = 'v2r1'
