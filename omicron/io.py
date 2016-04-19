@@ -213,5 +213,8 @@ def get_archive_filename(channel, start, duration, ext='xml.gz',
         description += '_%s' % re_delim.sub('_', filetag).strip('_')
     filename = '%s-%s-%d-%d.%s' % (
         ifo, description, int(start), int(duration), ext)
-    gps5 = str(int(start))[:5]
+    if start < 10000:
+        gps5 = '%.5d' % int(start)
+    else:
+        gps5 = str(int(start))[:5]
     return os.path.join(archive, ifo, description, gps5, filename)
