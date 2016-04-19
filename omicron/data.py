@@ -20,9 +20,17 @@
 """
 
 import os
+import glob
+import re
+import shutil
+import warnings
 from functools import wraps
 
 from glue import datafind
+from glue.lal import Cache
+from glue.segments import (segment as Segment, segmentlist as SegmentList)
+
+re_ll = re.compile('\A[A-Z]\d_ll')
 
 
 def connect(host=None, port=None):
@@ -94,6 +102,8 @@ def get_latest_data_gps(obs, frametype, connection=None):
     gpstime : `int`
         the GPS time marking the end of the latest frame
     """
+    if re_ll.match(frametype):
+        latest = _find_ll_frames(obs, frametype)[-1]
     try:
         latest = connection.find_latest(obs[0], frametype, urltype='file',
                                         on_missing='error')[0]
@@ -103,10 +113,25 @@ def get_latest_data_gps(obs, frametype, connection=None):
     return int(latest.segment[1])
 
 
-def ligo_low_latency_hoft_type(ifo):
+def ligo_low_latency_hoft_type(ifo, use_devshm=False):
     """Return the low-latency _h(t)_ frame type for the given interferometer
+
+    Parameters
+    ----------
+    ifo : `str`
+        prefix of IFO to use, e.g. 'L1'
+    use_devshm : `bool`, optional
+        use type in /dev/shm, default: `False`
+
+    Returns
+    -------
+    frametype : `str`
+        frametype to use for low-latency h(t)
     """
-    return '%s_ER_C00_L1' % ifo.upper()
+    if use_devshm:
+        return '%s_llhoft' % ifo.upper()
+    else:
+        return '%s_ER_C00_L1' % ifo.upper()
 
 
 @with_datafind_connection
@@ -159,10 +184,84 @@ def find_frames(obs, frametype, start, end, connection=None, **kwargs):
     cache : `~glue.lal.Cache`
         a cache of frame file locations
     """
-    kwargs.setdefault('urltype', 'file')
-    return connection.find_frame_urls(obs[0], frametype, start, end, **kwargs)
+    if re_ll.match(frametype):
+        return find_ll_frames(obs, frametype, start, end, **kwargs)
+    else:
+        kwargs.setdefault('urltype', 'file')
+        return connection.find_frame_urls(obs[0], frametype, start, end,
+                                          **kwargs)
 
 
 def write_cache(cache, outfile):
     with open(outfile, 'w') as fp:
         cache.tofile(fp)
+
+
+def find_ll_frames(ifo, frametype, start, end, root='/dev/shm',
+                   on_gaps='warn', tmpdir=None):
+    """Find all buffered low-latency frames in the given interval
+
+    Parameters
+    ----------
+    ifo : `str`
+        the IFO prefix, e.g. 'L1'
+    frametype : `str`
+        the frame type identifier, e.g. 'llhoft'
+    start : `int`
+        the GPS start time of this search
+    end : `int`
+        the GPS end time of this search
+    root : `str`, optional
+        the base root for the buffer, defaults to `/dev/shm`
+    on_gaps : `str`, optional
+        what to do when the found frames don't cover the full span, one of
+        'warn', 'raise', or 'ignore'
+    tmpdir : `str`, optional
+        temporary directory into which to copy files from /dev/shm
+
+        ..note::
+
+           Caller is reponsible for deleting the direcotyr and its
+           contents when done with it.
+
+    Returns
+    -------
+    cache : `~glue.lal.Cache`
+        a cache of frame file locations
+
+    .. warning::
+
+       This method is not safe, given that the frames may disappear from
+       the buffer before you have had a chance to read them
+
+    """
+    seg = Segment(start, end)
+    cache = _find_ll_frames(ifo, frametype, root=root).sieve(segment=seg)
+    if on_gaps != 'ignore':
+        seglist = SegmentList(e.segment for e in cache).coalesce()
+        missing = (SegmentList([seg]) - seglist).coalesce()
+        msg = "Missing segments:\n%s" % '\n'.join(map(str, missing))
+        if missing and on_gaps == 'warn':
+            warnings.warn(msg)
+        elif missing:
+            raise RuntimeError(msg)
+    if tmpdir:
+        out = []
+        if not os.path.isdir(tmpdir):
+            os.path.makedirs(tmpdir)
+        for e in cache:
+            f = e.path
+            new = os.path.join(tmpdir, os.path.basename(e.path))
+            shutil.copyfile(e.path, new)
+            out.append(new)
+        cache = Cache.from_urls(out)
+    return cache
+
+
+def _find_ll_frames(ifo, frametype, root='/dev/shm'):
+    if frametype.startswith('%s_' % ifo):
+        frametype = frametype.split('_', 1)[1]
+    obs = ifo[0]
+    globstr = os.path.join(root, frametype, ifo,
+                           '%s-%s_%s-*-*.gwf' % (obs, ifo, frametype))
+    return Cache.from_urls(glob.glob(globstr))

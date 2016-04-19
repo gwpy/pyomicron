@@ -69,7 +69,7 @@ import re
 from time import sleep
 from glob import glob
 from getpass import getuser
-from tempfile import gettempdir
+from tempfile import (gettempdir, mkdtemp)
 
 # python 3
 try:
@@ -85,7 +85,26 @@ from omicron import (const, segments, log, data, parameters, utils, condor)
 
 logger = log.Logger('omicron-process')
 
+
+# -- tempfile utilities
+
+def clean_exit(exitcode, tempfiles=[]):
+    clean_tempfiles(tempfiles)
+    sys.exit(exitcode)
+
+
+def clean_tempfiles(tempfiles):
+    for f in tempfiles:
+        if os.path.isdir(f):
+            shutil.rmtree(f)
+            logger.debug('Deleted directory %r' % f)
+        else:
+            os.remove(f)
+            logger.debug('Deleted file %r' % f)
+
+
 # -- parse command line
+
 epilog = """This source code for this project is available here:
 
 https://git.ligo.org/detchar/ligo-omicron/
@@ -163,6 +182,11 @@ condorg.add_argument('-d', '--dagman-option', action='append', type=str,
                           "\"-{opt} [{value}]\". "
                           "Can be given multiple times, default: %(default)s")
 
+datag = parser.add_argument_group('Data options')
+datag.add_argument('--use-dev-shm', action='store_true', default=False,
+                   help='use low-latency frame buffer in /dev/shm, '
+                        'default: %(default)s')
+
 pipeg = parser.add_argument_group('Pipeline options')
 pipeg.add_argument('--skip-omicron', action='store_true', default=False,
                    help='skip running omicron, default: %(default)s')
@@ -199,7 +223,7 @@ if all((args.skip_root_merge, args.skip_ligolw_add, args.skip_gzip,
     args.skip_postprocessing = True
 
 ifo = args.ifo
-llhoft = data.ligo_low_latency_hoft_type(ifo)
+llhoft = data.ligo_low_latency_hoft_type(ifo, use_devshm=args.use_dev_shm)
 group = args.group
 online = args.gps is None
 filetag = args.file_tag
@@ -316,6 +340,7 @@ if statechannel:
     logger.debug("State frametype = %s" % stateft)
 
 rundir = utils.get_output_directory(args)
+cachedir = os.path.join(rundir, 'cache')
 
 # -- find run segment
 
@@ -329,8 +354,14 @@ if online:
     try:
         start = segments.get_last_run_segment(segfile)[1]
     except IOError:
-        logger.debug("No online segment record, starting with 4000 seconds")
-        start = end - 4000
+        if llhoft.endswith('llhoft'):
+            logger.debug("No online segment record, starting with %s seconds"
+                         % chunkdur)
+            start = end - chunkdur + padding
+        else:
+            logger.debug("No online segment record, starting with "
+                         "4000 seconds")
+            start = end - 4000
     else:
         logger.debug("Online segment record recovered")
 else:
@@ -402,7 +433,7 @@ elif args.rescue and not os.path.isfile(os.path.join(condir, 'omicron.dag')):
 if dataduration < chunkdur:
     logger.info("Segment is too short (%d < %d), please try again later"
                 % (duration, chunkdur - padding * 2))
-    sys.exit(0)
+    clean_exit(0, tempfiles)
 
 # find run segments
 if (online and statechannel) or (statechannel and not stateflag):
@@ -457,7 +488,13 @@ elif truncate and (not statechannel or abs(lastseg) >= (chunkdur + segdur)):
 dataspan = type(segs)([segments.Segment(datastart, dataend)])
 
 # find the frames
-cache = data.find_frames(ifo, frametype, datastart, dataend, on_gaps='warn')
+if args.use_dev_shm:
+    cache = data.find_frames(ifo, frametype, datastart, dataend,
+                             on_gaps='warn', tmpdir=cachedir)
+    tempfiles.extend(cache.pfnlist())
+else:
+    cache = data.find_frames(ifo, frametype, datastart, dataend,
+                             on_gaps='warn')
 if not online and len(cache) == 0:
     raise RuntimeError("No frames found for %s-%s" % (ifo[0], frametype))
 try:
@@ -468,7 +505,6 @@ else:
     alldata = cachesegs == dataspan
 
 # write cache
-cachedir = os.path.join(rundir, 'cache')
 if not os.path.isdir(cachedir):
     os.makedirs(cachedir)
 cachefile = os.path.join(cachedir, 'frames.lcf')
@@ -488,11 +524,11 @@ if not args.rescue and len(segs) == 0 and online and alldata:
                 "search these data again")
     segments.write_segments(cachesegs, segfile)
     logger.info("Segments written to\n%s" % segfile)
-    sys.exit(0)
+    clean_exit(0, tempfiles)
 # otherwise not all data are available, so
 elif len(segs) == 0 and online:
     logger.info("No segments found, please try again later")
-    sys.exit(0)
+    clean_exit(0, tempfiles)
 elif len(segs) == 0:
     raise RuntimeError("No segments found")
 
@@ -697,7 +733,7 @@ else:
 print(os.path.abspath(dagfile))
 
 if args.no_submit:
-    sys.exit(0)
+    clean_exit(0, tempfiles)
 
 # -- submit the DAG and babysit -----------------------------------------------
 
@@ -768,9 +804,7 @@ for f in ['%s.dagman.out' % dagfile, segfile, cachefile, parfile]:
 
 # clean up temporary files
 tempfiles.extend(glob(os.path.join(rundir, 'triggers', 'ffconvert.*.ffl')))
-for f in tempfiles:
-    os.remove(f)
-    logger.debug('Deleted file %r' % f)
+clean_tempfiles(tempfiles)
 
 # and exit
 logger.info("---- Processing complete -----------")

@@ -22,6 +22,8 @@
 from __future__ import print_function
 
 import os.path
+import shutil
+from tempfile import mkdtemp
 from functools import wraps
 
 from glue.segmentsUtils import fromsegwizard
@@ -80,13 +82,28 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1):
     """Read state segments from a state-vector channel in the frames
     """
     from gwpy.timeseries import StateVector
-    obs = channel[0]
-    cache = data.find_frames(obs, frametype, start, end)
+    ifo = channel[:2]
+    if data.re_ll.match(frametype):
+        tmpdir = mkdtemp(prefix='tmp-pyomicron-')
+        cache = data.find_frames(ifo, frametype, start, end, tmpdir=tmpdir)
+    else:
+        cache = data.find_frames(ifo, frametype, start, end)
     bits = map(str, bits)
-    sv = StateVector.read(cache, channel, nproc=nproc, start=start, end=end,
-                          bits=bits, gap='pad', pad=0).astype('uint32')
-    segs = sv.to_dqflags().intersection()
-    return segs.active
+    # FIXME: need to read from cache with single segment but doesn't match
+    # [start, end)
+    span = SegmentList([Segment(start, end)])
+    segs = SegmentList()
+    try:
+        csegs = cache.to_segmentlistdict()[ifo[0]]
+    except KeyError:
+        return segs
+    for s, e in csegs & span:
+        sv = StateVector.read(cache, channel, nproc=nproc, start=s, end=e,
+                              bits=bits, gap='pad', pad=0).astype('uint32')
+        segs += sv.to_dqflags().intersection().active
+    if data.re_ll.match(frametype):
+        shutil.rmtree(tmpdir)
+    return segs
 
 
 @integer_segments
