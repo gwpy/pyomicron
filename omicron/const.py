@@ -23,7 +23,7 @@ import os
 
 from glue.segments import segment as Segment
 
-# generic parameters
+# -- generic parameters
 try:
     IFO = os.environ['IFO']
 except KeyError:
@@ -45,11 +45,16 @@ else:
 SITE = os.getenv('SITE')
 site = os.getenv('site', SITE and SITE.lower() or None)
 
-# omicron directories
+# -- omicron directories
 HOME = os.path.expanduser('~')
+# where Omicron runs
 OMICRON_BASE = os.path.join(HOME, 'Omicron')
+# where Omicron triggers are produced
 OMICRON_PROD = os.path.join(OMICRON_BASE, 'Prod')
+# archive storage directory
 OMICRON_ARCHIVE = os.path.join(HOME, 'triggers')
+# tag Omicron itself places on XML files
+OMICRON_FILETAG = 'Omicron'
 
 # omicron production version
 OMICRON_VERSION = 'v2r1'

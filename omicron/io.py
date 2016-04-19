@@ -22,10 +22,14 @@
 import warnings
 import os.path
 import glob
+import re
 
 from glue.lal import Cache
 
+from . import const
 from .segments import (Segment, segmentlist_from_tree)
+
+re_delim = re.compile('[:_-]')
 
 
 def merge_root_files(inputfiles, outputfile,
@@ -160,3 +164,57 @@ def find_pending_files(channel, proddir, ext='xml.gz'):
     """
     g = os.path.join(proddir, 'triggers', channel, '*.%s' % ext)
     return Cache.from_urls(glob.iglob(g))
+
+
+def get_archive_filename(channel, start, duration, ext='xml.gz',
+                         filetag=const.OMICRON_FILETAG.upper(),
+                         archive=const.OMICRON_ARCHIVE):
+    """Returns the full file path for this channel's triggers
+
+    This method will design a trigger file path for you, rather than find
+    a file that is already there, and so should be used to seed an archive,
+    not search it.
+
+    Parameters
+    ----------
+    channel : `str`
+        name of channel
+    start : `int`
+        GPS start time of file
+    duration : `int`
+        duration (seconds) of file
+    ext : `str`, optional
+        file extension, defaults to ``xml.gz``
+    filetag : `str`, optional
+        filetag to be appended after the channel name, defaults to ``OMICRON``
+    archive : `str`, optional
+        base directory of the trigger archive, defaults to
+        `const.OMICRON_ARCHIVE`
+
+    Returns
+    -------
+    filepath : `str`
+        the absolute path where this file should be stored
+
+    See Also
+    --------
+    `T050017 <https://dcc.ligo.org/LIGO-T050017>`_ for details of the
+    file-naming convention.
+
+    Examples
+    --------
+    >>> get_archive_filename('H1:GDS-CALIB_STRAIN', 1234567890, 100, archive='/triggers')
+    '/triggers/H1/GDS_CALIB_STRAIN_OMICRON/12345/H1-GDS_CALIB_STRAIN_OMICRON-1234567890-100.xml.gz'
+
+    """
+    cname = re_delim.sub('_', str(channel))
+    ifo, description = cname.split('_', 1)
+    if filetag is not None:
+        description += '_%s' % re_delim.sub('_', filetag).strip('_')
+    filename = '%s-%s-%d-%d.%s' % (
+        ifo, description, int(start), int(duration), ext)
+    if start < 10000:
+        gps5 = '%.5d' % int(start)
+    else:
+        gps5 = str(int(start))[:5]
+    return os.path.join(archive, ifo, description, gps5, filename)

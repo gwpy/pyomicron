@@ -79,9 +79,9 @@ except ImportError:
     import ConfigParser as configparser
 
 from glue import pipeline
-from glue.lal import CacheEntry
+from glue.lal import (Cache, CacheEntry)
 
-from omicron import (const, segments, log, data, parameters, utils, condor)
+from omicron import (const, segments, log, data, parameters, utils, condor, io)
 
 logger = log.Logger('omicron-process')
 
@@ -218,18 +218,33 @@ if args.executable is None:
     parser.error("Cannot find omicron.exe on path, please pass "
                  "--executable on the command line")
 
+# validate processing options
 if all((args.skip_root_merge, args.skip_ligolw_add, args.skip_gzip,
         not args.archive)):
     args.skip_postprocessing = True
+if args.archive:
+    argsd = vars(args)
+    for arg in ['skip-root-merge', 'skip-ligolw-add', 'skip-gzip']:
+        if argsd[arg.replace('-', '_')]:
+            parser.error("Cannot use --%s with --archive" % arg)
 
 ifo = args.ifo
 llhoft = data.ligo_low_latency_hoft_type(ifo, use_devshm=args.use_dev_shm)
 group = args.group
 online = args.gps is None
+
+# format file-tag
 filetag = args.file_tag
-if filetag and not filetag.startswith('_'):
+if filetag:
+    filetag = re.sub('[:_\s-]', '_', filetag).rstrip('_').strip('_')
+    if const.OMICRON_FILETAG.lower() in filetag.lower():
+        afiletag = filetag
+    else:
+        afiletag = '%s_%s' % (filetag, const.OMICRON_FILETAG.upper())
     filetag = '_%s' % filetag
-filetag = re.sub('[:_\s-]', '_', filetag.upper())
+else:
+    filetag = ''
+    afiletag = const.OMICRON_FILETAG.upper()
 
 logger.info("--- Welcome to the Omicron processor ---")
 
@@ -644,34 +659,43 @@ for s, e in segs:
                     print('#!/bin/bash -e\n', file=f)
                     # build post-processing nodes for each channel
                     for c in chanlist:
-                        print("# %s" % c, file=f)
+                        print("# %s" % c, file=f)  # comment header for sh
+
+                        # work out filenames for coalesced files
                         chandir = os.path.join(rundir, 'triggers', c)
                         cname = re.sub('[:_-]', '_', c).replace('_', '-', 1)
+                        target, filename = os.path.split(
+                            io.get_archive_filename(
+                                c, ts, td, filetag=afiletag, ext='root'))
+
+                        # list of all root files
                         roots = ' '.join(
-                            os.path.join(chandir,
-                                         '%s_%d_%d.root' % (c, fs, fe-fs))
+                            os.path.join(
+                                chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
                             for (fs, fe) in filesegments)
+                        # list of all xmls
+                        xmls = ' '.join(
+                            os.path.join(chandir, '%s_%s-%d-%d.xml' % (
+                                cname, const.OMICRON_FILETAG, fs, fe-fs))
+                            for (fs, fe) in filesegments)
+
                         # add omicron-root-merge
                         if args.skip_root_merge:
                             root = roots
                         else:
-                            root = os.path.join(
-                                chandir, '%s%s_Omicron-%d-%d.root'
-                                         % (cname, filetag, ts, td))
+                            root = os.path.join(chandir, filename)
                             print('%s %s %s --strict'
                                   % (rootmerge, roots, root), file=f)
+
                         # add ligolw_add
-                        xmls = ' '.join(os.path.join(
-                            chandir, '%s_Omicron-%d-%d.xml' % (cname, fs, fe-fs))
-                            for (fs, fe) in filesegments)
                         if args.skip_ligolw_add:
                             xml = xmls
                         else:
-                            xml = os.path.join(
-                                chandir, '%s%s_Omicron-%d-%d.xml'
-                                         % (cname, filetag, ts, td))
+                            xml = os.path.join(chandir,
+                                               filename.replace('root', 'xml'))
                             print('%s %s --output %s'
                                   % (ligolw_add, xmls, xml), file=f)
+
                         # add gzip
                         if not args.skip_gzip:
                             print('%s --force %s' % (gzip, xml), file=f)
@@ -679,12 +703,6 @@ for s, e in segs:
 
                         # add archive
                         if args.archive:
-                            x = CacheEntry.from_T050017(xml)
-                            epoch = const.epoch_at_gps(x.segment[0])
-                            target = os.path.join(const.OMICRON_ARCHIVE, epoch,
-                                                  x.observatory,
-                                                  x.description,
-                                                  str(int(x.segment[0]))[:5])
                             try:
                                 archivefiles[target].extend([xml, root])
                             except KeyError:
@@ -692,6 +710,7 @@ for s, e in segs:
 
                         # add rm jobs
                         print('rm -f %s %s' % (roots, xmls), file=f)
+
             ppnode = pipeline.CondorDAGNode(ppjob)
             ppnode.add_var_arg(script)
             ppnode.set_category('postprocessing')
@@ -706,13 +725,32 @@ for s, e in segs:
 # do all archiving last, once all post-processing has completed
 if args.archive:
     archivenode = pipeline.CondorDAGNode(archivejob)
+    xmlcache = Cache()
+    rootcache = Cache()
     if not args.rescue:
+        # write shell script to seed archive
         with open(archivejob.get_executable(), 'w') as f:
             print('#!/bin/bash -e\n', file=f)
             for gpsdir, filelist in archivefiles.iteritems():
+                # write 'mv' op to script
                 print("mkdir -p %s" % gpsdir, file=f)
                 print("mv %s %s" % (' '.join(filelist), gpsdir), file=f)
-    os.chmod(archivejob.get_executable(), 0o755)
+                # record archived files in caches
+                filenames = [os.path.join(gpsdir, os.path.basename(x)) for
+                             x in filelist]
+                xmlcache.extend(CacheEntry.from_T050017(x) for x in filenames
+                                if x.endswith('xml.gz'))
+                rootcache.extend(CacheEntry.from_T050017(x) for x in filenames
+                                if x.endswith('root'))
+        os.chmod(archivejob.get_executable(), 0o755)
+        # write caches to disk
+        xmlcachefile = os.path.join(cachedir, 'omicron-xml.lcf')
+        data.write_cache(xmlcache, xmlcachefile)
+        logger.debug("XML cache written to %s" % xmlcachefile)
+        rootcachefile = os.path.join(cachedir, 'omicron-root.lcf')
+        data.write_cache(rootcache, rootcachefile)
+        logger.debug("ROOT cache written to %s" % rootcachefile)
+    # add node to DAG
     for node in ppnodes:
         archivenode.add_parent(node)
     archivenode.set_category('archive')
