@@ -99,27 +99,32 @@ def root_cache(rootfiles):
     return out
 
 
-def _find_files_in_gps_directory(channel, basepath, gps5, ext, filetag=None):
+def _parse_channel_and_filetag(channel, filetag):
+    """Work out the relevant observatory and description given the inputs
+    """
+    cname = re_delim.sub('_', str(channel))
+    obs, description = cname.split('_', 1)
+    if filetag is not None:
+        description += '_%s' % re_delim.sub('_', filetag).strip('_')
+    return obs, description
+
+
+def _find_files_in_gps_directory(channel, basepath, gps5, ext,
+                                 filetag=const.OMICRON_FILETAG.upper()):
     """Internal method to glob Omicron files from a directory structure
     """
-    ifo, name = channel.split(':', 1)
-    n = name.replace('-', '_')
-    if filetag and not filetag.startswith('_'):
-        filetag = '_%s' % filetag
-    elif not filetag:
-        filetag = ''
+    ifo, description = _parse_channel_and_filetag(channel, filetag)
     out = Cache()
-    for etgtag in ['Omicron', 'OMICRON']:
-        dg = os.path.join(basepath, ifo, '%s_%s' % (n, etgtag), str(gps5))
-        for d in glob.iglob(dg):
-            g = os.path.join(
-                d, '%s-%s%s_%s-*.%s' % (ifo, n, filetag, etgtag, ext))
-            out.extend(Cache.from_urls(glob.iglob(g)))
+    dg = os.path.join(basepath, ifo, description, str(gps5))
+    for d in glob.iglob(dg):
+        g = os.path.join(
+            d, '%s-%s-*.%s' % (ifo, description, ext))
+        out.extend(Cache.from_urls(glob.iglob(g)))
     return out
 
 
 def find_omicron_files(channel, start, end, basepath, ext='xml.gz',
-                       filetag=None):
+                       filetag=const.OMICRON_FILETAG.upper()):
     """Find Omicron files under a given starting directory
     """
     gps5 = int(str(start)[:5])
@@ -131,7 +136,8 @@ def find_omicron_files(channel, start, end, basepath, ext='xml.gz',
     return cache.sieve(segment=Segment(start, end))
 
 
-def find_latest_omicron_file(channel, basepath, ext='xml.gz', filetag=None,
+def find_latest_omicron_file(channel, basepath, ext='xml.gz',
+                             filetag=const.OMICRON_FILETAG.upper(),
                              gps=None):
     """Find the most recent Omicron file for a given channel
     """
@@ -198,10 +204,7 @@ def get_archive_filename(channel, start, duration, ext='xml.gz',
     '/triggers/H1/GDS_CALIB_STRAIN_OMICRON/12345/H1-GDS_CALIB_STRAIN_OMICRON-1234567890-100.xml.gz'
 
     """
-    cname = re_delim.sub('_', str(channel))
-    ifo, description = cname.split('_', 1)
-    if filetag is not None:
-        description += '_%s' % re_delim.sub('_', filetag).strip('_')
+    ifo, description = _parse_channel_and_filetag(channel, filetag)
     filename = '%s-%s-%d-%d.%s' % (
         ifo, description, int(start), int(duration), ext)
     if start < 10000:
