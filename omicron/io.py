@@ -34,7 +34,7 @@ re_delim = re.compile('[:_-]')
 
 def merge_root_files(inputfiles, outputfile,
                      trees=['segments', 'triggers', 'metadata'],
-                     all_metadata=False, strict=True, on_missing='raise'):
+                     strict=True, on_missing='raise'):
     """Merge several ROOT files into a single file
 
     Parameters
@@ -45,9 +45,6 @@ def merge_root_files(inputfiles, outputfile,
         the path of the output ROOT file to write
     tree : `list` of `str`
         the names of the ROOT Trees to include
-    all_metadata : `bool`, default: `False`
-        whether to include metadata from all files, or just the first one
-        (default)
     strict : `bool`, default: `True`
         only combine contiguous files (as described by the contained segmenets)
     """
@@ -67,14 +64,8 @@ def merge_root_files(inputfiles, outputfile,
 
     for tree in trees:
         chains[tree] = ROOT.TChain(tree)
-        if tree == 'metadata' and not all_metadata:
-            try:
-                chains[tree].Add(inputfiles[0])
-            except IndexError:
-                pass
-        else:
-            for i, f in enumerate(inputfiles):
-                chains[tree].Add(f)
+        for i, f in enumerate(inputfiles):
+            chains[tree].Add(f)
         if (strict and tree == 'segments' and
                 len(segmentlist_from_tree(chains[tree]).coalesce()) > 1):
             raise RuntimeError("Cannot perform a 'strict' merge on files "
