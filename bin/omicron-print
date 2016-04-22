@@ -1,0 +1,255 @@
+#!/usr/bin/python
+# Copyright (C) Duncan Macleod (2016)
+#
+# This file is part of LIGO-Omicron.
+#
+# LIGO-Omicron is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LIGO-Omicron is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with LIGO-Omicron.  If not, see <http://www.gnu.org/licenses/>.
+
+"""Print Omicron events or file locations
+"""
+
+from __future__ import print_function
+
+import argparse
+import operator
+import sys
+from getpass import getuser
+
+import token
+from tokenize import generate_tokens
+from StringIO import StringIO
+
+import numpy
+from numpy.lib import recfunctions
+
+from glue.lal import Cache
+
+from gwpy.table.lsctables import SnglBurstTable
+from gwpy.time import to_gps
+
+from omicron import (io, const)
+from omicron.segments import (Segment, SegmentList)
+
+__author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
+
+BASEPATH = const.OMICRON_ARCHIVE.replace(getuser(), 'detchar')
+
+MATH_OPERATORS = {
+    '<': operator.lt,
+    '<=': operator.le,
+    '=': operator.eq,
+    '>=': operator.ge,
+    '>': operator.gt,
+    '==': operator.is_,
+    '!=': operator.is_not,
+}
+MATH_OPERATORS_NOT = {
+    '<': operator.ge,
+    '<=': operator.gt,
+    '=': operator.ne,
+    '>=': operator.lt,
+    '>': operator.le,
+    '==': operator.is_not,
+    '!=': operator.is_,
+}
+
+
+# -- parse command line -------------------------------------------------------
+
+def condition(value):
+    """Parse a `str` of the form 'column>50'
+
+    Returns
+    -------
+    column : `str`
+        the name of the column on which to operate
+    math : `list` of (`str`, `callable`) pairs
+        the list of thresholds and their associated math operators
+
+    Examples
+    --------
+    >>> condition("snr>10")
+    ('snr', [(10.0, <built-in function gt>)])
+    >>> condition("50 < peak_frequency < 100")
+    ('peak_frequency', [(50.0, <built-in function ge>), (100.0, <build-in function lt>)])
+    """
+    # parse condition
+    parts = list(generate_tokens(StringIO(value).readline))
+    # find paramname
+    names = filter(lambda t: t[0] == token.NAME, parts)
+    if len(names) != 1:
+        raise ValueError("Multiple column names parse from condition %r"
+                         % value)
+    name = names[0][1]
+    limits = zip(*filter(lambda t: t[0] == token.NUMBER, parts))[1]
+    operators = zip(*filter(lambda t: t[0] == token.OP, parts))[1]
+    if len(limits) != len(operators):
+        ValueError("Number of limits doesn't match number of operators "
+                   "in condition %r" % value)
+    math = []
+    for lim, op in zip(limits, operators):
+        try:
+            if value.find(lim) < value.find(op):
+                math.append((float(lim), MATH_OPERATORS_NOT[op]))
+            else:
+                math.append((float(lim), MATH_OPERATORS[op]))
+        except KeyError as e:
+            e.args = ('Unrecognised math operator %r' % op,)
+            raise
+    return (name, math)
+
+
+# -- build parser
+parser = argparse.ArgumentParser(
+    description=__doc__,
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parsers = parser.add_subparsers(
+    dest='mode', title='run modes',
+    description='What kind of data you want to print, run '
+                '`omicron-print {mode} --help` for detailed help')
+
+# -- common options
+shared = argparse.ArgumentParser(add_help=False)
+shared.add_argument('channel', help='name of channel')
+shared.add_argument('gpsstart', type=to_gps, help='GPS start time of search')
+shared.add_argument('gpsend', type=to_gps, help='GPS end time of search')
+fopts = shared.add_argument_group('file discovery options')
+fopts.add_argument('-b', '--base-directory', default=BASEPATH,
+                   help='base directory for file search')
+fopts.add_argument('-g', '--gaps', action='store_true', default=False,
+                   help='check for gaps in the recovered files and return '
+                        'exitcode as follows: 0, no gaps found; '
+                        '1, some files found with gaps')
+fopts.add_argument('-t', '--file-type', default='xml.gz',
+                   choices=['root', 'xml.gz'], help='type of files to find')
+
+# -- print files
+fparser = parsers.add_parser(
+    'files', description='Print the locations of Omicron event files',
+    formatter_class=parser.formatter_class, parents=[shared],
+    help='print file paths')
+fparser.add_argument('-l', '--lal-cache', action='store_true', default=False,
+                     help='format output for use as a LAL cache file')
+
+# -- print events
+eparser = parsers.add_parser(
+    'events', description='Print Omicron events in ASCII format',
+    formatter_class=parser.formatter_class, parents=[shared],
+    help='print events in ASCII format')
+eparser.add_argument('-c', '--column', action='append', type=str, default=[],
+                     help='name of column to print (give multiple times)')
+eparser.add_argument('-r', '--rank-by',
+                     help='name of column by which to sort')
+eparser.add_argument('-x', '--condition', type=condition, action='append',
+                     default=[],
+                     help='mathematical condition on a column value, e.g. '
+                          '"snr>5" or "100<peak_frequency<200"')
+eparser.add_argument('-d', '--delimiter', default=' ',
+                     help='delimiter for output (default: %(default)r')
+eparser.add_argument('-n', '--max-events', default=None, metavar='N', type=int,
+                     help='print at most N events')
+eparser.add_argument('-R', '--reverse-rank', action='store_true',
+                     default=False, help='rank events in reverse (lowest '
+                                         'value of rank_by first')
+
+# -- parse args and simplify variables
+args = parser.parse_args()
+start = args.gpsstart.seconds
+end = args.gpsend.seconds
+gaps = args.gaps
+
+# set default columns
+if not args.column:
+    args.column = ['time', 'peak_frequency', 'snr']
+
+# -- find files ---------------------------------------------------------------
+
+# build segment list (placeholder for allowing custom states, perhaps)
+segs = SegmentList([Segment(start, end)])
+
+cache = Cache()
+for seg in segs:
+    cache.extend(io.find_omicron_files(
+        args.channel, start, end, args.base_directory, ext=args.file_type))
+
+# find gaps
+known = cache.to_segmentlistdict()[args.channel.split(':')[0]] & segs
+if gaps:
+    gaps = segs - known
+if not known:
+    raise RuntimeError("No files found for required interval")
+elif gaps:
+    print("Missing segments:", file=sys.stderr)
+    for seg in gaps:
+        print("%f %f" % seg, file=sys.stderr)
+
+# -- print files --------------------------------------------------------------
+
+if args.mode == 'files':
+    if args.lal_cache:
+        cache.tofile(sys.stdout)
+    else:
+        cache.topfnfile(sys.stdout)
+    if gaps:
+        sys.exit(1)
+    else:
+        sys.exit(0)
+
+
+# -- read events --------------------------------------------------------------
+
+# build filt based on conditions
+def filter_events(array):
+    """Returns `True` if we should keep this event
+    """
+    keep = numpy.ones(array.shape[0], dtype=bool)
+    # filter on segments
+    for seg in segs:
+        keep &= array['time'] >= seg[0]
+        keep &= array['time'] < seg[1]
+    # apply user conditions
+    for col, math in args.condition:
+        vals = array[col]
+        for l, op in math:
+            keep &= op(vals, l)
+    return keep
+
+
+# read events (with simple filter on segments)
+if args.file_type == 'xml.gz':
+    cname = args.channel.split(':', 1)[1]
+    table = SnglBurstTable.read(cache, filt=lambda x: x.channel == cname)
+else:
+    table = SnglBurstTable.read(cache)
+events = table.to_recarray()
+
+# inject time column into recarray
+if 'time' not in events.dtype.names:
+    times = events['peak_time'] + events['peak_time_ns'] * 1e-9
+    events = recfunctions.rec_append_fields(events, 'time', times, times.dtype)
+
+# apply conditions
+events = events[filter_events(events)]
+
+# sort events
+if args.rank_by:
+    events.sort(order=args.rank_by)
+    if not args.reverse_rank:
+        events = events[::-1]
+
+# print events
+print("#%s" % args.delimiter.join(args.column))
+for e in events[:args.max_events]:
+    print(args.delimiter.join(['%%%s' % e[col].dtype.kind % e[col]
+                               for col in args.column]))
