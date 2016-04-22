@@ -31,10 +31,6 @@ __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('filename', nargs='+', help='file to merge')
 parser.add_argument('output', help='output file name')
-parser.add_argument('-m', '--keep-all-metadata', action='store_true',
-                    default=False,
-                    help='preserve all metadata, default: %(default)s '
-                         '(keep metadata for first file')
 parser.add_argument('-d', '--remove-input', action='store_true', default=False,
                     help='remove input files after writing output, '
                          'default: %(default)s')
@@ -42,8 +38,7 @@ parser.add_argument('-s', '--strict', action='store_true', default=False,
                     help='only merge contiguous data, default: %(default)s')
 
 args = parser.parse_args()
-io.merge_root_files(args.filename, args.output, strict=args.strict,
-                    all_metadata=args.keep_all_metadata)
+io.merge_root_files(args.filename, args.output, strict=args.strict)
 
 # remove input files
 if args.remove_input:
