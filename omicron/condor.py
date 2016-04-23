@@ -164,7 +164,7 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
         the ClusterId of the DAG
     schedd : `htcondor.Schedd`, optional
         the open connection to the scheduler
-    held : `bool`, optional
+    detailed : `bool`, optional
         check jobs as held
 
     Returns
