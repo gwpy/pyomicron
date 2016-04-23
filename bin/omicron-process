@@ -787,7 +787,7 @@ else:
 
 for i in range(args.submit_rescue_dag + 1):
     dagmanargs = set()
-    dagmanopts = {}
+    dagmanopts = {'-append': '+OmicronDAGMan=\"%s\"' % group}
     for x in args.dagman_option:
         x = '-%s' % x
         try:
