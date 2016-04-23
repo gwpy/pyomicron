@@ -249,6 +249,7 @@ else:
 logger.info("--- Welcome to the Omicron processor ---")
 
 tempfiles = []
+archivefiles = []
 
 # check rescue against --dagman-option force
 if args.rescue and args.dagman_option.count('force') > 1:
@@ -360,6 +361,8 @@ cachedir = os.path.join(rundir, 'cache')
 # -- find run segment
 
 segfile = os.path.join(rundir, 'segments.txt')
+archivefiles.append(segfile)
+
 if online:
     if frametype == '%s_HOFT_C00' % ifo:
         end = data.get_latest_data_gps(ifo, llhoft)
@@ -382,7 +385,6 @@ if online:
 else:
     start, end = args.gps
 rundir = os.path.abspath(rundir)
-segfile = os.path.join(rundir, 'segments.txt')
 
 duration = end - start
 datastart = start - padding
@@ -523,6 +525,7 @@ else:
 if not os.path.isdir(cachedir):
     os.makedirs(cachedir)
 cachefile = os.path.join(cachedir, 'frames.lcf')
+archivefiles.append(cachefile)
 if not args.rescue:
     data.write_cache(cache, cachefile)
 logger.info("Cache of %d frames written to\n%s" % (len(cache), cachefile))
@@ -574,6 +577,7 @@ if not args.rescue:
     parfile = os.path.join(rundir, 'parameters.txt')
     logger.debug("Created master parameters file\n%s" % parfile)
     shutil.move(tmpparfile, parfile)
+    archivefiles.append(parfile)
 
 # then generate actual parameters files for submission (channel groups)
 if args.rescue:
@@ -834,7 +838,7 @@ logger.info("Segments written to\n%s" % segfile)
 
 # archive files
 stub = '%d-%d' % (start, end)
-for f in ['%s.dagman.out' % dagfile, segfile, cachefile, parfile]:
+for f in ['%s.dagman.out' % dagfile] + archivefiles:
     base, ext = os.path.splitext(os.path.basename(f))
     archive = os.path.join(logdir, '%s-%s%s' % (base, stub, ext))
     shutil.copyfile(f, archive)
