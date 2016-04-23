@@ -23,11 +23,14 @@ from __future__ import print_function
 
 import os.path
 import shutil
+import json
 from tempfile import mkdtemp
 from functools import wraps
 
 from glue.segmentsUtils import fromsegwizard
 from glue.segments import (segmentlist as SegmentList, segment as Segment)
+
+from dqsegdb.urifunctions import getDataUrllib2 as dqsegdb_uri_query
 
 from . import (const, data, utils)
 
@@ -234,3 +237,24 @@ def parallel_omicron_segments(start, end, chunk, overlap, nperjob=1):
             out.append(seg)
         t = seg[1] - overlap
     return out
+
+
+def get_flag_coverage(flag, url='https://segments.ligo.org'):
+    """Return the coverage data for the given flag
+    """
+    ifo, name, version = flag.rsplit(':', 2)
+    flagu = '/dq/%s/%s/%s' % (ifo, name, version)
+    raw = dqsegdb_uri_query('%s/report/coverage' % url)
+    return json.loads(raw)['results'][flagu]
+
+
+def get_latest_active_gps(flag, url='https://segments.ligo.org'):
+    """Return the end time of the latest active segment for this flag
+    """
+    return get_flag_coverage(flag, url=url)['latest_active_segment']
+
+
+def get_latest_known_gps(flag, url='https://segments.ligo.org'):
+    """Return the end time of the latest known segment for this flag
+    """
+    return get_flag_coverage(flag, url=url)['latest_known_segment']
