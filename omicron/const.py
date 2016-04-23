@@ -48,9 +48,9 @@ site = os.getenv('site', SITE and SITE.lower() or None)
 # -- omicron directories
 HOME = os.path.expanduser('~')
 # where Omicron runs
-OMICRON_BASE = os.path.join(HOME, 'Omicron')
+OMICRON_BASE = os.path.join(HOME, 'omicron')
 # where Omicron triggers are produced
-OMICRON_PROD = os.path.join(OMICRON_BASE, 'Prod')
+OMICRON_PROD = os.path.join(OMICRON_BASE, 'online')
 # archive storage directory
 OMICRON_ARCHIVE = os.path.join(HOME, 'triggers')
 # tag Omicron itself places on XML files
