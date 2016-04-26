@@ -26,7 +26,7 @@ Details of the workflow
 The ``omicron-process`` executable will do the following
 
 * find the relevant time segments to process (if ``state-flag`` or ``state-channel`` has been defined in the configuration),
-* find the frame files containing the data (using `gw_data_find <glue.datafind>`),
+* find the frame files containing the data (using :mod:`gw_data_find <glue.datafind>`),
 * build a Directed Acyclic Graph (DAG) defining the workflow.
 
 By default the DAG will do something like this
