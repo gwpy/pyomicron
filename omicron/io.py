@@ -47,6 +47,16 @@ def merge_root_files(inputfiles, outputfile,
         the names of the ROOT Trees to include
     strict : `bool`, default: `True`
         only combine contiguous files (as described by the contained segmenets)
+    on_missing : `str`, optional
+        what to do when an input file is not found, one of
+
+        - ``'ignore'``: do nothing
+        - ``'warn'``: print a warning
+        - ``'raise'``: raise an `IOError`
+
+    Notes
+    -----
+    This method requires the `ROOT <https://root.cern.ch/pyroot>`_ package.
     """
     import ROOT
     chains = {}
@@ -193,9 +203,9 @@ def get_archive_filename(channel, start, duration, ext='xml.gz',
     filepath : `str`
         the absolute path where this file should be stored
 
-    See Also
-    --------
-    `T050017 <https://dcc.ligo.org/LIGO-T050017>`_ for details of the
+    Notes
+    -----
+    See `T050017 <https://dcc.ligo.org/LIGO-T050017>`_ for details of the
     file-naming convention.
 
     Examples
