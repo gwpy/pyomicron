@@ -48,7 +48,7 @@ where the path components are as follows
 * ``{IFO}`` is the two-character interferometer prefix for the raw data channel (e.g. ``L1``),
 * ``{filetag}`` is an underscore-delimited tag including the rest of the channel name and ``OMICRON``, e.g. (``GDS_CALIB_STRAIN_OMICRON``),
 * ``{gps5}`` is the 5-digit GPS epoch for the start time of the file, e.g. ``12345`` if the file starts at GPS ``1234567890``.
-* ``{filename}`` is the `T050017 <https://dcc.ligo.org/LIGO-T050017/public>`_-compatible name, which will be of the form ``{IFO}-{filetag}-<gpsstart>-<duration>.<ext>``
+* ``{filename}`` is the `T050017 <https://dcc.ligo.org/LIGO-T050017/>`_-compatible name, which will be of the form ``{IFO}-{filetag}-<gpsstart>-<duration>.<ext>``
 
 e.g.::
 
