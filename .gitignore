@@ -6,3 +6,10 @@
 /dist/
 /*.egg-info/
 /.cache/
+
+# IDE
+/.idea/
+
+# documentation stuff
+/docs/_build/
+/docs/api/

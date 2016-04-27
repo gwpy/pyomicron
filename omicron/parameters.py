@@ -21,13 +21,12 @@
 
 from __future__ import (division, print_function)
 
-try:
-    import ConfigParser as configparser
-except ImportError:  # python 2.x
-    import configparser
-
 from math import (ceil, exp, floor, log)
 import os.path
+try:  # python >= 3
+    import configparser
+except ImportError:  # python 2.x
+    import ConfigParser as configparser
 
 from . import (const, utils)
 
@@ -53,6 +52,38 @@ OMICRON_PARAM_MAP = {
 
 def generate_parameters_files(config, section, cachefile, rundir,
                               channellimit=10, omicron_version=None, **kwargs):
+    """Write the Omicron-format parameters files for this workflow
+
+    This method will write one or more parameter files into the
+    `{rundir}/parameters/` directory, depending on the `channellimit`, and
+    return a mapping describing the channels included in each file.
+
+    Parameters
+    ----------
+    config : `configparser.Configparser`
+        the configuration instance
+    section : `str`
+        the name of the omicron group as inlucded in the config file
+    cachefile : `str`
+        the path of the frame cache file (either `.lcf` or `.ffl`) for this
+        workflow
+    rundir : `str`
+        the output directory for this workflow
+    channellimit : `int`, default: `10`
+        the number of channels to include per Omicron process
+    omicron_version : `str`, optional
+        the version of the Omicron executable, this is taken from the path
+        of the Omicron executable if not given here
+    **kwargs
+        other keyword arguments are added as `PARAMETER KEY VALUE` options
+        in the output parameters file
+
+    Returns
+    -------
+    parameters : `list` of `tuple`
+        a `list` of (`str`, `list`) pairs defining the name of a parameter
+        file and the list of channels included in it
+    """
     if omicron_version is None:
         try:
             omicron_version = utils.get_omicron_version()
