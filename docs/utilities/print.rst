@@ -44,7 +44,7 @@ You can restrict which events to display based on their parameters by using the 
 
 The conditions should be formatted as ``<column> <operator> <threshold>``, e.g. ``snr > 5``, or ``<min> < <column> < <max>`` for bounds, e.g. ``100 < peak_freqency < 200``.
 
-.. code-block::
+.. code-block:: bash
 
    $ omicron-print events L1:GDS-CALIB_STRAIN 1000000000 1000000100 -c time -c snr -x "snr > 100" -x "peak_frequency < 50"
 
