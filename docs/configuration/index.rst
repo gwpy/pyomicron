@@ -7,48 +7,58 @@ The critical user-controlled component of a workflow built with PyOmicron is
 the configuration file, an INI-format set of (key, value) pairs that define
 how the workflow should be generated.
 
-Each workflow will be configured from a single `[section]`, which can
+Each workflow will be configured from a single ``[section]``, which can
 have the following keys
 
 **Data selection**
+[required]
 
-=========  =============================================================
-channels   tab-indented, line-separated list of channel names to process
-frametype  frame type name of data files containing these channels
-=========  =============================================================
+=============  =============================================================
+``channels``   tab-indented, line-separated list of channel names to process
+``frametype``  frame type name of data files containing these channels
+=============  =============================================================
 
 **Timing**
+[required]
 
-================  ==========================================================
-chunk-duration    duration of data (seconds) for PSD estimation
-segment-duration  duration of data (seconds) for FFT
-overlap-duration  overlap (seconds) between neighbouring segments and chunks
-================  ==========================================================
+====================  ==========================================================
+``chunk-duration``    duration of data (seconds) for PSD estimation
+``segment-duration``  duration of data (seconds) for FFT
+``overlap-duration``  overlap (seconds) between neighbouring segments and chunks
+====================  ==========================================================
 
 **State**
-[Selecting a state is entirely optional]
+[optional]
 
-===============  ============================================================
-state-flag       name of data-quality flag defining active state segments
-state-channel    name of data channel defining active state
-state-frametype  frame type name for the `state-channel`
-state-bits       comma-separated list of bit numbers that define active state
-                 in the `state-channel`
-===============  ============================================================
+===================  ========================================================
+``state-flag``       name of data-quality flag defining active state segments
+===================  ========================================================
+
+OR all of
+
+===================  ========================================================
+``state-channel``    name of data channel defining active state
+``state-frametype``  frame type name for the ``state-channel``
+``state-bits``       comma-separated list of bit numbers that define active
+                     state in the ``state-channel``
+===================  ========================================================
 
 .. note::
 
-   Either give `state-flag`, or the other three options, they are mutually
-   exclusive
+   If both are ``state-flag`` and ``state-channel`` are given, the
+   ``state-flag`` will be used for 'offline' workflows generated with
+   ``--gps``, while the ``state-channel`` (and related options) will be used
+   for 'online' workflows using the latest available data
 
 **Search parameters**
+[optional]
 
-===============  ========================================
-frequency-range  `(low, high)` limits for this search
-q-range          `(low, high)` limits for this search
-mismatch-max     maximum distance between `(Q, f)` tiles
-snr-threshold    minimum SNR for recorded triggers
-===============  ========================================
+===================  ========================================
+``frequency-range``  `(low, high)` limits for this search
+``q-range``          `(low, high)` limits for this search
+``mismatch-max``     maximum distance between `(Q, f)` tiles
+``snr-threshold``    minimum SNR for recorded triggers
+===================  ========================================
 
 For example:
 
