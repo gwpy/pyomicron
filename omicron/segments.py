@@ -27,6 +27,7 @@ import json
 from tempfile import mkdtemp
 from functools import wraps
 
+from glue.lal import Cache
 from glue.segmentsUtils import fromsegwizard
 from glue.segments import (segmentlist as SegmentList, segment as Segment)
 
@@ -258,3 +259,19 @@ def get_latest_known_gps(flag, url='https://segments.ligo.org'):
     """Return the end time of the latest known segment for this flag
     """
     return get_flag_coverage(flag, url=url)['latest_known_segment']
+
+
+@integer_segments
+def cache_overlaps(*caches):
+    """Find segments of overlap in the given cache sets
+    """
+    cache = Cache(e for c in caches for e in c)
+    cache.sort(key=lambda e: e.segment[0])
+    overlap = SegmentList()
+    segments = SegmentList()
+    for e in cache:
+        ol = SegmentList([e.segment]) & segments
+        if abs(ol):
+            overlap.extend(ol)
+        segments.append(e.segment)
+    return overlap
