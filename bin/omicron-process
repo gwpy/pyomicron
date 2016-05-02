@@ -656,13 +656,13 @@ for s, e in segs:
 
         # post-process
         if not args.skip_postprocessing:
-            script = os.path.join(
-                condir, 'post-process-%d-%d-%d.sh' % (s, e, i))
-            if not args.rescue:
-                with open(script, 'w') as f:
-                    print('#!/bin/bash -e\n', file=f)
-                    # build post-processing nodes for each channel
-                    for c in chanlist:
+            # build post-processing nodes for each channel
+            for c in chanlist:
+                script = os.path.join(
+                    condir, 'post-process-%s-%d-%d-%d.sh' % (c, s, e, i))
+                if not args.rescue:
+                    with open(script, 'w') as f:
+                        print('#!/bin/bash -e\n', file=f)
                         print("# %s" % c, file=f)  # comment header for sh
 
                         # work out filenames for coalesced files
@@ -715,16 +715,16 @@ for s, e in segs:
                         # add rm jobs
                         print('rm -f %s %s' % (roots, xmls), file=f)
 
-            ppnode = pipeline.CondorDAGNode(ppjob)
-            ppnode.add_var_arg(script)
-            ppnode.set_category('postprocessing')
-            if not args.skip_omicron:
-                for node in nodes:
-                    ppnode.add_parent(node)
-            dag.add_node(ppnode)
-            ppnodes.append(ppnode)
-            tempfiles.append(script)
-            os.chmod(script, 0o755)
+                ppnode = pipeline.CondorDAGNode(ppjob)
+                ppnode.add_var_arg(script)
+                ppnode.set_category('postprocessing')
+                if not args.skip_omicron:
+                    for node in nodes:
+                        ppnode.add_parent(node)
+                dag.add_node(ppnode)
+                ppnodes.append(ppnode)
+                tempfiles.append(script)
+                os.chmod(script, 0o755)
 
 # do all archiving last, once all post-processing has completed
 if args.archive:
