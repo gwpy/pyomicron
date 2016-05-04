@@ -6,6 +6,7 @@
 /dist/
 /*.egg-info/
 /.cache/
+/.eggs/
 
 # IDE
 /.idea/
