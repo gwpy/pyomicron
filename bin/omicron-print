@@ -38,7 +38,7 @@ from glue.lal import Cache
 from gwpy.table.lsctables import SnglBurstTable
 from gwpy.time import to_gps
 
-from omicron import (io, const)
+from omicron import (io, const, __version__)
 from omicron.segments import (Segment, SegmentList)
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
@@ -114,6 +114,8 @@ def condition(value):
 parser = argparse.ArgumentParser(
     description=__doc__,
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-V', '--version', action='version', version=__version__)
+
 parsers = parser.add_subparsers(
     dest='mode', title='run modes',
     description='What kind of data you want to print, run '

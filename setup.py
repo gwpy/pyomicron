@@ -24,13 +24,11 @@
 import glob
 import os.path
 
-try:
-    import setuptools
-except ImportError:
-    import ez_setup
-    ez_setup.use_setuptools()
-finally:
-    from setuptools import (setup, find_packages)
+from setuptools import (setup, find_packages)
+
+import versioneer
+__version__ = versioneer.get_version()
+cmdclass = versioneer.get_cmdclass()
 
 # set basic metadata
 PACKAGENAME = 'omicron'
@@ -43,25 +41,26 @@ LICENSE = 'GPLv3'
 packagenames = find_packages()
 
 # glob for all scripts
-if os.path.isdir('bin'):
-    scripts = glob.glob(os.path.join('bin', '*'))
-else:
-    scripts = []
+scripts = glob.glob(os.path.join('bin', '*'))
 
-# -----------------------------------------------------------------------------
-# run setup
+# -- run setup ----------------------------------------------------------------
 
 setup(name=DISTNAME,
       provides=[PACKAGENAME],
-      version=None,
+      version=__version__,
       description=None,
       long_description=None,
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
       license=LICENSE,
       packages=packagenames,
+      cmdclass=cmdclass,
       include_package_data=True,
       scripts=scripts,
+      setup_requires=[
+          'pytest-runner',
+          'setuptools',
+      ],
       requires=[
           'numpy',
           'glue',

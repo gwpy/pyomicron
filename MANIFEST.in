@@ -1,0 +1,3 @@
+include LICENSE README.md MANIFEST.in
+include versioneer.py
+include omicron/_version.py

@@ -18,3 +18,10 @@
 
 """Utilities for controlling and processing Omicron in python
 """
+
+from ._version import get_versions
+
+__version__ = get_versions()['version']
+__author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
+
+del get_versions
