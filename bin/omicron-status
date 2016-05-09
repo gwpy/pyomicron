@@ -370,6 +370,9 @@ for c in channels:
         sax.plot_segmentlist(found, y=y, label=ft, alpha=.5,
                              facecolor=leg['Available'].get_facecolor(),
                              edgecolor=leg['Available'].get_edgecolor())
+        sax.plot_segmentlist(pending[c][ft], y=y,
+                             facecolor=leg['Pending'].get_facecolor(),
+                             edgecolor=leg['Pending'].get_edgecolor())
         sax.plot_segmentlist(lost, y=y,
                              facecolor=leg['Unresolvable'].get_facecolor(),
                              edgecolor=leg['Unresolvable'].get_edgecolor())
@@ -379,13 +382,10 @@ for c in channels:
         sax.plot_segmentlist(overlap[c][ft], y=y,
                              facecolor=leg['Overlapping'].get_facecolor(),
                              edgecolor=leg['Overlapping'].get_edgecolor())
-        sax.plot_segmentlist(pending[c][ft], y=y,
-                             facecolor=leg['Pending'].get_facecolor(),
-                             edgecolor=leg['Pending'].get_edgecolor())
 
     # finalise plot
     lax.set_title('Omicron status: %s' % c.replace('_', r'\_'))
-    lax.set_ylim(0, 2)
+    lax.set_ylim(0, 4)
     lax.set_ylabel('Latency [hours]')
     lax.legend(loc='upper left', bbox_to_anchor=(1.01, 1), borderaxespad=0,
                handlelength=1)
