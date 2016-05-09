@@ -347,7 +347,6 @@ for c in channels:
                 lost.append(s)
             else:
                 gaps[c][ft].append(s)
-        print(c, lost)
         if abs(gaps[c][ft]):
             warnings.warn("Gaps found in %s files for %s:\n%s"
                           % (c, ft, gaps[c][ft]))
