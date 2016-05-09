@@ -576,7 +576,7 @@ if not args.rescue:
         cp, group, cachefile, rundir, channellimit=int(1e8))[0][0]
     parfile = os.path.join(rundir, 'parameters.txt')
     logger.debug("Created master parameters file\n%s" % parfile)
-    shutil.move(tmpparfile, parfile)
+    os.rename(tmpparfile, parfile)
     keepfiles.append(parfile)
 
 # then generate actual parameters files for submission (channel groups)
@@ -775,7 +775,7 @@ else:
 print(os.path.abspath(dagfile))
 
 if args.no_submit:
-    clean_exit(0, tempfiles)
+    sys.exit(0)
 
 # -- submit the DAG and babysit -----------------------------------------------
 
@@ -845,7 +845,10 @@ stub = '%d-%d' % (start, end)
 for f in ['%s.dagman.out' % dagfile] + keepfiles:
     base, ext = os.path.splitext(os.path.basename(f))
     archive = os.path.join(logdir, '%s-%s%s' % (base, stub, ext))
-    shutil.copyfile(f, archive)
+    if 'dagman.out' in f:
+        os.rename(f, archive)
+    else:
+        shutil.copyfile(f, archive)
     logger.debug("Archived file\n%s --> %s" % (f, archive))
 
 # clean up temporary files
