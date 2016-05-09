@@ -264,6 +264,12 @@ omicronv = utils.get_omicron_version(args.executable)
 os.environ.setdefault('OMICRON_VERSION', str(omicronv))
 logger.debug('Omicron version: %s' % omicronv)
 
+# XXX reset const variables for Omicron v2r2 XXX
+# this can be removed when v2r2 is the stable release
+if omicronv >= 'v2r2':
+    const.OMICRON_FILETAG = 'OMICRON'
+
+
 # -- parse configuration file and get parameters ------------------------------
 
 cp = configparser.ConfigParser()
@@ -672,16 +678,22 @@ for s, e in segs:
                             io.get_archive_filename(
                                 c, ts, td, filetag=afiletag, ext='root'))
 
-                        # list of all root files
-                        roots = ' '.join(
-                            os.path.join(
-                                chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
-                            for (fs, fe) in filesegments)
-                        # list of all xmls
-                        xmls = ' '.join(
-                            os.path.join(chandir, '%s_%s-%d-%d.xml' % (
-                                cname, const.OMICRON_FILETAG, fs, fe-fs))
-                            for (fs, fe) in filesegments)
+                        # get list of output files
+                        if omicronv >= 'v2r2':
+                            roots = ' '.join(
+                                os.path.join(chandir, '%s_%s-%d-%d.root' % (
+                                    cname, const.OMICRON_FILETAG, fs, fe-fs))
+                                for (fs, fe) in filesegments)
+                            xmls = roots.replace('.root', '.xml')
+                        else:
+                            roots = ' '.join(
+                                os.path.join(
+                                    chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
+                                for (fs, fe) in filesegments)
+                            xmls = ' '.join(
+                                os.path.join(chandir, '%s_%s-%d-%d.xml' % (
+                                    cname, const.OMICRON_FILETAG, fs, fe-fs))
+                                for (fs, fe) in filesegments)
 
                         # add omicron-root-merge
                         if args.skip_root_merge:
@@ -725,6 +737,10 @@ for s, e in segs:
                 ppnodes.append(ppnode)
                 tempfiles.append(script)
                 os.chmod(script, 0o755)
+
+# set 'strict' option for newer versions of Omicron
+if omicronv >= 'v2r2':
+    ojob.add_arg('strict')
 
 # do all archiving last, once all post-processing has completed
 if args.archive:
