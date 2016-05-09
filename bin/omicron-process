@@ -832,6 +832,10 @@ for i in range(args.submit_rescue_dag + 1):
         rescue = condor.find_rescue_dag(dagfile)
         logger.warning("Rescue DAG %s was generated" % rescue)
 
+# mark output and error files of condor nodes that passed to be deleted
+for node, files in condor.get_out_err_files(dagid, exitcode=0).items():
+    tempfiles.extend(files)
+
 # write segments
 segments.write_segments(span, segfile)
 logger.info("Segments written to\n%s" % segfile)
