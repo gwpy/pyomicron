@@ -350,7 +350,7 @@ for c in channels:
         if abs(gaps[c][ft]):
             warnings.warn("Gaps found in %s files for %s:\n%s"
                           % (c, ft, gaps[c][ft]))
-        overlap[c][ft] = segments.cache_overlaps(cache, cpend)
+        overlap[c][ft] = segments.cache_overlaps(cache)
         if abs(overlap[c][ft]):
             warnings.warn("Overlap found in %s files for %s:\n%s"
                           % (c, ft, overlap[c][ft]))
