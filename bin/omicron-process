@@ -834,13 +834,14 @@ for i in range(args.submit_rescue_dag + 1):
                 break
         old = job
     logger.debug('-' * 68)
+    # log exitcode
     if job['exitcode']:
         logger.critical("DAG has exited with status %d" % job['exitcode'])
     else:
         logger.info("DAG has exited with status %d" % job['exitcode'])
-    if job['exitcode'] == 0:
         break
-    elif i == args.submit_rescue_dag:
+    # handle failure
+    if i == args.submit_rescue_dag:
         raise RuntimeError("DAG has failed to complete %d times"
                            % (args.submit_rescue_dag + 1))
     else:
