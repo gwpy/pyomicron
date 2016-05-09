@@ -148,7 +148,14 @@ def iterate_dag_status(clusterid, interval=2):
     """
     schedd = htcondor.Schedd()
     while True:
-        status = get_dag_status(clusterid, schedd=schedd, detailed=True)
+        try:
+            status = get_dag_status(clusterid, schedd=schedd, detailed=True)
+        except IOError as e:
+            try:
+                status = get_dag_status(clusterid, schedd=schedd,
+                                        detailed=True)
+            except IOError:
+                raise e
         yield status
         if 'exitcode' in status:
             break
