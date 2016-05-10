@@ -169,8 +169,9 @@ def find_latest_omicron_file(channel, basepath, ext='xml.gz',
 def find_pending_files(channel, proddir, ext='xml.gz'):
     """Find files that have just been created, pending archival
     """
-    g = os.path.join(proddir, 'triggers', channel, '*.%s' % ext)
-    return Cache.from_urls(glob.iglob(g))
+    ifo = channel.split(':', 1)[0]
+    return Cache.from_urls(glob.iglob(os.path.join(
+        proddir, 'triggers', channel, '%s-*.%s' % (ifo, ext))))
 
 
 def get_archive_filename(channel, start, duration, ext='xml.gz',

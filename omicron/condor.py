@@ -148,7 +148,14 @@ def iterate_dag_status(clusterid, interval=2):
     """
     schedd = htcondor.Schedd()
     while True:
-        status = get_dag_status(clusterid, schedd=schedd, detailed=True)
+        try:
+            status = get_dag_status(clusterid, schedd=schedd, detailed=True)
+        except IOError as e:
+            try:
+                status = get_dag_status(clusterid, schedd=schedd,
+                                        detailed=True)
+            except IOError:
+                raise e
         yield status
         if 'exitcode' in status:
             break
@@ -164,7 +171,7 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
         the ClusterId of the DAG
     schedd : `htcondor.Schedd`, optional
         the open connection to the scheduler
-    held : `bool`, optional
+    detailed : `bool`, optional
         check jobs as held
 
     Returns
@@ -195,6 +202,13 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
     except IndexError:
         sleep(1)
         try:
+            job = list(schedd.history('ClusterId == %d' % dagmanid,
+                                      classads+['ExitCode'], 1))[0]
+        except IOError:  # try again
+            job = list(schedd.history('ClusterId == %d' % dagmanid,
+                                      classads+['ExitCode'], 1))[0]
+        except KeyError:  # condor_rm not finished yet (probably)
+            sleep(10)
             job = list(schedd.history('ClusterId == %d' % dagmanid,
                                       classads+['ExitCode'], 1))[0]
         except RuntimeError as e:
@@ -350,6 +364,43 @@ def get_condor_history_shell(constraint, classads, maxjobs=None):
         values = line.split()
         jobs.append(dict(zip(classads, values)))
     return jobs
+
+
+def get_out_err_files(dagmanid, exitcode=None, schedd=None, user=getuser(),
+                      maxjobs=0):
+    """Get the paths of the output and error files for nodes in a given DAG
+
+    Parameters
+    ----------
+    dagmanid : `int`
+        the ClusterId of the DAG
+    exitcode : `int`, optional
+        return only nodes with this exitcode, or return all nodes if
+        `None`
+    schedd : `htcondor.Schedd`, optional
+        the open connection to the scheduler
+    user : `str`, optional
+        the name of the user who submitted the DAG, defaults to you
+    maxjobs : `int`, optional
+        maximum number of condor history records to return, defaults
+        to `0` meaning 'all'
+
+    Returns
+    -------
+    filedict : `dict`
+        a `dict` of `(nodeid, [files])` pairs
+    """
+    if schedd is None:
+        schedd = htcondor.Schedd()
+    history = list(schedd.history(
+        'DAGManJobId==%d && Owner=="%s"' % (dagmanid, user),
+        ['ExitCode', 'Out', 'Err', 'ClusterId'], maxjobs))
+    out = {}
+    for node in history:
+        if exitcode is not None and node['ExitCode'] != exitcode:
+            continue
+        out[node['ClusterId']] = [node['Out'], node['Err']]
+    return out
 
 
 # -- custom jobs --------------------------------------------------------------

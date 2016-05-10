@@ -253,6 +253,7 @@ else:
 logger.info("--- Welcome to the Omicron processor ---")
 
 tempfiles = []
+keepfiles = []
 
 # check rescue against --dagman-option force
 if args.rescue and args.dagman_option.count('force') > 1:
@@ -266,6 +267,12 @@ elif args.rescue:
 omicronv = utils.get_omicron_version(args.executable)
 os.environ.setdefault('OMICRON_VERSION', str(omicronv))
 logger.debug('Omicron version: %s' % omicronv)
+
+# XXX reset const variables for Omicron v2r2 XXX
+# this can be removed when v2r2 is the stable release
+if omicronv >= 'v2r2':
+    const.OMICRON_FILETAG = 'OMICRON'
+
 
 # -- parse configuration file and get parameters ------------------------------
 
@@ -364,6 +371,8 @@ cachedir = os.path.join(rundir, 'cache')
 # -- find run segment
 
 segfile = os.path.join(rundir, 'segments.txt')
+keepfiles.append(segfile)
+
 if online:
     if frametype == '%s_HOFT_C00' % ifo:
         end = data.get_latest_data_gps(ifo, llhoft)
@@ -386,7 +395,6 @@ if online:
 else:
     start, end = args.gps
 rundir = os.path.abspath(rundir)
-segfile = os.path.join(rundir, 'segments.txt')
 
 duration = end - start
 datastart = start - padding
@@ -527,6 +535,7 @@ else:
 if not os.path.isdir(cachedir):
     os.makedirs(cachedir)
 cachefile = os.path.join(cachedir, 'frames.lcf')
+keepfiles.append(cachefile)
 if not args.rescue:
     data.write_cache(cache, cachefile)
 logger.info("Cache of %d frames written to\n%s" % (len(cache), cachefile))
@@ -569,6 +578,11 @@ for seg in trigsegs:
     logger.info("    %d %d" % seg)
 logger.info("Duration = %d seconds" % abs(trigsegs))
 
+# write segments to tmpfile
+segtmp = '%s.tmp' % os.path.splitext(segfile)[0]
+segments.write_segments(span, segtmp)
+logger.info("Segments written to\n%s" % segtmp)
+
 # -- make parameters files then generate the DAG ------------------------------
 
 # generate a 'master' parameters.txt file for archival purposes
@@ -577,7 +591,8 @@ if not args.rescue:
         cp, group, cachefile, rundir, channellimit=int(1e8))[0][0]
     parfile = os.path.join(rundir, 'parameters.txt')
     logger.debug("Created master parameters file\n%s" % parfile)
-    shutil.move(tmpparfile, parfile)
+    os.rename(tmpparfile, parfile)
+    keepfiles.append(parfile)
 
 # then generate actual parameters files for submission (channel groups)
 if args.rescue:
@@ -656,13 +671,13 @@ for s, e in segs:
 
         # post-process
         if not args.skip_postprocessing:
-            script = os.path.join(
-                condir, 'post-process-%d-%d-%d.sh' % (s, e, i))
-            if not args.rescue:
-                with open(script, 'w') as f:
-                    print('#!/bin/bash -e\n', file=f)
-                    # build post-processing nodes for each channel
-                    for c in chanlist:
+            # build post-processing nodes for each channel
+            for c in chanlist:
+                script = os.path.join(
+                    condir, 'post-process-%s-%d-%d-%d.sh' % (c, s, e, i))
+                if not args.rescue:
+                    with open(script, 'w') as f:
+                        print('#!/bin/bash -e\n', file=f)
                         print("# %s" % c, file=f)  # comment header for sh
 
                         # work out filenames for coalesced files
@@ -672,16 +687,22 @@ for s, e in segs:
                             io.get_archive_filename(
                                 c, ts, td, filetag=afiletag, ext='root'))
 
-                        # list of all root files
-                        roots = ' '.join(
-                            os.path.join(
-                                chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
-                            for (fs, fe) in filesegments)
-                        # list of all xmls
-                        xmls = ' '.join(
-                            os.path.join(chandir, '%s_%s-%d-%d.xml' % (
-                                cname, const.OMICRON_FILETAG, fs, fe-fs))
-                            for (fs, fe) in filesegments)
+                        # get list of output files
+                        if omicronv >= 'v2r2':
+                            roots = ' '.join(
+                                os.path.join(chandir, '%s_%s-%d-%d.root' % (
+                                    cname, const.OMICRON_FILETAG, fs, fe-fs))
+                                for (fs, fe) in filesegments)
+                            xmls = roots.replace('.root', '.xml')
+                        else:
+                            roots = ' '.join(
+                                os.path.join(
+                                    chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
+                                for (fs, fe) in filesegments)
+                            xmls = ' '.join(
+                                os.path.join(chandir, '%s_%s-%d-%d.xml' % (
+                                    cname, const.OMICRON_FILETAG, fs, fe-fs))
+                                for (fs, fe) in filesegments)
 
                         # add omicron-root-merge
                         if args.skip_root_merge:
@@ -715,16 +736,20 @@ for s, e in segs:
                         # add rm jobs
                         print('rm -f %s %s' % (roots, xmls), file=f)
 
-            ppnode = pipeline.CondorDAGNode(ppjob)
-            ppnode.add_var_arg(script)
-            ppnode.set_category('postprocessing')
-            if not args.skip_omicron:
-                for node in nodes:
-                    ppnode.add_parent(node)
-            dag.add_node(ppnode)
-            ppnodes.append(ppnode)
-            tempfiles.append(script)
-            os.chmod(script, 0o755)
+                ppnode = pipeline.CondorDAGNode(ppjob)
+                ppnode.add_var_arg(script)
+                ppnode.set_category('postprocessing')
+                if not args.skip_omicron:
+                    for node in nodes:
+                        ppnode.add_parent(node)
+                dag.add_node(ppnode)
+                ppnodes.append(ppnode)
+                tempfiles.append(script)
+                os.chmod(script, 0o755)
+
+# set 'strict' option for newer versions of Omicron
+if omicronv >= 'v2r2':
+    ojob.add_arg('strict')
 
 # do all archiving last, once all post-processing has completed
 if args.archive:
@@ -746,6 +771,7 @@ if args.archive:
                                 if x.endswith('xml.gz'))
                 rootcache.extend(CacheEntry.from_T050017(x) for x in filenames
                                 if x.endswith('root'))
+            print('\nmv %s %s' % (segtmp, segfile), file=f)
         os.chmod(archivejob.get_executable(), 0o755)
         # write caches to disk
         xmlcachefile = os.path.join(cachedir, 'omicron-xml.lcf')
@@ -775,7 +801,7 @@ else:
 print(os.path.abspath(dagfile))
 
 if args.no_submit:
-    clean_exit(0, tempfiles)
+    sys.exit(0)
 
 # -- submit the DAG and babysit -----------------------------------------------
 
@@ -787,7 +813,7 @@ else:
 
 for i in range(args.submit_rescue_dag + 1):
     dagmanargs = set()
-    dagmanopts = {}
+    dagmanopts = {'-append': '+OmicronDAGMan=\"%s\"' % group}
     for x in args.dagman_option:
         x = '-%s' % x
         try:
@@ -818,13 +844,14 @@ for i in range(args.submit_rescue_dag + 1):
                 break
         old = job
     logger.debug('-' * 68)
+    # log exitcode
     if job['exitcode']:
         logger.critical("DAG has exited with status %d" % job['exitcode'])
     else:
         logger.info("DAG has exited with status %d" % job['exitcode'])
-    if job['exitcode'] == 0:
         break
-    elif i == args.submit_rescue_dag:
+    # handle failure
+    if i == args.submit_rescue_dag:
         raise RuntimeError("DAG has failed to complete %d times"
                            % (args.submit_rescue_dag + 1))
     else:
@@ -832,16 +859,22 @@ for i in range(args.submit_rescue_dag + 1):
         rescue = condor.find_rescue_dag(dagfile)
         logger.warning("Rescue DAG %s was generated" % rescue)
 
-# write segments
-segments.write_segments(span, segfile)
-logger.info("Segments written to\n%s" % segfile)
+# mark output and error files of condor nodes that passed to be deleted
+try:
+    for node, files in condor.get_out_err_files(dagid, exitcode=0).items():
+        tempfiles.extend(files)
+except RuntimeError:
+    pass
 
 # archive files
 stub = '%d-%d' % (start, end)
-for f in ['%s.dagman.out' % dagfile, segfile, cachefile, parfile]:
+for f in ['%s.dagman.out' % dagfile] + keepfiles:
     base, ext = os.path.splitext(os.path.basename(f))
     archive = os.path.join(logdir, '%s-%s%s' % (base, stub, ext))
-    shutil.copyfile(f, archive)
+    if 'dagman.out' in f:
+        os.rename(f, archive)
+    else:
+        shutil.copyfile(f, archive)
     logger.debug("Archived file\n%s --> %s" % (f, archive))
 
 # clean up temporary files
