@@ -266,7 +266,11 @@ except IndexError:
 segs = segs.contract(padding)
 # get list of segment starts and ends, to work in which data are missing
 # or just artefacts of the padding
-starts, ends = zip(*segs)
+try:
+    starts, ends = zip(*segs)
+except ValueError:
+    starts = []
+    ends = []
 
 # load archive latency
 latencyfile = os.path.join(outdir, 'nagios-latency-%s.hdf' % tag)
