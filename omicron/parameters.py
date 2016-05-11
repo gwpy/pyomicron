@@ -137,11 +137,14 @@ def generate_parameters_files(config, section, cachefile, rundir,
 
     # set segment parameters for this omicron version
     if omicron_version >= 'v2r2':
+        # re-structure timing parameters
         params['PARAMETER']['PSDLENGTH'] = (
             params['PARAMETER'].pop('CHUNKDURATION'))
         params['PARAMETER']['TIMING'] = '%s %s' % (
             params['PARAMETER'].pop('SEGMENTDURATION'),
             params['PARAMETER'].pop('OVERLAPDURATION'))
+        # add FFT parameters
+        params['PARAMETER'].setdefault('FFTPLAN', 'FFTW_ESTIMATE')
 
     # write files
     parfiles = []
