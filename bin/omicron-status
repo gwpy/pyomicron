@@ -52,7 +52,8 @@ from gwpy.time import to_gps
 from gwpy.segments import (Segment, SegmentList, DataQualityFlag)
 from gwpy.plotter import (rcParams, TimeSeriesPlot, SegmentAxes)
 
-from omicron import (condor, const, io, nagios, segments)
+from omicron import (condor, const, io, nagios, segments, __version__)
+from omicron.utils import get_omicron_version
 
 rcParams.update({
     'figure.subplot.bottom': 0.15,
@@ -69,8 +70,14 @@ __author__ = "Duncan Macleod <duncan.macleod@ligo.org>"
 
 NOW = to_gps('now').seconds
 
+try:
+    omicronversion = str(get_omicron_version())
+except KeyError:
+    omicronversion = 'Unknown'
+
 # -- parse command line
 parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('-V', '--version', action='version', version=__version__)
 parser.add_argument('group', help='name of channel group to check')
 parser.add_argument('-f', '--config-file', help='path to configuration file')
 parser.add_argument('-i', '--ifo', default=const.IFO,
@@ -182,10 +189,14 @@ def print_nagios_json(code, message, outfile, tag='status'):
             'email': 'duncan.macleod@ligo.org',
         },
         'omicron': {
+            'version': omicronversion,
             'group': group,
             'channels': ' '.join(channels),
             'frametype': frametype,
             'state-flag': stateflag,
+        },
+        'pyomicron': {
+            'version': __version__,
         },
     }
     with open(outfile, 'w') as f:
