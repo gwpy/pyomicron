@@ -325,6 +325,7 @@ for c in channels:
     plot = TimeSeriesPlot(figsize=[12, 5])
     lax = plot.add_subplot(grid[0, 0])
     sax = plot.add_subplot(grid[1, 0], sharex=lax, projection='segments')
+    colors = ['dodgerblue', 'black']
 
     for y, ft in enumerate(filetypes):
         # find files
@@ -365,7 +366,7 @@ for c in channels:
                                           [latency[c][ft]]))
 
         # plot
-        l = lax.plot(times[c][ft], ldata[c][ft], label=ft)[0]
+        l = lax.plot(times[c][ft], ldata[c][ft], label=ft, color=colors[y])[0]
         lax.plot(times[c][ft], ldata[c][ft], marker='.', linestyle=' ',
                  color=l.get_color())
         sax.plot_segmentlist(segs, y=y, label=ft, alpha=.5,
@@ -388,11 +389,15 @@ for c in channels:
                              edgecolor=leg['Overlapping'].get_edgecolor())
 
     # finalise plot
+    lax.axhline(args.warning/3600., color=(1.0, 0.7, 0.0), linestyle='--',
+                linewidth=2, label='Warning', zorder=-1)
+    lax.axhline(args.error/3600., color='red', linestyle='--',
+                linewidth=2, label='Critical', zorder=-1)
     lax.set_title('Omicron status: %s' % c.replace('_', r'\_'))
-    lax.set_ylim(0, 4)
+    lax.set_ylim(0, args.error/1800.)
     lax.set_ylabel('Latency [hours]')
     lax.legend(loc='upper left', bbox_to_anchor=(1.01, 1), borderaxespad=0,
-               handlelength=1)
+               handlelength=2)
     lax.set_xlabel(' ')
     for ax in plot.axes:
         ax.set_xlim(args.gps_start_time, args.gps_end_time)
