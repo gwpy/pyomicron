@@ -212,7 +212,7 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
             job = list(schedd.history('ClusterId == %d' % dagmanid,
                                       classads+['ExitCode'], 1))[0]
         except RuntimeError as e:
-            if 'timeout' in str(e).lower() or 'cowardly' in str(e).lower()
+            if 'timeout' in str(e).lower() or 'cowardly' in str(e).lower():
                 job = get_condor_history_shell(
                     'ClusterId == %d' % dagmanid,
                     classads+['ExitCode'], 1)[0]
