@@ -139,6 +139,9 @@ tag = args.latency_archive_tag.format(group=args.group)
 
 filetypes = ['xml.gz', 'root']
 
+if not os.path.isdir(outdir):
+    os.makedirs(outdir)
+
 # -- parse configuration file and get parameters ------------------------------
 
 cp = configparser.ConfigParser()
