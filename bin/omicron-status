@@ -26,6 +26,7 @@ import operator
 import sys
 import warnings
 import htcondor
+from getpass import getuser
 
 try:
     import configparser
@@ -89,6 +90,9 @@ parser.add_argument('-e', '--gps-end-time', type=int, default=NOW,
 parser.add_argument('-c', '--channel', action='append',
                     help='name of channel to process, can be given multiple '
                          'times, default: all channels in group')
+parser.add_argument('-u', '--user', default=getuser(),
+                    help='name of user running condor jobs, '
+                         'default: %(default)s')
 parser.add_argument('-a', '--archive-directory',
                     default=const.OMICRON_ARCHIVE,
                     help='path of archive, default: %(default)s')
@@ -115,14 +119,14 @@ pout.add_argument('-m', '--html', default=False, action='store_true',
                        'default: %(default)s')
 
 pnag = parser.add_argument_group('Monitoring options')
-parser.add_argument('-u', '--unknown', type=int, default=1200,
+parser.add_argument('-U', '--unknown', type=int, default=1200,
                     help='time (seconds) after which nagios output should be '
                          'considered stable and \'unknown\', '
                          'default: %(default)s')
-parser.add_argument('-w', '--warning', type=int, default=3600,
+parser.add_argument('-W', '--warning', type=int, default=3600,
                     help='how much latency to consider as a warning, '
                          'default: %(default)s')
-parser.add_argument('-x', '--error', type=int, default=3600*2,
+parser.add_argument('-X', '--error', type=int, default=3600*2,
                     help='how much latency to consider as an error, '
                          'default: %(default)s')
 args = parser.parse_args()
@@ -217,17 +221,20 @@ if not args.skip_condor:
     okstates = ['Running', 'Idle', 'Completed']
     try:
         # check manager status
-        jobs = schedd.query('OmicronManager == "%s"' % group, ['JobStatus'])
+        jobs = schedd.query('OmicronManager == "%s" && Owner == "%s"'
+                            % (group, args.user), ['JobStatus'])
         if len(jobs) > 1:
-            raise RuntimeError("Multiple OmicronManager jobs found for %r" % group)
+            raise RuntimeError("Multiple OmicronManager jobs found for %r"
+                               % group)
         elif len(jobs) == 0:
             raise RuntimeError("No OmicronManager job found for %r" % group)
         status = condor.JOB_STATUS[jobs[0]['JobStatus']]
         if status not in okstates:
-            raise RuntimeError("OmicronManager status for %r: %r" % (group, status))
+            raise RuntimeError("OmicronManager status for %r: %r"
+                               % (group, status))
         # check node status
-        jobs = schedd.query('OmicronProcess == "%s"' % group,
-                            ['JobStatus', 'ClusterId'])
+        jobs = schedd.query('OmicronProcess == "%s" && Owner == "%s"'
+                            % (group, args.user), ['JobStatus', 'ClusterId'])
         for job in jobs:
             status = condor.JOB_STATUS[job['JobStatus']]
             if status not in okstates:
