@@ -706,7 +706,7 @@ for s, e in segs:
                                 for (fs, fe) in filesegments)
 
                         # add omicron-root-merge
-                        if args.skip_root_merge:
+                        if args.skip_root_merge or len(filesegments) == 1:
                             root = roots
                         else:
                             root = os.path.join(chandir, filename)
@@ -714,7 +714,7 @@ for s, e in segs:
                                   % (rootmerge, roots, root), file=f)
 
                         # add ligolw_add
-                        if args.skip_ligolw_add:
+                        if args.skip_ligolw_add or len(filesegments) == 1:
                             xml = xmls
                         else:
                             xml = os.path.join(chandir,
