@@ -734,8 +734,11 @@ for s, e in segs:
                             except KeyError:
                                 archivefiles[target] = [xml, root]
 
-                        # add rm jobs
-                        print('rm -f %s %s' % (roots, xmls), file=f)
+                        # add rm jobs (only if files were manipulated)
+                        if root != roots:
+                            print('rm -f %s' % roots, file=f)
+                        if xml != xmls:
+                            print('rm -f %s' % xmls, file=f)
 
                 ppnode = pipeline.CondorDAGNode(ppjob)
                 ppnode.add_var_arg(script)
