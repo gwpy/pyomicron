@@ -798,6 +798,11 @@ else:
     logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
 print(os.path.abspath(dagfile))
 
+# write segments now
+# this means that online processing will _always_ move on, even if it fails
+segments.write_segments(span, segfile)
+logger.info("Segments written to\n%s" % segfile)
+
 if args.no_submit:
     sys.exit(0)
 
@@ -863,10 +868,6 @@ try:
         tempfiles.extend(files)
 except RuntimeError:
     pass
-
-# write segments
-segments.write_segments(span, segfile)
-logger.info("Segments written to\n%s" % segfile)
 
 # archive files
 stub = '%d-%d' % (start, end)
