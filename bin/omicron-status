@@ -445,13 +445,15 @@ h5file.close()
 # write nagios output for files
 status = []
 for segset, tag in zip([gaps, overlap], ['gaps', 'overlap']):
-    chans = [c for c in segset if abs(operator.or_(*segset[c].values()))]
+    chans = [(c, segset[c]) for c in segset
+             if abs(operator.or_(*segset[c].values()))]
     jsonfp = os.path.join(outdir, 'nagios-%s-%s.json' % (tag, group))
     status.append((tag, jsonfp))
     if chans:
+        gapstr = '\n'.join('%s: %s' % c for c in chans)
         code = 1
-        message = ("%s found in Omicron files for group %r\nChannels: %s"
-                   % (tag.title(), group, ' '.join(chans)))
+        message = ("%s found in Omicron files for group %r\n%s"
+                   % (tag.title(), group, gapstr))
     else:
         code = 0
         message = "No %s found in Omicron files for group %r" % (tag, group)
