@@ -152,6 +152,9 @@ procg.add_argument('-C', '--max-chunks-per-job', type=int, default=4,
 procg.add_argument('-N', '--max-channels-per-job', type=int, default=10,
                    help='maximum number of channels to process in a single '
                         'condor job, default: %(default)s')
+procg.add_argument('-x', '--exclude-channel', action='append', default=[],
+                   help='exclude channel from the analysis (can be given '
+                        'multiple times')
 
 condorg = parser.add_argument_group('Condor options')
 condorg.add_argument('--no-submit', action='store_true', default=False,
@@ -291,9 +294,14 @@ except ValueError:
     crates = []
 else:
     crates = set(crates)
-finally:
-    cp.set(group, 'channels', '\n'.join(channels))
 logger.debug("%d channels read" % len(channels))
+for i in range(len(channels) -1, -1, -1):  # remove excluded channels
+    c = channels[i]
+    if c in args.exclude_channel:
+        channels.pop(i)
+        logger.debug("    removed %r" % c)
+logger.debug("%d channels to process" % len(channels))
+cp.set(group, 'channels', '\n'.join(channels))
 frametype = cp.get(group, 'frametype')
 logger.debug("frametype = %s" % frametype)
 chunkdur = cp.getint(group, 'chunk-duration')
