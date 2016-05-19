@@ -587,11 +587,6 @@ for seg in trigsegs:
     logger.info("    %d %d" % seg)
 logger.info("Duration = %d seconds" % abs(trigsegs))
 
-# write segments to tmpfile
-segtmp = '%s.tmp' % os.path.splitext(segfile)[0]
-segments.write_segments(span, segtmp)
-logger.info("Segments written to\n%s" % segtmp)
-
 # -- make parameters files then generate the DAG ------------------------------
 
 # generate a 'master' parameters.txt file for archival purposes
@@ -783,7 +778,6 @@ if args.archive:
                                 if x.endswith('xml.gz'))
                 rootcache.extend(CacheEntry.from_T050017(x) for x in filenames
                                 if x.endswith('root'))
-            print('\nmv %s %s' % (segtmp, segfile), file=f)
         os.chmod(archivejob.get_executable(), 0o755)
         # write caches to disk
         xmlcachefile = os.path.join(cachedir, 'omicron-xml.lcf')
@@ -811,6 +805,11 @@ else:
         print('DOT %s.dot' % os.path.splitext(dagfile)[0], file=f)
     logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
 print(os.path.abspath(dagfile))
+
+# write segments now
+# this means that online processing will _always_ move on, even if it fails
+segments.write_segments(span, segfile)
+logger.info("Segments written to\n%s" % segfile)
 
 if args.no_submit:
     sys.exit(0)
