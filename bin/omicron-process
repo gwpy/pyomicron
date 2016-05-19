@@ -579,11 +579,6 @@ for seg in trigsegs:
     logger.info("    %d %d" % seg)
 logger.info("Duration = %d seconds" % abs(trigsegs))
 
-# write segments to tmpfile
-segtmp = '%s.tmp' % os.path.splitext(segfile)[0]
-segments.write_segments(span, segtmp)
-logger.info("Segments written to\n%s" % segtmp)
-
 # -- make parameters files then generate the DAG ------------------------------
 
 # generate a 'master' parameters.txt file for archival purposes
@@ -775,7 +770,6 @@ if args.archive:
                                 if x.endswith('xml.gz'))
                 rootcache.extend(CacheEntry.from_T050017(x) for x in filenames
                                 if x.endswith('root'))
-            print('\nmv %s %s' % (segtmp, segfile), file=f)
         os.chmod(archivejob.get_executable(), 0o755)
         # write caches to disk
         xmlcachefile = os.path.join(cachedir, 'omicron-xml.lcf')
@@ -869,6 +863,10 @@ try:
         tempfiles.extend(files)
 except RuntimeError:
     pass
+
+# write segments
+segments.write_segments(span, segfile)
+logger.info("Segments written to\n%s" % segfile)
 
 # archive files
 stub = '%d-%d' % (start, end)
