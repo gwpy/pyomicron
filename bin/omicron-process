@@ -506,7 +506,7 @@ if truncate and (
                 "available data, presumably this is an active segment. "
                 "It will be removed so that it can be "
                 "processed properly later")
-    segs = segs[:-1]
+    segs = type(segs)(segs[:-1])
     dataend = lastseg[0]
 # if long enough and no state required, restrict to an integer number of chunks
 elif truncate and (not statechannel or abs(lastseg) >= (chunkdur + segdur)):
