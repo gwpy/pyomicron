@@ -47,13 +47,12 @@ from matplotlib.gridspec import GridSpec
 import h5py
 
 from glue import markup
-from glue.lal import Cache
 
 from gwpy.time import to_gps
-from gwpy.segments import (Segment, SegmentList, DataQualityFlag)
+from gwpy.segments import Segment
 from gwpy.plotter import (rcParams, TimeSeriesPlot, SegmentAxes)
 
-from omicron import (condor, const, io, nagios, segments, __version__)
+from omicron import (condor, const, io, log, segments, __version__)
 from omicron.utils import get_omicron_version
 
 rcParams.update({
