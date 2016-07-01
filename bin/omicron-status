@@ -308,11 +308,13 @@ if args.skip_file_checks:
 
 logger.info("-- Checking file archive --")
 
+# get frame segments
+segs = segments.get_frame_segments(obs, frametype, start, end)
+
 # get state segments
-if stateflag is None:
-    segs = segments.get_frame_segments(obs, frametype, start, end)
-else:
-    segs = segments.query_state_segments(stateflag, start, end)
+if stateflag is not None:
+    segs &= segments.query_state_segments(stateflag, start, end)
+
 try:
     end = segs[-1][1]
 except IndexError:
