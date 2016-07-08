@@ -404,6 +404,48 @@ def get_out_err_files(dagmanid, exitcode=None, schedd=None, user=getuser(),
     return out
 
 
+def find_dagman_id(group, classad="OmicronDAGMan", user=getuser(),
+                   schedd=None):
+    """Find the condor ID of the DAGMan process for the given group
+
+    Parameters
+    ----------
+    group : `str`
+        name of group to find, actually this is just the value of the classad
+    classad : `str`, optional
+        the defining classad used to identify the correct DAGMan process
+    user : `str`, optional
+        the name of the submitting user, defaults to the current user
+    schedd : `htcondor.Schedd`, optional
+        open connection to the scheduler, one will be created if needed
+
+    Returns
+    -------
+    clusterid : `int`
+        the integer ID of the DAGMan process cluster
+
+    Raises
+    ------
+    RuntimeError
+        if not exactly 1 matching condor process is found, or that process
+        is not in a good state
+    """
+    if schedd is None:
+        schedd = htcondor.Schedd()
+    jobs = schedd.query('%s == "%s" && Owner == "%s"' % (classad, group, user),
+                        ['JobStatus', 'ClusterId'])
+    if len(jobs) == 0:
+        raise RuntimeError("No %s jobs found for group %r" % (classad, group))
+    elif len(jobs) > 1:
+        raise RuntimeError("Multiple %s jobs found for group %r"
+                           % (classad, group))
+    clusterid = jobs[0]['ClusterId']
+    if jobs[0]['JobStatus'] >= 3:
+        raise RuntimeError("DAGMan cluster %d found, but in state %r"
+                           % JOB_STATUS[jobs[0]['JobStatus']])
+    return clusterid
+
+
 # -- custom jobs --------------------------------------------------------------
 
 class OmicronProcessJob(pipeline.CondorDAGJob):
