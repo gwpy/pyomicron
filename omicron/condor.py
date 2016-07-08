@@ -150,7 +150,8 @@ def iterate_dag_status(clusterid, interval=2):
     while True:
         try:
             status = get_dag_status(clusterid, schedd=schedd, detailed=True)
-        except IOError as e:
+        except (IOError, KeyError) as e:
+            sleep(1)
             try:
                 status = get_dag_status(clusterid, schedd=schedd,
                                         detailed=True)
