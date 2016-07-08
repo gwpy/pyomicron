@@ -157,9 +157,17 @@ procg.add_argument('-x', '--exclude-channel', action='append', default=[],
                         'multiple times')
 
 condorg = parser.add_argument_group('Condor options')
-condorg.add_argument('--no-submit', action='store_true', default=False,
-                     help='do not submit the DAG to condor, '
-                          'default: %(default)s')
+mode = condorg.add_mutually_exclusive_group()
+mode.add_argument('--reattach', action='store_true', default=False,
+                  help='if DAG already running, try and reattach to it '
+                       'and follow it\'s progress, this is only designed '
+                       'for online running')
+mode.add_argument('--rescue', action='store_true', default=False,
+                  help='rescue a failed DAG instead of creating a new one, '
+                       'default: %(default)s')
+mode.add_argument('--no-submit', action='store_true', default=False,
+                  help='do not submit the DAG to condor, '
+                       'default: %(default)s')
 condorg.add_argument('--universe', default='vanilla',
                      choices=['vanilla', 'local'],
                      help='condor universe, default: %(default)s')
@@ -207,9 +215,6 @@ pipeg.add_argument('--skip-gzip', action='store_true', default=False,
 pipeg.add_argument('--skip-postprocessing', action='store_true', default=False,
                    help='skip all post-processing, equivalent to '
                         '--skip-root-merge --skip-lioglw_add --skip-gzip, '
-                        'default: %(default)s')
-pipeg.add_argument('--rescue', action='store_true', default=False,
-                   help='rescue a failed DAG instead of creating a new one, '
                         'default: %(default)s')
 
 args = parser.parse_args()
@@ -376,12 +381,46 @@ if statechannel:
 rundir = utils.get_output_directory(args)
 cachedir = os.path.join(rundir, 'cache')
 
-# -- find run segment
+# -- set directories and check for an existing process ------------------------
+
+if not os.path.isdir(rundir):
+    os.makedirs(rundir)
+logger.info("Using run directory\n%s" % rundir)
+
+condir = os.path.join(rundir, 'condor')
+if not os.path.isdir(condir):
+    os.makedirs(condir)
+
+# check dagman lock file
+if os.path.isfile(os.path.join(condir, 'omicron.dag.lock')) and args.reattach:
+     logger.info('omicron.dag.lock found in %s, will reattach' % rundir)
+elif os.path.isfile(os.path.join(condir, 'omicron.dag.lock')):
+    raise RuntimeError("omicron.dag.lock found in %s, DAG already running"
+                       % rundir)
+else:
+     args.reattach = False
+
+# check dagman rescue files
+nrescue = any(map(os.path.isfile, glob(
+    os.path.join(condir, 'omicron.dag.rescue[0-9][0-9][0-9]'))))
+if args.rescue and nrescue == 0:
+    raise RuntimeError("--rescue given but no rescue DAG files found in %s"
+                       % condir)
+elif not args.rescue and nrescue > 1:
+    raise RuntimeError("rescue DAG found in %s, will not continue" % condir)
+elif args.rescue and not os.path.isfile(os.path.join(condir, 'omicron.dag')):
+    raise RuntimeError("--rescue given by omicron.dag file not found in %s"
+                       % condir)
+
+newdag = not args.rescue and not args.reattach
+
+
+# -- find run segment ---------------------------------------------------------
 
 segfile = os.path.join(rundir, 'segments.txt')
 keepfiles.append(segfile)
 
-if online:
+if newdag and online:
     if frametype == '%s_HOFT_C00' % ifo:
         end = data.get_latest_data_gps(ifo, llhoft)
     else:
@@ -391,8 +430,8 @@ if online:
         start = segments.get_last_run_segment(segfile)[1]
     except IOError:
         if llhoft.endswith('llhoft'):
-            logger.debug("No online segment record, starting with %s seconds"
-                         % chunkdur)
+            logger.debug("No online segment record, starting with "
+                         "%s seconds" % chunkdur)
             start = end - chunkdur + padding
         else:
             logger.debug("No online segment record, starting with "
@@ -400,8 +439,11 @@ if online:
             start = end - 4000
     else:
         logger.debug("Online segment record recovered")
+elif online:
+    start, end = segments.get_last_run_segment(segfile)
 else:
     start, end = args.gps
+
 rundir = os.path.abspath(rundir)
 
 duration = end - start
@@ -422,7 +464,8 @@ try:
     data.check_data_availability(ifo, '%s_HOFT_C00' % ifo, start, end)
 except RuntimeError:
     use_online_hoft = True
-    msg = "Gaps found in %s availability, turning to %s" % (frametype, llhoft)
+    msg = ("Gaps found in %s availability, turning to %s"
+           % (frametype, llhoft))
 else:
     use_online_hoft = False
 
@@ -434,33 +477,6 @@ if frametype == '%s_HOFT_C00' % ifo and use_online_hoft:
     frametype = llhoft
 if statechannel and use_online_hoft and stateft == '%s_HOFT_C00' % ifo:
     stateft = llhoft
-
-# -- set directories and check for an existing process ------------------------
-
-if not os.path.isdir(rundir):
-    os.makedirs(rundir)
-logger.info("Using run directory\n%s" % rundir)
-
-condir = os.path.join(rundir, 'condor')
-if not os.path.isdir(condir):
-    os.makedirs(condir)
-
-# check dagman lock file
-if os.path.isfile(os.path.join(condir, 'omicron.dag.lock')):
-    raise RuntimeError("omicron.dag.lock found in %s, DAG already running"
-                       % rundir)
-
-# check dagman rescue files
-nrescue = any(map(os.path.isfile, glob(
-    os.path.join(condir, 'omicron.dag.rescue[0-9][0-9][0-9]'))))
-if args.rescue and nrescue == 0:
-    raise RuntimeError("--rescue given but no rescue DAG files found in %s"
-                       % condir)
-elif not args.rescue and nrescue > 1:
-    raise RuntimeError("rescue DAG found in %s, will not continue" % condir)
-elif args.rescue and not os.path.isfile(os.path.join(condir, 'omicron.dag')):
-    raise RuntimeError("--rescue given by omicron.dag file not found in %s"
-                       % condir)
 
 # -- find segments and frame files --------------------------------------------
 
@@ -496,7 +512,7 @@ try:
 except IndexError:
     truncate = False
 else:
-    truncate = online and lastseg[1] == dataend
+    truncate = online and newdag and lastseg[1] == dataend
 
 # if segment is shorter than one chunk, leave it until later
 if truncate and (
@@ -545,7 +561,7 @@ if not os.path.isdir(cachedir):
     os.makedirs(cachedir)
 cachefile = os.path.join(cachedir, 'frames.lcf')
 keepfiles.append(cachefile)
-if not args.rescue:
+if newdag:
     data.write_cache(cache, cachefile)
 logger.info("Cache of %d frames written to\n%s" % (len(cache), cachefile))
 
@@ -555,7 +571,7 @@ if segs - cachesegs:
 segs = (cachesegs & segs).coalesce()
 
 # if all of the data are available, but no segments, record segments.txt
-if not args.rescue and len(segs) == 0 and online and alldata:
+if newdag and len(segs) == 0 and online and alldata:
     logger.info("No segments found, but all data are available. "
                 "A segments.txt file will be written so we don't have to "
                 "search these data again")
@@ -590,7 +606,7 @@ logger.info("Duration = %d seconds" % abs(trigsegs))
 # -- make parameters files then generate the DAG ------------------------------
 
 # generate a 'master' parameters.txt file for archival purposes
-if not args.rescue:
+if newdag:
     tmpparfile = parameters.generate_parameters_files(
         cp, group, cachefile, rundir, channellimit=int(1e8))[0][0]
     parfile = os.path.join(rundir, 'parameters.txt')
@@ -752,7 +768,8 @@ for s, e in segs:
                 dag.add_node(ppnode)
                 ppnodes.append(ppnode)
                 tempfiles.append(script)
-                os.chmod(script, 0o755)
+                if newdag:
+                    os.chmod(script, 0o755)
 
 # set 'strict' option for newer versions of Omicron
 if omicronv >= 'v2r2':
@@ -763,7 +780,7 @@ if args.archive:
     archivenode = pipeline.CondorDAGNode(archivejob)
     xmlcache = Cache()
     rootcache = Cache()
-    if not args.rescue:
+    if newdag:
         # write shell script to seed archive
         with open(archivejob.get_executable(), 'w') as f:
             print('#!/bin/bash -e\n', file=f)
@@ -797,19 +814,20 @@ dagfile = dag.get_dag_file()
 if args.rescue:
     logger.info("In --rescue mode, this DAG has been reproduced in memory "
                 "for safety, but will not be written to disk, the file is:")
-else:
+elif newdag:
     dag.write_sub_files()
     dag.write_dag()
     dag.write_script()
     with open(dagfile, 'a') as f:
         print('DOT %s.dot' % os.path.splitext(dagfile)[0], file=f)
     logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
-print(os.path.abspath(dagfile))
+    print(os.path.abspath(dagfile))
 
 # write segments now
 # this means that online processing will _always_ move on, even if it fails
-segments.write_segments(span, segfile)
-logger.info("Segments written to\n%s" % segfile)
+if newdag:
+    segments.write_segments(span, segfile)
+    logger.info("Segments written to\n%s" % segfile)
 
 if args.no_submit:
     sys.exit(0)
@@ -819,30 +837,37 @@ if args.no_submit:
 # submit DAG
 if args.rescue:
     logger.info("--- Submitting rescue DAG to condor -------")
+elif args.reattach:
+    logger.info("--- Reattaching to existing DAG -------")
 else:
     logger.info("--- Submitting DAG to condor -------")
 
 for i in range(args.submit_rescue_dag + 1):
-    dagmanargs = set()
-    dagmanopts = {'-append': '+OmicronDAGMan=\"%s\"' % group}
-    for x in args.dagman_option:
-        x = '-%s' % x
-        try:
-            key, val = x.split('=', 1)
-        except ValueError:
-            dagmanargs.add(x)
-        else:
-            dagmanopts[key] = val
-    dagid = condor.submit_dag(dagfile, *list(dagmanargs), **dagmanopts)
-    logger.info("Condor ID = %d" % dagid)
-    logger.debug("Sleep for 15 seconds while DAGMan starts up")
-    sleep(15)
+    if args.reattach:  # find ID of existing DAG
+        dagid = condor.find_dagman_id(group, classad="OmicronDAGMan")
+        logger.info("Found existing condor ID = %d" % dagid)
+    else:
+        dagmanargs = set()
+        dagmanopts = {'-append': '+OmicronDAGMan=\"%s\"' % group}
+        for x in args.dagman_option:
+            x = '-%s' % x
+            try:
+                key, val = x.split('=', 1)
+            except ValueError:
+                dagmanargs.add(x)
+            else:
+                dagmanopts[key] = val
+        dagid = condor.submit_dag(dagfile, *list(dagmanargs), **dagmanopts)
+        logger.info("Condor ID = %d" % dagid)
+        logger.debug("Sleep for 15 seconds while DAGMan starts up")
+        sleep(15)
     # find lock file and monitor
-    logger.info("Monitoring DAG via ID...")
     states = ['unready', 'ready', 'idle', 'running', 'held', 'failed', 'done']
     colors = ['white', 'magenta', 'white', 'blue', 'yellow', 'red', 'green']
     old = dict((k, -1) for k in states)
-    logger.debug("Dag Status (%d nodes total):" % (len(dag.get_nodes())))
+    if not args.reattach:
+        logger.info("Monitoring DAG via ID...")
+        logger.debug("Dag Status (%d nodes total):" % (len(dag.get_nodes())))
     logger.debug('-' * 68)
     logger.debug('{0} |   {1} |    {2} | {3} |    {4} |  {5} |'
                  '    {6}'.format(
