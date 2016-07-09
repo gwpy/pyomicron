@@ -26,6 +26,7 @@ import operator
 import sys
 import warnings
 import htcondor
+from time import sleep
 from getpass import getuser
 
 try:
@@ -241,8 +242,13 @@ if not args.skip_condor:
     okstates = ['Running', 'Idle', 'Completed']
     try:
         # check manager status
-        jobs = schedd.query('OmicronManager == "%s" && Owner == "%s"'
-                            % (group, args.user), ['JobStatus'])
+        qstr = 'OmicronManager == "%s" && Owner == "%s"' % (group, args.user)
+        try:
+            jobs = schedd.query(qstr, ['JobStatus'])
+        except IOError as e:
+            warnings.warn("Caught IOError: %s [retrying...]" % str(e))
+            sleep(2)
+            jobs = schedd.query(qstr, ['JobStatus'])
         logger.debug("Found %d manager jobs" % len(jobs))
         if len(jobs) > 1:
             raise RuntimeError("Multiple OmicronManager jobs found for %r"
