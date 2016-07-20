@@ -50,7 +50,7 @@ import h5py
 from glue import markup
 
 from gwpy.time import to_gps
-from gwpy.segments import Segment
+from gwpy.segments import (Segment, SegmentList)
 from gwpy.plotter import (rcParams, TimeSeriesPlot, SegmentAxes)
 
 from omicron import (condor, const, io, log, segments, __version__)
@@ -359,6 +359,16 @@ else:
             times[c][ft] = numpy.ndarray((0,))
             ldata[c][ft] = numpy.ndarray((0,))
 
+# load acknowledged gaps
+acksegfile = os.path.join(outdir, 'acknowledged-gaps-%s.txt' % tag)
+try:
+    acknowledged = SegmentList.read(acksegfile)
+except IOError:  # no file
+    acknowledged = SegmentList()
+else:
+    logger.debug("Read %d segments from %s" % (len(acknowledged), acksegfile))
+    acknowledged.coalesce()
+
 # build legend for segments
 leg = OrderedDict()
 leg['Analysable'] = SegmentAxes.build_segment([0, 1], 0, facecolor='lightgray',
@@ -373,6 +383,8 @@ leg['Overlapping'] = SegmentAxes.build_segment([0, 1], 0, facecolor='yellow',
                                                edgecolor='orange')
 leg['Pending'] = SegmentAxes.build_segment([0, 1], 0, facecolor='lightskyblue',
                                            edgecolor='blue')
+leg['Acknowledged'] = SegmentAxes.build_segment([0, 1], 0, facecolor='sandybrown',
+                                                edgecolor='brown')
 
 logger.debug("Checking archive for each channel...")
 
@@ -420,6 +432,10 @@ for c in channels:
                 lost.append(s)
             else:
                 gaps[c][ft].append(s)
+        # remove acknowledged gaps
+        ack = gaps[c][ft] & acknowledged
+        gaps[c][ft] -= acknowledged
+        # print warnings
         if abs(gaps[c][ft]):
             warnings.warn("Gaps found in %s files for %s:\n%s"
                           % (c, ft, gaps[c][ft]))
@@ -455,6 +471,9 @@ for c in channels:
         sax.plot_segmentlist(overlap[c][ft], y=y,
                              facecolor=leg['Overlapping'].get_facecolor(),
                              edgecolor=leg['Overlapping'].get_edgecolor())
+        sax.plot_segmentlist(ack, y=y,
+                             facecolor=leg['Acknowledged'].get_facecolor(),
+                             edgecolor=leg['Acknowledged'].get_edgecolor())
 
     # finalise plot
     lax.axhline(args.warning/3600., color=(1.0, 0.7, 0.0), linestyle='--',
@@ -465,15 +484,15 @@ for c in channels:
     lax.set_ylim(0, args.error/1800.)
     lax.set_ylabel('Latency [hours]')
     lax.legend(loc='upper left', bbox_to_anchor=(1.01, 1), borderaxespad=0,
-               handlelength=2)
+               handlelength=2, fontsize=12.4)
     lax.set_xlabel(' ')
     for ax in plot.axes:
         ax.set_xlim(args.gps_start_time, args.gps_end_time)
         ax.set_epoch(ax.get_xlim()[1])
     sax.xaxis.labelpad = 5
     sax.set_ylim(-.5, 1.5)
-    sax.legend(leg.values(), leg.keys(), handlelength=1,
-               loc='upper left', bbox_to_anchor=(1.01, 1), borderaxespad=0)
+    sax.legend(leg.values(), leg.keys(), handlelength=1, fontsize=12.4,
+               loc='lower left', bbox_to_anchor=(1.01, 0), borderaxespad=0)
     plots[c] = png = os.path.join(
         outdir, 'nagios-latency-%s.png' % c.replace(':', '-'))
     plot.save(png)
