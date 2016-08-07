@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import re
 import os
+import string
 import sys
 from subprocess import Popen, PIPE, CalledProcessError
 from distutils.version import StrictVersion
@@ -85,11 +86,33 @@ def get_output_directory(args):
 # -- version comparison utilities
 
 class OmicronVersion(StrictVersion):
-    version_re = re.compile(r'^v(\d+)r(\d+) (\. (\d+))? ([ab](\d+))?$',
+    version_re = re.compile(r'^v(\d+)r(\d+) (p(\d+))? ([ab](\d+))?$',
                             re.VERBOSE)
 
+    def parse (self, vstring):
+        match = self.version_re.match(vstring)
+        if not match:
+            raise ValueError, "invalid version number '%s'" % vstring
+
+        (major, minor, patch, prerelease, prerelease_num) = \
+            match.group(1, 2, 4, 5, 6)
+
+        if patch:
+            self.version = tuple(map(string.atoi, [major, minor, patch]))
+        else:
+            self.version = tuple(map(string.atoi, [major, minor]) + [None])
+
+        if prerelease:
+            self.prerelease = (prerelease[0], string.atoi(prerelease_num))
+        else:
+            self.prerelease = None
+
     def __str__(self):
-        return 'v%sr%s' % (self.version[0], self.version[1])
+        if self.version[2] is None:
+            return 'v%sr%s' % (self.version[0], self.version[1])
+        else:
+            return 'v%sr%sp%s' % (self.version[0], self.version[1],
+                                  self.version[2])
 
     def __cmp__(self, other):
         if isinstance(other, str):
