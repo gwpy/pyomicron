@@ -131,7 +131,7 @@ def ligo_low_latency_hoft_type(ifo, use_devshm=False):
     if use_devshm:
         return '%s_llhoft' % ifo.upper()
     else:
-        return '%s_ER_C00_L1' % ifo.upper()
+        return '%s_DMT_C00' % ifo.upper()
 
 
 @with_datafind_connection
