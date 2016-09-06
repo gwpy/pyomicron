@@ -248,7 +248,7 @@ def find_ll_frames(ifo, frametype, start, end, root='/dev/shm',
     if tmpdir:
         out = []
         if not os.path.isdir(tmpdir):
-            os.path.makedirs(tmpdir)
+            os.makedirs(tmpdir)
         for e in cache:
             f = e.path
             new = os.path.join(tmpdir, os.path.basename(e.path))
