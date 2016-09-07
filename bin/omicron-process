@@ -550,11 +550,14 @@ if not online and len(cache) == 0:
     raise RuntimeError("No frames found for %s-%s" % (ifo[0], frametype))
 try:
     cachesegs = (segments.cache_segments(cache) & dataspan).coalesce()
-except TypeError:
+except TypeError:  # empty cache
     cachesegs = type(dataspan)()
     alldata = False
 else:
-    alldata = cachesegs[-1][1] >= dataspan[-1][1]
+    try:
+        alldata = cachesegs[-1][1] >= dataspan[-1][1]
+    except IndexError:  # no data overlapping span
+        alldata = False
 
 # write cache
 if not os.path.isdir(cachedir):
