@@ -33,6 +33,7 @@ from . import (const, utils)
 DEFAULTS = {
     'PARAMETER': {
         'CLUSTERING': 'TIME',
+        'TRIGGERRATEMAX': 50000,
     },
     'OUTPUT': {
         'PRODUCTS': 'triggers',
