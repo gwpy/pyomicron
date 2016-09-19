@@ -69,7 +69,7 @@ import re
 from time import sleep
 from glob import glob
 from getpass import getuser
-from tempfile import (gettempdir, mkdtemp)
+from tempfile import gettempdir
 
 # python 3
 try:
