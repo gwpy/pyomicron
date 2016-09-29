@@ -448,7 +448,8 @@ def find_dagman_id(group, classad="OmicronDAGMan", user=getuser(),
     return clusterid
 
 
-def dag_is_running(dagfile, group=None):
+def dag_is_running(dagfile, group=None, classad="OmicronDAGMan",
+                   user=getuser()):
     """Return whether a DAG is running
 
     This method will return `True` if any of the following match
@@ -477,9 +478,9 @@ def dag_is_running(dagfile, group=None):
         return True
     if group is not None and os.path.isfile('%s.condor.sub' % dagfile):
         try:
-            find_dagman_id(group)
+            find_dagman_id(group, classad=classad, user=user)
         except RuntimeError as e:
-            if str(e).startswith('No %s' % group):
+            if str(e).startswith('No %s jobs' % classad):
                 return False
             raise
         else:
