@@ -235,11 +235,12 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
             status['idle'] = 0
             nodes = schedd.query('DAGManJobId == %d' % dagmanid)
             for node in nodes:
-                if dict(node)['JobStatus'] == JOB_STATUS_MAP['held']:
+                s = get_job_status(node)
+                if s == JOB_STATUS_MAP['held']:
                     status['held'] += 1
-                elif dict(node)['JobStatus'] == JOB_STATUS_MAP['running']:
+                elif s == JOB_STATUS_MAP['running']:
                     status['running'] += 1
-                elif dict(node)['JobStatus'] == JOB_STATUS_MAP['idle']:
+                elif s == JOB_STATUS_MAP['idle']:
                     status['idle'] += 1
         return status
 
@@ -441,7 +442,7 @@ def find_dagman_id(group, classad="OmicronDAGMan", user=getuser(),
         raise RuntimeError("Multiple %s jobs found for group %r"
                            % (classad, group))
     clusterid = jobs[0]['ClusterId']
-    if jobs[0]['JobStatus'] >= 3:
+    if get_job_status(jobs[0]) >= 3:
         raise RuntimeError("DAGMan cluster %d found, but in state %r"
                            % JOB_STATUS[jobs[0]['JobStatus']])
     return clusterid
