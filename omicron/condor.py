@@ -29,6 +29,7 @@ from glob import glob
 from getpass import getuser
 
 import htcondor
+from classad import ClassAd
 
 import numpy
 
@@ -483,6 +484,31 @@ def dag_is_running(dagfile, group=None):
         else:
             return True
     return False
+
+
+def get_job_status(job, schedd=None):
+    """Get the status of a HTCondor process
+
+    Parameters
+    ----------
+    job : `str`, `classad.ClassAd`
+        either job ID (`str`, `int`, `float`) or a job object
+
+    schedd : `htcondor.Schedd`, optional
+        open scheduler connection
+
+    Returns
+    -------
+    status : `int`
+        the integer (`long`) status code for this job
+    """
+    if not isinstance(job, ClassAd):
+        # connect to scheduler
+        if schedd is None:
+            schedd = htcondor.Schedd()
+        # get status
+        job = list(schedd.query('ClusterId == %s' % job))[0]
+    return job['JobStatus']
 
 
 # -- custom jobs --------------------------------------------------------------
