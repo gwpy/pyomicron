@@ -869,8 +869,9 @@ for i in range(args.submit_rescue_dag + 1):
     # wait for DAG to be in running state
     schedd = htcondor.Schedd()
     stat = condor.get_job_status(dagid, schedd)
-    while stat != condor.JOB_STATUS_MAP['running']:
+    if stat != condor.JOB_STATUS_MAP['running']:
         logger.debug('Waiting for DAG to enter R state...')
+    while stat != condor.JOB_STATUS_MAP['running']:
         dagmansleep = True
         if stat > condor.JOB_STATUS_MAP['running']:
             raise RuntimeError("DAGMan process %s is not in a good state"
