@@ -446,6 +446,45 @@ def find_dagman_id(group, classad="OmicronDAGMan", user=getuser(),
     return clusterid
 
 
+def dag_is_running(dagfile, group=None):
+    """Return whether a DAG is running
+
+    This method will return `True` if any of the following match
+
+    - {dagfile}.lock file is found
+    - {dagfile}.condor.sub is found and a matching OmicronDAGMan process
+      is found in the condor queue
+
+    Otherwise, the return is `False`
+
+    Parameters
+    ----------
+    dagfile : `str`
+        the path of the DAG you want to analyse
+
+    group : `str`, optional
+        the name of the Omicron channel group being processed by this DAG
+
+    Raises
+    ------
+    RuntimeError
+        if multiple matching condor processes are found, or the matching
+        single process is not in a good state
+    """
+    if os.path.isfile('%s.lock' % dagfile):
+        return True
+    if group is not None and os.path.isfile('%s.condor.sub' % dagfile):
+        try:
+            find_dagman_id(group)
+        except RuntimeError as e:
+            if str(e).startswith('No %s' % group):
+                return False
+            raise
+        else:
+            return True
+    return False
+
+
 # -- custom jobs --------------------------------------------------------------
 
 class OmicronProcessJob(pipeline.CondorDAGJob):
