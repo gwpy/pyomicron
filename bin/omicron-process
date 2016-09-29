@@ -392,10 +392,12 @@ if not os.path.isdir(condir):
     os.makedirs(condir)
 
 # check dagman lock file
-if os.path.isfile(os.path.join(condir, 'omicron.dag.lock')) and args.reattach:
-     logger.info('omicron.dag.lock found in %s, will reattach' % rundir)
-elif os.path.isfile(os.path.join(condir, 'omicron.dag.lock')):
-    raise RuntimeError("omicron.dag.lock found in %s, DAG already running"
+running = condor.dag_is_running(os.path.join(condir, 'omicron.dag'), group):
+if running and args.reattach:
+     logger.info('Detected omicron.dag already running %s, will reattach'
+                 % rundir)
+elif running:
+    raise RuntimeError("Detector omicron.dag in %s is already running"
                        % rundir)
 else:
      args.reattach = False
