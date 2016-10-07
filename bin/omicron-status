@@ -428,7 +428,7 @@ for c in channels:
         gaps[c][ft] = type(found)()
         lost = type(found)()
         for s in processed - found:
-            if abs(s) < mingap and (s[0] in starts or s[1] in ends):
+            if abs(s) < mingap and s in list(segs):
                 lost.append(s)
             else:
                 gaps[c][ft].append(s)
