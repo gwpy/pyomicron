@@ -180,6 +180,7 @@ channels = args.channel
 if not channels:
     channels = [c.split()[0] for
                 c in cp.get(group, 'channels').strip('\n').split('\n')]
+channels.sort()
 logger.debug("Found %d channels" % len(channels))
 
 start = args.gps_start_time
