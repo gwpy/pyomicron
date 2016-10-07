@@ -855,7 +855,10 @@ for i in range(args.submit_rescue_dag + 1):
         logger.info("Found existing condor ID = %d" % dagid)
     else:  # or submit DAG
         dagmanargs = set()
-        dagmanopts = {'-append': '+OmicronDAGMan=\"%s\"' % group}
+        if online:
+            dagmanopts = {'-append': '+OmicronDAGMan=\"%s\"' % group}
+        else:
+            dagmanopts = {}
         for x in args.dagman_option:
             x = '-%s' % x
             try:
