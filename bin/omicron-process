@@ -429,7 +429,7 @@ if newdag and online:
         end = data.get_latest_data_gps(ifo, llhoft)
     else:
         end = data.get_latest_data_gps(ifo, frametype)
-    end -= padding
+    end -= (chunkdur + padding)
     try:
         start = segments.get_last_run_segment(segfile)[1]
     except IOError:
