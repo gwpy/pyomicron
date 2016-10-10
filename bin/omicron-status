@@ -194,6 +194,10 @@ except configparser.NoOptionError:
     stateflag = None
 else:
     logger.debug("Parsed state flag: %r" % stateflag)
+    try:
+        statepad = map(float, cp.get(group, 'state-padding').split(','))
+    except configparser.NoOptionError:
+        statepad = (0, 0)
 
 logger.info("Processing %d-%d" % (start, end))
 
@@ -320,7 +324,7 @@ segs = segments.get_frame_segments(obs, frametype, start, end)
 
 # get state segments
 if stateflag is not None:
-    segs &= segments.query_state_segments(stateflag, start, end)
+    segs &= segments.query_state_segments(stateflag, start, end, pad=statepad)
 
 try:
     end = segs[-1][1]
