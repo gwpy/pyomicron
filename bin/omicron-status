@@ -174,7 +174,7 @@ if not cp.has_section(group):
 obs = args.ifo[0]
 frametype = cp.get(group, 'frametype')
 padding = cp.getint(group, 'overlap-duration')/2.
-mingap = cp.getint(group, 'segment-duration')
+mingap = cp.getint(group, 'chunk-duration')
 
 channels = args.channel
 if not channels:
