@@ -24,6 +24,7 @@ from __future__ import print_function
 import os.path
 import shutil
 import json
+from math import (floor, ceil)
 from tempfile import mkdtemp
 from functools import wraps
 
@@ -105,9 +106,13 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1):
         sv = StateVector.read(cache, channel, nproc=nproc, start=s, end=e,
                               bits=bits, gap='pad', pad=0).astype('uint32')
         segs += sv.to_dqflags().intersection().active
+    print(segs)
+    for i, seg in enumerate(segs):
+        segs[i] = type(seg)(int(ceil(seg[0])), int(floor(seg[1])))
     if data.re_ll.match(frametype):
         shutil.rmtree(tmpdir)
-    return segs
+    print(segs)
+    return segs.coalesce()
 
 
 @integer_segments
