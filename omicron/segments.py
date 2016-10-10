@@ -74,29 +74,35 @@ def write_segments(segmentlist, outfile, coltype=int):
 
 
 @integer_segments
-def query_state_segments(flag, start, end, url='https://segments.ligo.org'):
+def query_state_segments(flag, start, end, url='https://segments.ligo.org',
+                         pad=(0, 0)):
     """Query a segment database for active segments associated with a flag
     """
     from gwpy.segments import DataQualityFlag
-    segs = DataQualityFlag.query(flag, start, end, url=url)
+    segs = DataQualityFlag.query(flag, start-pad[0], end+pad[1], url=url).pad(
+        pad[0], -pad[1])  # DQF.pad pads forward in time at end
+    segs.coalesce()
     return segs.active
 
 
 @integer_segments
-def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1):
+def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
+                       pad=(0, 0)):
     """Read state segments from a state-vector channel in the frames
     """
     from gwpy.timeseries import StateVector
     ifo = channel[:2]
+    pstart = start - pad[0]
+    pend = start + pad[1]
     if data.re_ll.match(frametype):
         tmpdir = mkdtemp(prefix='tmp-pyomicron-')
-        cache = data.find_frames(ifo, frametype, start, end, tmpdir=tmpdir)
+        cache = data.find_frames(ifo, frametype, pstart, pend, tmpdir=tmpdir)
     else:
-        cache = data.find_frames(ifo, frametype, start, end)
+        cache = data.find_frames(ifo, frametype, pstart, pend)
     bits = map(str, bits)
     # FIXME: need to read from cache with single segment but doesn't match
     # [start, end)
-    span = SegmentList([Segment(start, end)])
+    span = SegmentList([Segment(pstart, pend)])
     segs = SegmentList()
     try:
         csegs = cache.to_segmentlistdict()[ifo[0]]
@@ -106,8 +112,11 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1):
         sv = StateVector.read(cache, channel, nproc=nproc, start=s, end=e,
                               bits=bits, gap='pad', pad=0).astype('uint32')
         segs += sv.to_dqflags().intersection().active
+    # truncate to integers, and apply padding
     for i, seg in enumerate(segs):
-        segs[i] = type(seg)(int(ceil(seg[0])), int(floor(seg[1])))
+        segs[i] = type(seg)(int(ceil(seg[0])) + pad[0],
+                            int(floor(seg[1])) - pad[1])
+    segs.coalesce()
     if data.re_ll.match(frametype):
         shutil.rmtree(tmpdir)
     return segs.coalesce()

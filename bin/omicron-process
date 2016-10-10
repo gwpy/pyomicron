@@ -380,6 +380,21 @@ if statechannel:
     logger.debug("State bits = %s" % ', '.join(map(str, statebits)))
     logger.debug("State frametype = %s" % stateft)
 
+# parse padding for state segments
+if statechannel or stateflag:
+    try:
+        statepad = cp.get(group, 'state-padding')
+    except configparser.NoOptionError:
+        statepad = (0, 0)
+    else:
+        try:
+            p = int(statepad)
+        except ValueError:
+            statepad = map(float, statepad.split(',', 1))
+        else:
+            statepad = (p, p)
+    logger.debug("State padding: %s" % str(statepad))
+
 rundir = utils.get_output_directory(args)
 cachedir = os.path.join(rundir, 'cache')
 
@@ -494,10 +509,12 @@ if dataduration < chunkdur:
 if (online and statechannel) or (statechannel and not stateflag):
     logger.info("Finding segments for relevant state...")
     segs = segments.get_state_segments(statechannel, stateft,
-                                       datastart, dataend, bits=statebits)
+                                       datastart, dataend, bits=statebits,
+                                       pad=statepad)
 elif stateflag:
     logger.info("Querying segments for relevant state...")
-    segs = segments.query_state_segments(stateflag, datastart, dataend)
+    segs = segments.query_state_segments(stateflag, datastart, dataend,
+                                         pad=statepad)
 else:
     segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
 
