@@ -93,7 +93,7 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
     from gwpy.timeseries import StateVector
     ifo = channel[:2]
     pstart = start - pad[0]
-    pend = start + pad[1]
+    pend = end + pad[1]
     if data.re_ll.match(frametype):
         tmpdir = mkdtemp(prefix='tmp-pyomicron-')
         cache = data.find_frames(ifo, frametype, pstart, pend, tmpdir=tmpdir)
