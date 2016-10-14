@@ -137,7 +137,7 @@ def find_omicron_files(channel, start, end, basepath, ext='xml.gz',
                        filetag=const.OMICRON_FILETAG.upper()):
     """Find Omicron files under a given starting directory
     """
-    gps5 = int(str(start)[:5])
+    gps5 = int(str(start)[:5])-1
     cache = Cache()
     while gps5 <= int(str(end)[:5]):
         cache.extend(_find_files_in_gps_directory(channel, basepath, gps5,
