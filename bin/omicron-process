@@ -518,10 +518,11 @@ elif stateflag:
 else:
     segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
 
+# print frame segments recovered
 if len(segs):
     logger.info("State/frame segments recovered as")
     for seg in segs:
-        logger.info("    %d %d" % seg)
+        logger.info("    %d %d [%d]" % (seg[0], seg[1], abs(seg)))
     logger.info("Duration = %d seconds" % abs(segs))
 
 # truncate final segment if running online
@@ -614,14 +615,14 @@ trigsegs = type(segs)(type(s)(*s) for s in segs).contract(padding)
 # display segments
 logger.info("Final data segments selected as")
 for seg in segs:
-    logger.info("    %d %d" % seg)
+    logger.info("    %d %d " % seg + "[%d]" % abs(seg))
 logger.info("Duration = %d seconds" % abs(segs))
 
 span = type(trigsegs)([trigsegs.extent()])
 
 logger.info("This will output triggers for")
 for seg in trigsegs:
-    logger.info("    %d %d" % seg)
+    logger.info("    %d %d " % seg + "[%d]" % abs(seg))
 logger.info("Duration = %d seconds" % abs(trigsegs))
 
 # -- make parameters files then generate the DAG ------------------------------
