@@ -592,6 +592,9 @@ if segs - cachesegs:
     logger.warning("Not all state times are available in frames")
 segs = (cachesegs & segs).coalesce()
 
+# apply minimum duration requirement
+segs = type(segs)(s for s in segs if abs(s) >= segdur)
+
 # if all of the data are available, but no segments, record segments.txt
 if newdag and len(segs) == 0 and online and alldata:
     logger.info("No segments found, but up-to-date data are available. "
@@ -607,8 +610,6 @@ elif len(segs) == 0 and online:
 elif len(segs) == 0:
     raise RuntimeError("No segments found")
 
-# apply minimum duration requirement
-segs = type(segs)(s for s in segs if abs(s) >= segdur)
 # and calculate trigger output segments
 trigsegs = type(segs)(type(s)(*s) for s in segs).contract(padding)
 
