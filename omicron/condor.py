@@ -200,6 +200,13 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
     classads = ['DAG_Nodes%s' % s.title() for s in states]
     try:
         job = schedd.query('ClusterId == %d' % dagmanid, classads)[0]
+        status = dict()
+        for s, c in zip(states, classads):
+            try:
+                status[s] = job[c]
+            except KeyError:  # htcondor.py failure (unknown cause)
+                status[s] = int(shell(['condor_q', str(dagmanid),
+                                       '-autoformat', c]))
     # DAG has exited
     except IndexError:
         sleep(1)
@@ -227,7 +234,6 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
         return history
     # DAG is running, get status
     else:
-        status = dict((s, job[c]) for s, c in zip(states, classads))
         # find node status details
         if detailed:
             status['held'] = 0
