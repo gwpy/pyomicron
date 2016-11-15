@@ -345,7 +345,13 @@ except IndexError:
     pass
 
 # apply inwards padding to generate resolvable segments
-segs = segs.contract(padding)
+for i in range(len(segs) - 1, -1, -1):
+    # if segment is shorter than padding, ignore it completely
+    if abs(segs[i]) <= padding * 2:
+        del segs[i]
+    # otherwise apply padding to generate trigger segment
+    else:
+        segs[i] = segs[i].contract(padding)
 logger.debug("Found %d seconds of analysable time" % abs(segs))
 
 # get list of segment starts and ends, to work in which data are missing
