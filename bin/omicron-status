@@ -95,6 +95,12 @@ parser.add_argument('-e', '--gps-end-time', type=int, default=NOW,
 parser.add_argument('-c', '--channel', action='append',
                     help='name of channel to process, can be given multiple '
                          'times, default: all channels in group')
+parser.add_argument('-b', '--state-flag',
+                    help='name of data-quality flag to use in defining state, '
+                         'default is taken from --config-file')
+parser.add_argument('-p', '--state-pad', metavar='X,Y', default='0,0',
+                    help='inward padding for start,end of each '
+                         '--state-flag segment')
 parser.add_argument('-u', '--user', default=getuser(),
                     help='name of user running condor jobs, '
                          'default: %(default)s')
@@ -190,17 +196,22 @@ end = args.gps_end_time
 if end == NOW:
     end -= padding
 
-try:
-    stateflag = cp.get(group, 'state-flag')
-except configparser.NoOptionError:
-    stateflag = None
+if args.state_flag:
+    stateflag = args.state_flag
+    statepad = map(float, args.state_pad.split(','))
 else:
-    logger.debug("Parsed state flag: %r" % stateflag)
     try:
-        statepad = map(float, cp.get(group, 'state-padding').split(','))
+        stateflag = cp.get(group, 'state-flag')
     except configparser.NoOptionError:
-        statepad = (0, 0)
-
+        stateflag = None
+    else:
+        try:
+            statepad = map(float, cp.get(group, 'state-padding').split(','))
+        except configparser.NoOptionError:
+            statepad = (0, 0)
+if stateflag:
+    logger.debug("Parsed state flag: %r" % stateflag)
+    logger.debug("Parsed state padding: %r" % statepad)
 logger.info("Processing %d-%d" % (start, end))
 
 # -- define nagios JSON printer -----------------------------------------------
