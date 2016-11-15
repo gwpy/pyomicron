@@ -163,7 +163,9 @@ logger.debug("Will process the following filetypes: %s" % ", ".join(filetypes))
 # -- parse configuration file and get parameters ------------------------------
 
 cp = configparser.ConfigParser()
-cp.read(args.config_file)
+ok = cp.read(args.config_file)
+if args.config_file not in ok:
+    raise IOError("Failed to read configuration file %r" % args.config_file)
 logger.info("Configuration read")
 
 # validate
