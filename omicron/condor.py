@@ -19,10 +19,14 @@
 """Condor interaction utilities
 """
 
+from __future__ import print_function
+
 import os.path
 import re
 import datetime
+import sys
 import time
+import warnings
 from time import sleep
 from os import stat
 from glob import glob
@@ -406,7 +410,12 @@ def get_out_err_files(dagmanid, exitcode=None, schedd=None, user=getuser(),
         ['ExitCode', 'Out', 'Err', 'ClusterId'], maxjobs))
     out = {}
     for node in history:
-        if exitcode is not None and node['ExitCode'] != exitcode:
+        try:
+            ec = node['ExitCode']
+        except KeyError:
+            warnings.warn("Failed to get ExitCode for node %r" % node)
+            continue
+        if exitcode is not None and ec != exitcode:
             continue
         out[node['ClusterId']] = [node['Out'], node['Err']]
     return out
