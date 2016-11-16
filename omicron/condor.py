@@ -119,7 +119,7 @@ def monitor_dag(dagfile, interval=5):
         except OSError:
             break
     try:
-        find_rescue(dagfile)
+        find_rescue_dag(dagfile)
     except IndexError:
         return
 
