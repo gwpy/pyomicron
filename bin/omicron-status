@@ -211,7 +211,7 @@ else:
             statepad = (0, 0)
 if stateflag:
     logger.debug("Parsed state flag: %r" % stateflag)
-    logger.debug("Parsed state padding: %r" % statepad)
+    logger.debug("Parsed state padding: %s" % repr(statepad))
 logger.info("Processing %d-%d" % (start, end))
 
 # -- define nagios JSON printer -----------------------------------------------
