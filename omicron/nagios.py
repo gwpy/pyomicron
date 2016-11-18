@@ -21,12 +21,8 @@
 
 from __future__ import (print_function, division)
 
-import os
-import glob
 import json as jsonlib
 import sys
-import warnings
-import subprocess
 from getpass import getuser
 
 import htcondor

@@ -21,7 +21,6 @@
 
 from __future__ import print_function
 
-import os.path
 import shutil
 import json
 from math import (floor, ceil)
