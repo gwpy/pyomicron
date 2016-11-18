@@ -156,7 +156,10 @@ def iterate_dag_status(clusterid, interval=2):
         try:
             status = get_dag_status(clusterid, schedd=schedd, detailed=True)
         except (IOError, KeyError) as e:
+            # reconnect, and try again
             sleep(1)
+            del schedd
+            schedd = htcondor.Schedd()
             try:
                 status = get_dag_status(clusterid, schedd=schedd,
                                         detailed=True)
