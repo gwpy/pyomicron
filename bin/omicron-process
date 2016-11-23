@@ -930,7 +930,8 @@ for i in range(args.submit_rescue_dag + 1):
                     logger.debug(' | '.join(['%7s' % job[s] for s in states]))
                     break
             old = job
-    except IOError as e:  # failed to connect to DAG for progress, not critical
+    # failed to connect to DAG for progress, not critical
+    except (IOError, RuntimeError) as e:
         logger.warning("Caught %s: %s" % (type(e).__name__, e))
         logger.info("Non-critical exception caught, workflow has been "
                     "submitted and will continue on its own. You can manually "
