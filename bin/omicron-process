@@ -896,7 +896,15 @@ for i in range(args.submit_rescue_dag + 1):
             raise RuntimeError("DAGMan process %s is not in a good state"
                                % dagid)
         sleep(2)
-        stat = condor.get_job_status(dagid, schedd)
+        try:
+            stat = condor.get_job_status(dagid, schedd)
+        except IOError:  # failed to connect to DAG, not critical
+            logger.warning("Caught %s: %s" % (type(e).__name__, e))
+            logger.info("Non-critical exception caught, workflow has been "
+                        "submitted and will continue on its own. You can "
+                        "manually track status via `tail -f %s.dagman.out`"
+                        % dagfile)
+            clean_exit(0, tempfiles)
     else:
         dagmansleep = False
     # DAG was not running, wait for it to initialise
