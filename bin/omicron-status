@@ -290,6 +290,10 @@ if not args.skip_condor:
     except RuntimeError as e:
         print_nagios_json(2, str(e), jsonfp, tag='condor')
         logger.warning("Failed to determine condor status: %r" % str(e))
+    except IOError as e:
+        logger.warning("Caught %s: %s" % (type(e).__name__, e))
+        logger.info("Failed to connect to HTCondor scheduler, cannot "
+                    "determine condor status for %s" % group)
     else:
         print_nagios_json(0, "Condor processing for %r is OK" % group, jsonfp,
                           tag='condor')
