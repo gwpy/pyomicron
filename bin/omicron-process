@@ -203,6 +203,9 @@ datag = parser.add_argument_group('Data options')
 datag.add_argument('--use-dev-shm', action='store_true', default=False,
                    help='use low-latency frame buffer in /dev/shm, '
                         'default: %(default)s')
+datag.add_argument('--no-segdb', action='store_true', default=False,
+                   help='don\'t use the segment database for state '
+                        'determination, default: %(default)s')
 
 pipeg = parser.add_argument_group('Pipeline options')
 pipeg.add_argument('--skip-omicron', action='store_true', default=False,
@@ -368,12 +371,15 @@ except configparser.NoOptionError:
     stateflag = None
 else:
     logger.debug("State flag = %s" % stateflag)
-    if online and not statechannel:
+    if not statechannel:  # map state flag to state channel
         try:
             statechannel, statebits, stateft = segments.STATE_CHANNEL[stateflag]
         except KeyError as e:
-            e.args = ('Cannot map state flag %r to channel' % stateflag,)
-            raise
+            if online or args.no_segdb:  # only raise if channel is required
+                e.args = ('Cannot map state flag %r to channel' % stateflag,)
+                raise
+            else:
+                pass
 
 if statechannel:
     logger.debug("State channel = %s" % statechannel)
@@ -506,7 +512,8 @@ if dataduration < chunkdur:
     clean_exit(0, tempfiles)
 
 # find run segments
-if (online and statechannel) or (statechannel and not stateflag):
+if (online and statechannel) or (statechannel and not stateflag) or (
+        statechannel and args.no_segdb):
     logger.info("Finding segments for relevant state...")
     segs = segments.get_state_segments(statechannel, stateft,
                                        datastart, dataend, bits=statebits,
