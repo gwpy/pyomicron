@@ -911,7 +911,7 @@ for i in range(args.submit_rescue_dag + 1):
                         "submitted and will continue on its own. You can "
                         "manually track status via `tail -f %s.dagman.out`"
                         % dagfile)
-            clean_exit(0, tempfiles)
+            clean_exit(0)
     else:
         dagmansleep = False
     # DAG was not running, wait for it to initialise
@@ -943,7 +943,7 @@ for i in range(args.submit_rescue_dag + 1):
         logger.info("Non-critical exception caught, workflow has been "
                     "submitted and will continue on its own. You can manually "
                     "track status via `tail -f %s.dagman.out`" % dagfile)
-        clean_exit(0, tempfiles)
+        clean_exit(0)
     logger.debug('-' * 68)
     # log exitcode
     if job['exitcode']:
