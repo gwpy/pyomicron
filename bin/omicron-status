@@ -251,9 +251,17 @@ def print_nagios_json(code, message, outfile, tag='status'):
 # -- get condor status --------------------------------------------------------
 
 if not args.skip_condor:
-    logger.info("-- Checking condor status --")
     # connect to scheduler
-    schedd = htcondor.Schedd()
+    try:
+        schedd = htcondor.Schedd()
+    except RuntimeError as e:
+        logger.warning("Caught %s: %s" % (type(e).__name__, e))
+        logger.info("Failed to connect to HTCondor scheduler, cannot "
+                    "determine condor status for %s" % group)
+        schedd = None
+
+if schedd:
+    logger.info("-- Checking condor status --")
 
     # get DAG status
     jsonfp = os.path.join(outdir, 'nagios-condor-%s.json' % group)
