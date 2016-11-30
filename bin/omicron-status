@@ -260,7 +260,7 @@ if not args.skip_condor:
                     "determine condor status for %s" % group)
         schedd = None
 
-if schedd:
+if not args.skip_condor and schedd:
     logger.info("-- Checking condor status --")
 
     # get DAG status
