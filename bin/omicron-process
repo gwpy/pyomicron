@@ -855,13 +855,10 @@ elif newdag:
     logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
     print(os.path.abspath(dagfile))
 
-# write segments now
-# this means that online processing will _always_ move on, even if it fails
-if newdag:
-    segments.write_segments(span, segfile)
-    logger.info("Segments written to\n%s" % segfile)
-
 if args.no_submit:
+    if newdag:
+        segments.write_segments(span, segfile)
+        logger.info("Segments written to\n%s" % segfile)
     sys.exit(0)
 
 # -- submit the DAG and babysit -----------------------------------------------
@@ -894,6 +891,12 @@ for i in range(args.submit_rescue_dag + 1):
                 dagmanopts[key] = val
         dagid = condor.submit_dag(dagfile, *list(dagmanargs), **dagmanopts)
         logger.info("Condor ID = %d" % dagid)
+        # write segments now -- this means that online processing will
+        # _always_ move on even if the workflow fails
+        if i == 0:
+            segments.write_segments(span, segfile)
+            logger.info("Segments written to\n%s" % segfile)
+
     # wait for DAG to be in running state
     schedd = htcondor.Schedd()
     stat = condor.get_job_status(dagid, schedd)
