@@ -106,7 +106,7 @@ def submit_dag(dagfile, *arguments, **options):
         return int(re_dagman_cluster.search(out).group())
     except (AttributeError, IndexError, TypeError) as e:
         e.args = ('Failed to extract DAG cluster ID from '
-                  'condor_submit_dag output',)
+                  'condor_submit_dag output [%s]' % str(e),)
         raise
 
 
