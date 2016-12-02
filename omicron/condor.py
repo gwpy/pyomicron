@@ -538,7 +538,7 @@ class OmicronProcessJob(pipeline.CondorDAGJob):
     logtag = '$(cluster)-$(process)'
 
     def __init__(self, universe, executable, tag=None, subdir=None,
-                 logdir=None, **cmds):
+                 logdir=None, request_memory=1000, **cmds):
         pipeline.CondorDAGJob.__init__(self, universe, executable)
         if tag is None:
             tag = os.path.basename(os.path.splitext(executable)[0])
