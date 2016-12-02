@@ -133,7 +133,7 @@ pout.add_argument('-m', '--html', default=False, action='store_true',
                        'default: %(default)s')
 
 pnag = parser.add_argument_group('Monitoring options')
-parser.add_argument('-U', '--unknown', type=int, default=1800,
+parser.add_argument('-U', '--unknown', type=int, default=7200,
                     help='time (seconds) after which nagios output should be '
                          'considered stable and \'unknown\', '
                          'default: %(default)s')
