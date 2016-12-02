@@ -669,8 +669,10 @@ for cmd_ in args.condor_command:
     condorcmds[key.rstrip().lower()] = value.strip()
 
 # create omicron job
+reqmem = condorcmds.pop('request_memory', 1000)
 ojob = condor.OmicronProcessJob(args.universe, args.executable, subdir=condir,
                                 logdir=logdir, **condorcmds)
+ojob.add_condor_cmd('request_memory', reqmem)
 ojob.add_condor_cmd('+OmicronProcess', '"%s"' % group)
 nperjob = args.max_chunks_per_job
 
