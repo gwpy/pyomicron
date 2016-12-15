@@ -686,7 +686,14 @@ ppnodes = []
 rootmerge = utils.which('omicron-root-merge')
 ligolw_add = utils.which('ligolw_add')
 gzip = utils.which('gzip')
-rm = utils.which('rm')
+
+# create node to remove files
+rmjob = condor.OmicronProcessJob(args.universe, utils.which('rm'),
+                                 subdir=condir, logdir=logdir,
+                                 tag='post-processing-rm', **condorcmds)
+rmfiles = []
+rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
+rmjob.add_short_opt('f', '')
 
 if args.archive:
     archivejob = condor.OmicronProcessJob(
@@ -724,85 +731,108 @@ for s, e in segs:
 
         # post-process
         if not args.skip_postprocessing:
+            script = os.path.join(
+                condir, 'post-process-%d-%d-%d.sh' % (i, s, e))
+            operations = []
+            rmfiles = []
+
             # build post-processing nodes for each channel
             for c in chanlist:
-                script = os.path.join(
-                    condir, 'post-process-%s-%d-%d-%d.sh' % (c, s, e, i))
-                if not args.rescue:
-                    with open(script, 'w') as f:
-                        print('#!/bin/bash -e\n', file=f)
-                        print("# %s" % c, file=f)  # comment header for sh
+                operations.append('\n# %s' % c)
+                # work out filenames for coalesced files
+                chandir = os.path.join(rundir, 'triggers', c)
+                cname = re.sub('[:_-]', '_', c).replace('_', '-', 1)
+                target, filename = os.path.split(
+                    io.get_archive_filename(
+                        c, ts, td, filetag=afiletag, ext='root'))
 
-                        # work out filenames for coalesced files
-                        chandir = os.path.join(rundir, 'triggers', c)
-                        cname = re.sub('[:_-]', '_', c).replace('_', '-', 1)
-                        target, filename = os.path.split(
-                            io.get_archive_filename(
-                                c, ts, td, filetag=afiletag, ext='root'))
+                # get list of output files
+                if omicronv >= 'v2r2':
+                    roots = ' '.join(
+                        os.path.join(chandir, '%s_%s-%d-%d.root' % (
+                            cname, const.OMICRON_FILETAG, fs, fe-fs))
+                        for (fs, fe) in filesegments)
+                    xmls = roots.replace('.root', '.xml')
+                else:
+                    roots = ' '.join(
+                        os.path.join(
+                            chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
+                        for (fs, fe) in filesegments)
+                    xmls = ' '.join(
+                        os.path.join(chandir, '%s_%s-%d-%d.xml' % (
+                            cname, const.OMICRON_FILETAG, fs, fe-fs))
+                        for (fs, fe) in filesegments)
 
-                        # get list of output files
-                        if omicronv >= 'v2r2':
-                            roots = ' '.join(
-                                os.path.join(chandir, '%s_%s-%d-%d.root' % (
-                                    cname, const.OMICRON_FILETAG, fs, fe-fs))
-                                for (fs, fe) in filesegments)
-                            xmls = roots.replace('.root', '.xml')
-                        else:
-                            roots = ' '.join(
-                                os.path.join(
-                                    chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
-                                for (fs, fe) in filesegments)
-                            xmls = ' '.join(
-                                os.path.join(chandir, '%s_%s-%d-%d.xml' % (
-                                    cname, const.OMICRON_FILETAG, fs, fe-fs))
-                                for (fs, fe) in filesegments)
+                # add omicron-root-merge
+                if args.skip_root_merge or len(filesegments) == 1:
+                    root = roots
+                else:
+                    root = os.path.join(chandir, filename)
+                    operations.append('%s %s %s --strict'
+                                      % (rootmerge, roots, root))
 
-                        # add omicron-root-merge
-                        if args.skip_root_merge or len(filesegments) == 1:
-                            root = roots
-                        else:
-                            root = os.path.join(chandir, filename)
-                            print('%s %s %s --strict'
-                                  % (rootmerge, roots, root), file=f)
+                # add ligolw_add
+                if args.skip_ligolw_add or len(filesegments) == 1:
+                    xml = xmls
+                else:
+                    xml = os.path.join(chandir,
+                                       filename.replace('root', 'xml'))
+                    operations.append('%s %s --output %s'
+                                      % (ligolw_add, xmls, xml))
 
-                        # add ligolw_add
-                        if args.skip_ligolw_add or len(filesegments) == 1:
-                            xml = xmls
-                        else:
-                            xml = os.path.join(chandir,
-                                               filename.replace('root', 'xml'))
-                            print('%s %s --output %s'
-                                  % (ligolw_add, xmls, xml), file=f)
+                # add gzip
+                if not args.skip_gzip:
+                    operations.append('%s --force %s' % (gzip, xml))
+                    xml = '%s.gz' % xml
 
-                        # add gzip
-                        if not args.skip_gzip:
-                            print('%s --force %s' % (gzip, xml), file=f)
-                            xml = '%s.gz' % xml
+                # add archive
+                if args.archive:
+                    try:
+                        archivefiles[target].extend([xml, root])
+                    except KeyError:
+                        archivefiles[target] = [xml, root]
 
-                        # add archive
-                        if args.archive:
-                            try:
-                                archivefiles[target].extend([xml, root])
-                            except KeyError:
-                                archivefiles[target] = [xml, root]
+                # add rm jobs (only if files were manipulated)
+                if root != roots:
+                    rmfiles.append(roots)
+                if xml != xmls:
+                    rmfiles.append(xmls)
 
-                        # add rm jobs (only if files were manipulated)
-                        if root != roots:
-                            print('%s %s' % (rm, roots), file=f)
-                        if xml != xmls:
-                            print('%s %s' % (rm, xmls), file=f)
+            ppnode = pipeline.CondorDAGNode(ppjob)
+            ppnode.add_var_arg(script)
+            ppnode.set_category('postprocessing')
+            if not args.skip_omicron:
+                for node in nodes:
+                    ppnode.add_parent(node)
+            dag.add_node(ppnode)
+            ppnodes.append(ppnode)
+            tempfiles.append(script)
 
-                ppnode = pipeline.CondorDAGNode(ppjob)
-                ppnode.add_var_arg(script)
-                ppnode.set_category('postprocessing')
-                if not args.skip_omicron:
-                    for node in nodes:
-                        ppnode.add_parent(node)
-                dag.add_node(ppnode)
-                ppnodes.append(ppnode)
-                tempfiles.append(script)
+            # write post-processing file
+            if not args.rescue:
+                with open(script, 'w') as f:
+                    # add header
+                    print('#!/bin/bash -e\n#', file=f)
+                    print("# omicron-process post-processing", file=f)
+                    print('#\n# File created by\n# %s\n#' % ' '.join(sys.argv),
+                          file=f)
+                    print("# Group: %s" % group, file=f)
+                    print("# Segment: [%d, %d)" % (s, e), file=f)
+                    print("# Channels:\n#", file=f)
+                    for c in chanlist:
+                        print('# %s' % c, file=f)
+                    # add post-processing operations
+                    print('\n'.join(operations), file=f)
                 if newdag:
                     os.chmod(script, 0o755)
+
+# add rm job
+rmnode = pipeline.CondorDAGNode(rmjob)
+rmnode.add_var_arg(' '.join(rmfiles))
+rmnode.set_category('postprocessing')
+for node in ppnodes:
+    rmnode.add_parent(node)
+dag.add_node(rmnode)
 
 # set 'strict' option for newer versions of Omicron
 if omicronv >= 'v2r2':
