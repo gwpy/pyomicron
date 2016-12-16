@@ -688,12 +688,13 @@ ligolw_add = utils.which('ligolw_add')
 gzip = utils.which('gzip')
 
 # create node to remove files
-rmjob = condor.OmicronProcessJob(args.universe, utils.which('rm'),
+rmjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
                                  subdir=condir, logdir=logdir,
                                  tag='post-processing-rm', **condorcmds)
+rm = utils.which('rm')
 rmfiles = []
 rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
-rmjob.add_short_opt('f', '')
+rmjob.add_short_opt('e', '')
 
 if args.archive:
     archivejob = condor.OmicronProcessJob(
@@ -734,7 +735,6 @@ for s, e in segs:
             script = os.path.join(
                 condir, 'post-process-%d-%d-%d.sh' % (i, s, e))
             operations = []
-            rmfiles = []
 
             # build post-processing nodes for each channel
             for c in chanlist:
@@ -828,7 +828,24 @@ for s, e in segs:
 
 # add rm job
 rmnode = pipeline.CondorDAGNode(rmjob)
-rmnode.add_var_arg(' '.join(rmfiles))
+rmscript = os.path.join(condir, 'post-process-rm.sh')
+with open(rmscript, 'w') as f:
+    print('#!/bin/bash -e\n#', file=f)
+    print("# omicron-process post-processing-rm", file=f)
+    print('#\n# File created by\n# %s\n#' % ' '.join(sys.argv),
+          file=f)
+    print("# Group: %s" % group, file=f)
+    print("# Segment: [%d, %d)" % (s, e), file=f)
+    print("# Channels:\n#", file=f)
+    for c in chanlist:
+        print('# %s' % c, file=f)
+    print('', file=f)
+    for rmset in rmfiles:
+        print('%s -f %s' % (rm, rmset), file=f)
+if newdag:
+    os.chmod(rmscript, 0o755)
+tempfiles.append(rmscript)
+rmnode.add_var_arg(rmscript)
 rmnode.set_category('postprocessing')
 for node in ppnodes:
     rmnode.add_parent(node)
