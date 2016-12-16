@@ -211,8 +211,13 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
             try:
                 status[s] = job[c]
             except KeyError:  # htcondor.py failure (unknown cause)
-                status[s] = int(shell(['condor_q', str(dagmanid),
-                                       '-autoformat', c]))
+                try:
+                    status[s] = int(shell(['condor_q', str(dagmanid),
+                                           '-autoformat', c]))
+                except ValueError as e:
+                    e.args = ('Failed to query %r for job %s: %s'
+                              % (c, dagmanid, str(e)),)
+                    raise
     # DAG has exited
     except IndexError:
         sleep(1)
