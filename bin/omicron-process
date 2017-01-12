@@ -112,9 +112,10 @@ def clean_tempfiles(tempfiles):
 
 epilog = """This source code for this project is available here:
 
-https://git.ligo.org/detchar/ligo-omicron/
+https://github.com/ligovirgo/pyomicron/
 
-All issues regarding this software should be raised using GitLab, bug reports and feature requests are encouraged.
+All issues regarding this software should be raised using the GitHub web
+interface, bug reports and feature requests are encouraged.
 """
 
 parser = argparse.ArgumentParser(
