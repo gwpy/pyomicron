@@ -205,7 +205,7 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
     states = ['total', 'done', 'queued', 'ready', 'unready', 'failed']
     classads = ['DAG_Nodes%s' % s.title() for s in states]
     try:
-        job = schedd.query('ClusterId == %d' % dagmanid, classads)[0]
+        job = find_job(ClusterId=dagmanid, schedd=schedd, attr_list=classads)
         status = dict()
         for s, c in zip(states, classads):
             try:
@@ -250,7 +250,7 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
             status['held'] = 0
             status['running'] = 0
             status['idle'] = 0
-            nodes = schedd.query('DAGManJobId == %d' % dagmanid)
+            nodes = find_jobs(DAGManJobId=dagmanid, schedd=schedd)
             for node in nodes:
                 s = get_job_status(node)
                 if s == JOB_STATUS_MAP['held']:
@@ -436,10 +436,13 @@ def find_dagman_id(group, classad="OmicronDAGMan", user=getuser(),
     ----------
     group : `str`
         name of group to find, actually this is just the value of the classad
+
     classad : `str`, optional
         the defining classad used to identify the correct DAGMan process
+
     user : `str`, optional
         the name of the submitting user, defaults to the current user
+
     schedd : `htcondor.Schedd`, optional
         open connection to the scheduler, one will be created if needed
 
@@ -454,31 +457,26 @@ def find_dagman_id(group, classad="OmicronDAGMan", user=getuser(),
         if not exactly 1 matching condor process is found, or that process
         is not in a good state
     """
-    if schedd is None:
-        schedd = htcondor.Schedd()
-    jobs = schedd.query('%s == "%s" && Owner == "%s"' % (classad, group, user),
-                        ['JobStatus', 'ClusterId'])
-    if len(jobs) == 0:
-        raise RuntimeError("No %s jobs found for group %r" % (classad, group))
-    elif len(jobs) > 1:
-        raise RuntimeError("Multiple %s jobs found for group %r"
-                           % (classad, group))
-    clusterid = jobs[0]['ClusterId']
-    if get_job_status(jobs[0]) >= 3:
+    constraints = {classad: group}
+    if user is not None:
+        constraints['Owner'] = user
+    job = find_job(schedd=schedd, attr_list=['JobStatus', 'ClusterId'],
+                   **constraints)
+    clusterid = job['ClusterId']
+    if get_job_status(job) >= 3:
         raise RuntimeError("DAGMan cluster %d found, but in state %r"
-                           % JOB_STATUS[jobs[0]['JobStatus']])
+                           % JOB_STATUS[job['JobStatus']])
     return clusterid
 
 
-def dag_is_running(dagfile, group=None, classad="OmicronDAGMan",
-                   user=getuser()):
+def dag_is_running(dagfile, schedd=None):
     """Return whether a DAG is running
 
     This method will return `True` if any of the following match
 
     - {dagfile}.lock file is found
-    - {dagfile}.condor.sub is found and a matching OmicronDAGMan process
-      is found in the condor queue
+    - a job is found in the condor queue with the UserLog classad matching
+      {dagfile}.dagman.log
 
     Otherwise, the return is `False`
 
@@ -486,9 +484,6 @@ def dag_is_running(dagfile, group=None, classad="OmicronDAGMan",
     ----------
     dagfile : `str`
         the path of the DAG you want to analyse
-
-    group : `str`, optional
-        the name of the Omicron channel group being processed by this DAG
 
     Raises
     ------
@@ -498,15 +493,15 @@ def dag_is_running(dagfile, group=None, classad="OmicronDAGMan",
     """
     if os.path.isfile('%s.lock' % dagfile):
         return True
-    if group is not None and os.path.isfile('%s.condor.sub' % dagfile):
-        try:
-            find_dagman_id(group, classad=classad, user=user)
-        except RuntimeError as e:
-            if str(e).startswith('No %s jobs' % classad):
-                return False
-            raise
-        else:
-            return True
+    userlog = '%s.dagman.log' % dagfile
+    try:
+        find_job(UserLog=userlog, schedd=schedd)
+    except RuntimeError as e:
+        if str(e).startswith('No jobs found'):
+            return False
+        raise
+    else:
+        return True
     return False
 
 
@@ -527,12 +522,70 @@ def get_job_status(job, schedd=None):
         the integer (`long`) status code for this job
     """
     if not isinstance(job, ClassAd):
-        # connect to scheduler
-        if schedd is None:
-            schedd = htcondor.Schedd()
-        # get status
-        job = list(schedd.query('ClusterId == %s' % job))[0]
+        job = find_job(ClusterId=job, schedd=schedd, attr_list=['JobStatus'])
     return job['JobStatus']
+
+
+def find_jobs(schedd=None, attr_list=None, **constraints):
+    """Query the condor queue for jobs matching the constraints
+
+    Parameters
+    ----------
+    schedd : `htcondor.Schedd`, optional
+        open scheduler connection
+
+    attr_list : `list` of `str`
+        list of attributes to return for each job, defaults to all
+
+    all other keyword arguments should be ClassAd == value constraints to
+    apply to the scheduler query
+
+    Returns
+    -------
+    jobs : `list` of `classad.ClassAd`
+        the job listing for each job found
+    """
+    if schedd is None:
+        schedd = htcondor.Schedd()
+    qstr = ' && '.join(['%s == %r' % (k, v) for
+                        k, v in constraints.items()]).replace("'", '"')
+    if not attr_list:
+        attr_list = []
+    return list(schedd.query(qstr, attr_list))
+
+
+def find_job(schedd=None, attr_list=None, **constraints):
+    """Query the condor queue for a single job matching the constraints
+
+    Parameters
+    ----------
+    schedd : `htcondor.Schedd`, optional
+        open scheduler connection
+
+    attr_list : `list` of `str`
+        list of attributes to return for each job, defaults to all
+
+    all other keyword arguments should be ClassAd == value constraints to
+    apply to the scheduler query
+
+    Returns
+    -------
+    classad : `classad.ClassAd`
+        the job listing for the found job
+
+    Raises
+    ------
+    RuntimeError
+        if not exactly one job is found matching the constraints
+    """
+    jobs = find_jobs(schedd=schedd, attr_list=attr_list, **constraints)
+    if len(jobs) == 0:
+        raise RuntimeError("No jobs found matching constraints %r"
+                           % constraints)
+    elif len(jobs) > 1:
+        raise RuntimeError("Multiple jobs found matching constraints %r"
+                           % constraints)
+    return jobs[0]
 
 
 # -- custom jobs --------------------------------------------------------------
