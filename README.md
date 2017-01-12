@@ -20,4 +20,4 @@ This package is dependent upon the following packages
 
 ## Project Status
 
-[![Build Status](https://travis-ci.org/duncanmmacleod/pyomicron.svg?branch=master)](https://travis-ci.org/duncanmmacleod/pyomicron)
+[![Build Status](https://travis-ci.org/ligovirgo/pyomicron.svg?branch=master)](https://travis-ci.org/ligovirgo/pyomicron)
