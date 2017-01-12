@@ -23,9 +23,9 @@ from __future__ import print_function
 
 import os.path
 import re
-import datetime
 import time
 import warnings
+from datetime import datetime
 from time import sleep
 from os import stat
 from glob import glob
@@ -99,7 +99,7 @@ def submit_dag(dagfile, *arguments, **options):
     for opt, val in options.iteritems():
         cmd.extend([opt, val])
     cmd.append(dagfile)
-    print("$ %s"  % ' '.join(cmd))
+    print("$ %s" % ' '.join(cmd))
     out = shell(cmd)
     print(out)
     try:
@@ -305,7 +305,7 @@ def get_job_duration_history_shell(classad, value, user=getuser(),
             times = times[:i]
             jobdur = jobdur[:i]
             break
-        times[i] = to_gps(datetime.datetime.fromtimestamp(e)) + time.timezone
+        times[i] = to_gps(datetime.fromtimestamp(e)) + time.timezone
         jobdur[i] = e - s
     return times, jobdur
 
@@ -348,8 +348,8 @@ def get_job_duration_history(classad, value, user=getuser(), maxjobs=0,
     jobdur = numpy.zeros(len(history))
     for i, h in enumerate(history):
         times[i] = (
-            to_gps(datetime.datetime.fromtimestamp(h['EnteredCurrentStatus']))
-            + time.timezone)
+            to_gps(datetime.fromtimestamp(h['EnteredCurrentStatus'])) +
+            time.timezone)
         jobdur[i] = h['EnteredCurrentStatus'] - h['JobStartDate']
     return times, jobdur
 
