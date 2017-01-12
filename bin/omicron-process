@@ -416,7 +416,7 @@ if not os.path.isdir(condir):
     os.makedirs(condir)
 
 # check dagman lock file
-running = condor.dag_is_running(os.path.join(condir, 'omicron.dag'), group)
+running = condor.dag_is_running(os.path.join(condir, 'omicron.dag'))
 if running and args.reattach:
      logger.info('Detected omicron.dag already running %s, will reattach'
                  % rundir)
@@ -922,7 +922,7 @@ else:
 
 for i in range(args.submit_rescue_dag + 1):
     if args.reattach:  # find ID of existing DAG
-        dagid = condor.find_dagman_id(group, classad="OmicronDAGMan")
+        dagid = condor.find_job(OmicronDAGMan=group)
         logger.info("Found existing condor ID = %d" % dagid)
     else:  # or submit DAG
         dagmanargs = set()
