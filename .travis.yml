@@ -32,7 +32,7 @@ install:
   - python setup.py build
 
 script:
-  - coverage run --source=omicron --omit="omicron/tests/*,omicron/version.py" -m py.test -v omicron/
+  - coverage run --source=omicron --omit="omicron/tests/*,omicron/_version.py" -m py.test -v omicron/
   - pip install .
 
 after_success:
