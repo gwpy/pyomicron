@@ -35,6 +35,9 @@ script:
   - coverage run --source=omicron --omit="omicron/tests/*,omicron/version.py" -m py.test -v omicron/
   - pip install .
 
+after_success:
+  - coveralls
+
 cache:
   - pip
   - apt
