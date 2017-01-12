@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) Duncan Macleod (2016)
+# Copyright (C) Duncan Macleod (2017)
 #
 # This file is part of PyOmicron.
 #
@@ -20,13 +20,16 @@
 """
 
 import sys
+from six.moves import StringIO
+from contextlib import contextmanager
 
-if sys.version_info < (2, 7):
-    import unittest2 as unittest
-else:
-    import unittest
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+@contextmanager
+def capture(command, *args, **kwargs):
+    out, sys.stdout = sys.stdout, StringIO()
+    try:
+        command(*args, **kwargs)
+        sys.stdout.seek(0)
+        yield sys.stdout.read()
+    finally:
+        sys.stdout = out
