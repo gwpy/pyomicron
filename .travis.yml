@@ -26,14 +26,16 @@ before_install:
   - pip install -q ${PRE} coveralls "pytest>=2.8" unittest2
   # need to install astropy 1.1 specifically for py26
   - if [[ ${TRAVIS_PYTHON_VERSION} == '2.6' ]]; then pip install "astropy==1.1"; fi
+  - pip install ${PRE} -r requirements.txt
 
 install:
-  - pip install ${PRE} -r requirements.txt
-  - python setup.py build
+  - pip install .
 
 script:
   - coverage run --source=omicron --omit="omicron/tests/*,omicron/version.py" -m py.test -v omicron/
-  - pip install .
+  - coverage run --append --source=omicron --omit="omicron/tests/*,omicron/version.py" -m `which omicron-process` --help
+  - coverage run --append --source=omicron --omit="omicron/tests/*,omicron/version.py" -m `which omicron-status` --help
+  - coverage run --append --source=omicron --omit="omicron/tests/*,omicron/version.py" -m `which omicron-print` --help
 
 after_success:
   - coveralls
