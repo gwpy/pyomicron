@@ -21,3 +21,4 @@ This package is dependent upon the following packages
 ## Project Status
 
 [![Build Status](https://travis-ci.org/ligovirgo/pyomicron.svg?branch=master)](https://travis-ci.org/ligovirgo/pyomicron)
+[![Coverage Status](https://coveralls.io/repos/github/ligovirgo/pyomicron/badge.svg?branch=master)](https://coveralls.io/github/ligovirgo/pyomicron?branch=master)
