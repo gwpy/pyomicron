@@ -33,9 +33,9 @@ install:
 
 script:
   - coverage run --source=omicron --omit="omicron/tests/*,omicron/version.py" -m py.test -v omicron/
-  - coverage run --append --source=omicron --omit="omicron/tests/*,omicron/version.py" -m `which omicron-process` --help
-  - coverage run --append --source=omicron --omit="omicron/tests/*,omicron/version.py" -m `which omicron-status` --help
-  - coverage run --append --source=omicron --omit="omicron/tests/*,omicron/version.py" -m `which omicron-print` --help
+  - coverage run --append --source=omicron --omit="omicron/tests/*,omicron/version.py" `which omicron-process` --help
+  - coverage run --append --source=omicron --omit="omicron/tests/*,omicron/version.py" `which omicron-status` --help
+  - coverage run --append --source=omicron --omit="omicron/tests/*,omicron/version.py" `which omicron-print` --help
 
 after_success:
   - coveralls
