@@ -57,19 +57,19 @@ class CondorTests(unittest.TestCase):
 
     def test_submit_dag(self):
         shell_ = mock_shell_factory('1 job(s) submitted to cluster 12345')
-        with mock.patch('omicron.condor.which', mock_which), \
-             mock.patch('omicron.condor.shell', shell_):
-            dagid = condor.submit_dag('test.dag')
-            with utils.capture(condor.submit_dag, 'test.dag', '-append',
-                               '+OmicronDAGMan="GW"') as output:
-                cmd = output.split('\n')[0]
-                self.assertEqual(cmd, '$ /path/to/executable -append '
-                                      '+OmicronDAGMan="GW" test.dag')
+        with mock.patch('omicron.condor.which', mock_which):
+            with mock.patch('omicron.condor.shell', shell_):
+                dagid = condor.submit_dag('test.dag')
+                with utils.capture(condor.submit_dag, 'test.dag', '-append',
+                                   '+OmicronDAGMan="GW"') as output:
+                    cmd = output.split('\n')[0]
+                    self.assertEqual(cmd, '$ /path/to/executable -append '
+                                          '+OmicronDAGMan="GW" test.dag')
         self.assertEqual(dagid, 12345)
         shell_ = mock_shell_factory('Error')
-        with mock.patch('omicron.condor.which', mock_which), \
-             mock.patch('omicron.condor.shell', shell_):
-             self.assertRaises(AttributeError, condor.submit_dag, 'test.dag')
+        with mock.patch('omicron.condor.which', mock_which):
+            with mock.patch('omicron.condor.shell', shell_):
+               self.assertRaises(AttributeError, condor.submit_dag, 'test.dag')
 
     def test_find_jobs(self):
         schedd_ = mock_schedd_factory([{'ClusterId': 1}, {'ClusterId': 2}])
