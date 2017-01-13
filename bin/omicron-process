@@ -507,10 +507,14 @@ if statechannel and use_online_hoft and stateft == '%s_HOFT_C00' % ifo:
 # -- find segments and frame files --------------------------------------------
 
 # validate span is long enough
-if dataduration < chunkdur:
+if dataduration < chunkdur and online:
     logger.info("Segment is too short (%d < %d), please try again later"
                 % (duration, chunkdur - padding * 2))
     clean_exit(0, tempfiles)
+elif dataduration < chunkdur:
+    raise ValueError("Segment [%d, %d) is too short (%d < %d), please "
+                     "extend the segment, or shorten the timing parameters."
+                     % (start, end, duration, chunkdur - padding * 2))
 
 # find run segments
 if (online and statechannel) or (statechannel and not stateflag) or (
