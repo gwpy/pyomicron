@@ -125,6 +125,7 @@ parser = argparse.ArgumentParser(
 parser._positionals.title = 'Positional arguments'
 parser._optionals.title = 'Optional arguments'
 
+# basic command-line options
 parser.add_argument('-V', '--version', action='version', version=__version__)
 parser.add_argument('group', help='name of configuration group to process')
 parser.add_argument('-t', '--gps', nargs=2, type=int,
@@ -138,6 +139,7 @@ parser.add_argument('-v', '--verbose', action='count', default=2,
                     help='print verbose output, give more times for more '
                          'verbose output')
 
+# options for file writing
 outg = parser.add_argument_group('Output options')
 outg.add_argument('-o', '--output-dir', default=os.curdir,
                   help='path to output directory, default: %(default)s')
@@ -148,6 +150,7 @@ outg.add_argument('-g', '--file-tag', default='',
                   help='additional file tag to be appended to final '
                        'file descriptions')
 
+# data processing/chunking options
 procg = parser.add_argument_group('Processing options')
 procg.add_argument('-C', '--max-chunks-per-job', type=int, default=4,
                    help='maximum number of chunks to process in a single '
@@ -159,6 +162,7 @@ procg.add_argument('-x', '--exclude-channel', action='append', default=[],
                    help='exclude channel from the analysis (can be given '
                         'multiple times')
 
+# condor batch-processing options
 condorg = parser.add_argument_group('Condor options')
 mode = condorg.add_mutually_exclusive_group()
 mode.add_argument('--reattach', action='store_true', default=False,
@@ -200,6 +204,7 @@ condorg.add_argument('-d', '--dagman-option', action='append', type=str,
                           "\"-{opt} [{value}]\". "
                           "Can be given multiple times, default: %(default)s")
 
+# input data options
 datag = parser.add_argument_group('Data options')
 datag.add_argument('--use-dev-shm', action='store_true', default=False,
                    help='use low-latency frame buffer in /dev/shm, '
@@ -208,6 +213,7 @@ datag.add_argument('--no-segdb', action='store_true', default=False,
                    help='don\'t use the segment database for state '
                         'determination, default: %(default)s')
 
+# workflow-generation options
 pipeg = parser.add_argument_group('Pipeline options')
 pipeg.add_argument('--skip-omicron', action='store_true', default=False,
                    help='skip running omicron, default: %(default)s')
@@ -225,6 +231,7 @@ pipeg.add_argument('--skip-postprocessing', action='store_true', default=False,
 
 args = parser.parse_args()
 
+# apply verbosity to logger
 args.verbose = max(5 - args.verbose, 0)
 logger.setLevel(args.verbose * 10)
 
@@ -246,12 +253,13 @@ if args.archive:
         if argsd[arg.replace('-', '_')]:
             parser.error("Cannot use --%s with --archive" % arg)
 
+# extract key variables
 ifo = args.ifo
 llhoft = data.ligo_low_latency_hoft_type(ifo, use_devshm=args.use_dev_shm)
 group = args.group
 online = args.gps is None
 
-# format file-tag
+# format file-tag as underscore-delimited upper-case string
 filetag = args.file_tag
 if filetag:
     filetag = re.sub('[:_\s-]', '_', filetag).rstrip('_').strip('_')
@@ -266,6 +274,7 @@ else:
 
 logger.info("--- Welcome to the Omicron processor ---")
 
+# set up containers to keep track of files that we create here
 tempfiles = []
 keepfiles = []
 
@@ -421,7 +430,7 @@ if running and args.reattach:
      logger.info('Detected omicron.dag already running %s, will reattach'
                  % rundir)
 elif running:
-    raise RuntimeError("Detector omicron.dag in %s is already running"
+    raise RuntimeError("Detected omicron.dag in %s is already running"
                        % rundir)
 else:
      args.reattach = False
@@ -439,7 +448,6 @@ elif args.rescue and not os.path.isfile(os.path.join(condir, 'omicron.dag')):
                        % condir)
 
 newdag = not args.rescue and not args.reattach
-
 
 # -- find run segment ---------------------------------------------------------
 
@@ -490,8 +498,7 @@ try:
     data.check_data_availability(ifo, '%s_HOFT_C00' % ifo, start, end)
 except RuntimeError:
     use_online_hoft = True
-    msg = ("Gaps found in %s availability, turning to %s"
-           % (frametype, llhoft))
+    msg = "Gaps found in %s availability, turning to %s" % (frametype, llhoft)
 else:
     use_online_hoft = False
 
@@ -516,17 +523,20 @@ elif dataduration < chunkdur:
                      "extend the segment, or shorten the timing parameters."
                      % (start, end, duration, chunkdur - padding * 2))
 
-# find run segments
+# -- find run segments
+# get segments from state vector
 if (online and statechannel) or (statechannel and not stateflag) or (
         statechannel and args.no_segdb):
     logger.info("Finding segments for relevant state...")
     segs = segments.get_state_segments(statechannel, stateft,
                                        datastart, dataend, bits=statebits,
                                        pad=statepad)
+# get segments from segment database
 elif stateflag:
     logger.info("Querying segments for relevant state...")
     segs = segments.query_state_segments(stateflag, datastart, dataend,
                                          pad=statepad)
+# get segments from frame availability
 else:
     segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
 
@@ -567,18 +577,25 @@ elif truncate and (not statechannel or abs(lastseg) >= (chunkdur + segdur)):
     dataend = segs[-1][1]
     logger.info("This analysis will now run to %d" % dataend)
 
+# recalculate the processing segment
 dataspan = type(segs)([segments.Segment(datastart, dataend)])
 
-# find the frames
+# -- find the frames
+# find frames under /dev/shm (which creates a cache of temporary files)
 if args.use_dev_shm:
     cache = data.find_frames(ifo, frametype, datastart, dataend,
                              on_gaps='warn', tmpdir=cachedir)
     tempfiles.extend(cache.pfnlist())
+# find frames using datafind
 else:
     cache = data.find_frames(ifo, frametype, datastart, dataend,
                              on_gaps='warn')
+
+# if not frames for an online run, panic
 if not online and len(cache) == 0:
     raise RuntimeError("No frames found for %s-%s" % (ifo[0], frametype))
+
+# work out the segments of data available
 try:
     cachesegs = (segments.cache_segments(cache) & dataspan).coalesce()
 except TypeError:  # empty cache
@@ -590,7 +607,7 @@ else:
     except IndexError:  # no data overlapping span
         alldata = False
 
-# write cache
+# write cache of frames (only if creating a new DAG)
 if not os.path.isdir(cachedir):
     os.makedirs(cachedir)
 cachefile = os.path.join(cachedir, 'frames.lcf')
@@ -599,7 +616,7 @@ if newdag:
     data.write_cache(cache, cachefile)
 logger.info("Cache of %d frames written to\n%s" % (len(cache), cachefile))
 
-# restrict analysis to available data
+# restrict analysis to available data (and warn about missing data)
 if segs - cachesegs:
     logger.warning("Not all state times are available in frames")
 segs = (cachesegs & segs).coalesce()
@@ -607,7 +624,8 @@ segs = (cachesegs & segs).coalesce()
 # apply minimum duration requirement
 segs = type(segs)(s for s in segs if abs(s) >= segdur)
 
-# if all of the data are available, but no segments, record segments.txt
+# if all of the data are available, but no analysable segments were found
+# (i.e. IFO not in right state for all times), record segments.txt
 if newdag and len(segs) == 0 and online and alldata:
     logger.info("No segments found, but up-to-date data are available. "
                 "A segments.txt file will be written so we don't have to "
@@ -617,10 +635,10 @@ if newdag and len(segs) == 0 and online and alldata:
     clean_exit(0, tempfiles)
 # otherwise not all data are available, so
 elif len(segs) == 0 and online:
-    logger.info("No segments found, please try again later")
+    logger.info("No analysable segments found, please try again later")
     clean_exit(0, tempfiles)
 elif len(segs) == 0:
-    raise RuntimeError("No segments found")
+    raise RuntimeError("No analysable segments found")
 
 # and calculate trigger output segments
 trigsegs = type(segs)(type(s)(*s) for s in segs).contract(padding)
