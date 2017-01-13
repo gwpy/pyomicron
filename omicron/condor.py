@@ -219,7 +219,9 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
                               % (c, dagmanid, str(e)),)
                     raise
     # DAG has exited
-    except IndexError:
+    except RuntimeError as e:
+        if not str(e).startswith('No jobs found'):
+            raise
         sleep(1)
         try:
             job = list(schedd.history('ClusterId == %d' % dagmanid,
