@@ -513,12 +513,15 @@ if statechannel and use_online_hoft and stateft == '%s_HOFT_C00' % ifo:
 
 # -- find segments and frame files --------------------------------------------
 
+# minimum allowed duration is one full chunk
+minduration = 1 * chunkdur
+
 # validate span is long enough
-if dataduration < chunkdur and online:
+if dataduration < minduration and online:
     logger.info("Segment is too short (%d < %d), please try again later"
                 % (duration, chunkdur - padding * 2))
     clean_exit(0, tempfiles)
-elif dataduration < chunkdur:
+elif dataduration < minduration:
     raise ValueError("Segment [%d, %d) is too short (%d < %d), please "
                      "extend the segment, or shorten the timing parameters."
                      % (start, end, duration, chunkdur - padding * 2))
@@ -547,7 +550,15 @@ if len(segs):
         logger.info("    %d %d [%d]" % (seg[0], seg[1], abs(seg)))
     logger.info("Duration = %d seconds" % abs(segs))
 
-# truncate final segment if running online
+# if running online, we want to avoid processing up to the extent of
+# available data, so that the next run doesn't get left with a segment that
+# is too short to process
+# There are a few reasons this might be
+#   - the interferometer loses lock a short time after the end of this run
+#   - a restart/other problem means that a frame is missing a short time
+#     after the end of this run
+
+# so, work out whether we need to truncate:
 try:
     lastseg = segs[-1]
 except IndexError:
@@ -555,20 +566,25 @@ except IndexError:
 else:
     truncate = online and newdag and lastseg[1] == dataend
 
-# if segment is shorter than one chunk, leave it until later
-if truncate and (
-        (not statechannel and abs(lastseg) < chunkdur) or
-        (statechannel and abs(lastseg) < (chunkdur + segdur))):
+# if final segment is shorter than two chunks, remove it entirely so that it
+# gets processed next time (when it will either a closed segment, or long
+# enough to process safely)
+if truncate and abs(lastseg) < chunkdur * 2:
     logger.info("The final segment is too short, but ends at the limit of "
-                "available data, presumably this is an active segment. "
-                "It will be removed so that it can be "
-                "processed properly later")
+                "available data, presumably this is an active segment. It "
+                "will be removed so that it can be processed properly later")
     segs = type(segs)(segs[:-1])
     dataend = lastseg[0]
-# if long enough and no state required, restrict to an integer number of chunks
-elif truncate and (not statechannel or abs(lastseg) >= (chunkdur + segdur)):
-    logger.info("Truncating to process only complete chunks...")
+# otherwise, we remove the final chunk (so that the next run has at least that
+# on which to operate), then truncate to an integer number of chunks (so that
+# PSD estimation operates on a consistent amount of data)
+elif truncate:
+    logger.info("The final segment touches the limit of available data, "
+                "the end chunk will be removed to guarantee that the next "
+                "online run has enough data over which to operate")
     t, e = lastseg
+    e -= chunkdur + padding  # remove one chunk
+    # now truncate to an integer number of chunks
     step = chunkdur
     while t + chunkdur <= e:
         t += step
@@ -627,9 +643,9 @@ segs = type(segs)(s for s in segs if abs(s) >= segdur)
 # if all of the data are available, but no analysable segments were found
 # (i.e. IFO not in right state for all times), record segments.txt
 if newdag and len(segs) == 0 and online and alldata:
-    logger.info("No segments found, but up-to-date data are available. "
-                "A segments.txt file will be written so we don't have to "
-                "search these data again")
+    logger.info("No analysable segments found, but up-to-date data are "
+                "available. A segments.txt file will be written so we don't "
+                "have to search these data again")
     segments.write_segments(cachesegs, segfile)
     logger.info("Segments written to\n%s" % segfile)
     clean_exit(0, tempfiles)
