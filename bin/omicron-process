@@ -960,7 +960,7 @@ else:
 
 for i in range(args.submit_rescue_dag + 1):
     if args.reattach:  # find ID of existing DAG
-        dagid = condor.find_job(OmicronDAGMan=group)['ClusterId']
+        dagid = int(condor.find_job(OmicronDAGMan=group)['ClusterId'])
         logger.info("Found existing condor ID = %d" % dagid)
     else:  # or submit DAG
         dagmanargs = set()
