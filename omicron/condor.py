@@ -215,9 +215,7 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
                     status[s] = int(shell(['condor_q', str(dagmanid),
                                            '-autoformat', c]))
                 except ValueError as e:
-                    e.args = ('Failed to query %r for job %s: %s'
-                              % (c, dagmanid, str(e)),)
-                    raise
+                    status[s] = '-'
     # DAG has exited
     except RuntimeError as e:
         if not str(e).startswith('No jobs found'):
