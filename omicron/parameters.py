@@ -21,196 +21,456 @@
 
 from __future__ import (division, print_function)
 
-from math import (ceil, exp, floor, log)
 import os.path
+import re
+from math import (ceil, exp, floor, log)
+from getpass import getuser
+from datetime import datetime
 try:  # python >= 3
     import configparser
 except ImportError:  # python 2.x
     import ConfigParser as configparser
 
+from gwpy.segments import (Segment, SegmentList)
+
+from collections import OrderedDict
+
 from . import (const, utils)
+from .segments import integer_segments
 
-DEFAULTS = {
-    'PARAMETER': {
-        'CLUSTERING': 'TIME',
-        'TRIGGERRATEMAX': 100000,
-    },
-    'OUTPUT': {
-        'PRODUCTS': 'triggers',
-        'VERBOSITY': 2,
-        'FORMAT': 'rootxml',
-        'NTRIGGERMAX': 1e7,
-    },
-    'DATA': {
-    }
-}
-
+CHANNEL_DELIM_REGEX = re.compile('[:_-]')
 UNUSED_PARAMS = ['state-flag', 'frametype', 'state-channel', 'state-frametype']
 OMICRON_PARAM_MAP = {
     'sample-frequency': ('DATA', 'SAMPLEFREQUENCY')
 }
 
 
-def generate_parameters_files(config, section, cachefile, rundir,
-                              channellimit=10, omicron_version=None, **kwargs):
-    """Write the Omicron-format parameters files for this workflow
-
-    This method will write one or more parameter files into the
-    `{rundir}/parameters/` directory, depending on the `channellimit`, and
-    return a mapping describing the channels included in each file.
-
-    Parameters
-    ----------
-    config : `configparser.Configparser`
-        the configuration instance
-    section : `str`
-        the name of the omicron group as inlucded in the config file
-    cachefile : `str`
-        the path of the frame cache file (either `.lcf` or `.ffl`) for this
-        workflow
-    rundir : `str`
-        the output directory for this workflow
-    channellimit : `int`, default: `10`
-        the number of channels to include per Omicron process
-    omicron_version : `str`, optional
-        the version of the Omicron executable, this is taken from the path
-        of the Omicron executable if not given here
-    **kwargs
-        other keyword arguments are added as `PARAMETER KEY VALUE` options
-        in the output parameters file
-
-    Returns
-    -------
-    parameters : `list` of `tuple`
-        a `list` of (`str`, `list`) pairs defining the name of a parameter
-        file and the list of channels included in it
+class OmicronParameters(configparser.ConfigParser):
+    """Custom `configparser.ConfigParser` for Omicron parameters files
     """
-    if omicron_version is None:
-        try:
-            omicron_version = utils.get_omicron_version()
-        except KeyError:
-            omicron_version = utils.OmicronVersion(const.OMICRON_VERSION)
-    pardir = os.path.join(rundir, 'parameters')
-    trigdir = os.path.join(rundir, 'triggers')
-    for d in [pardir, trigdir]:
-        if not os.path.isdir(d):
-            os.makedirs(d)
+    OMICRON_DEFAULTS = OrderedDict()
+    OMICRON_DEFAULTS[None] = {
+        'PARAMETER': {
+            'CLUSTERING': 'TIME',
+            'TRIGGERRATEMAX': 100000,
+        },
+        'OUTPUT': {
+            'DIRECTORY': os.path.curdir,
+            'PRODUCTS': 'triggers',
+            'VERBOSITY': 2,
+            'FORMAT': 'rootxml',
+            'NTRIGGERMAX': 1e7,
+        },
+        'DATA': {
+        },
+    }
+    OMICRON_DEFAULTS['v2r2'] = {
+        'PARAMETER': {'FFTPLAN': 'FFTW_ESTIMATE'},
+    }
 
-    # reformat from LCF format
-    for (range_, low_, high_) in [('frequency-range', 'flow', 'fhigh'),
-                                  ('q-range', 'qlow', 'qhigh')]:
-        if (not config.has_option(section, range_) and
-                config.has_option(section, low_)):
-            config.set(
-                section, range_,
-                '%s %s' % (config.getfloat(section, low_),
-                           config.getfloat(section, high_)))
-        for opt in (low_, high_):
+    def __init__(self, version=None, defaults=dict(), **kwargs):
+        configparser.ConfigParser.__init__(self, defaults=defaults, **kwargs)
+        if version is None:
             try:
-                config.remove_option(section, opt)
+                version = utils.get_omicron_version()
+            except KeyError:
+                version = utils.OmicronVersion(const.OMICRON_VERSION)
+        self.version = version
+        self._set_defaults()
+
+    def _set_defaults(self):
+        """Set basic defaults for each config section
+        """
+        for version in self.OMICRON_DEFAULTS:
+            if version is not None and self.version < version:
+                continue
+            for section, params in self.OMICRON_DEFAULTS[version].items():
+                try:
+                    self.add_section(section)
+                except configparser.DuplicateSectionError:
+                    pass
+                for key, val in params.items():
+                    if isinstance(val, tuple):
+                        self.set(section, key, ' '.join(map(str, val)))
+                    else:
+                        self.set(section, key, str(val))
+
+    # -- better option accessors ----------------
+
+    def getlist(self, section, option):
+        raw = self.get(section, option)
+        return raw.split()
+
+    def getfloats(self, section, option):
+        return map(float, self.getlist(section, option))
+
+    def optionxform(self, optionstr):
+        return optionstr.upper()
+
+    # -- input/output ---------------------------
+
+    def _read(self, fp, fpname):
+        """Read a file either either using INI or Omicron formatting
+        """
+        if fpname.endswith('.ini'):
+            return configparser.ConfigParser._read(self, fp, fpname)
+        channels = []
+        for line in fp:
+            if line.strip() == '' or line[0] in '#;':  # blank
+                continue
+            sec, key, val = line.rstrip().split(None, 2)
+            if sec.lower() == 'data' and key.lower() == 'channels':
+                channels.append(val)
+            else:
+                self.set(sec, key, val)
+        if channels:
+            self.set('DATA', 'CHANNELS', ' '.join(channels))
+
+    def write(self, fp):
+        # write basic
+        if fp.name.endswith('.ini'):
+            return configparser.ConfigParser.write(self, fp)
+
+        # print header
+        print('# Omicron %s parameter file' % self.version, file=fp)
+        print('# Written using pyomicron by %s at %s'
+              % (getuser(), datetime.now()), file=fp)
+
+        # write omicron-format
+        def _write_option(sec, key, val):
+            print('{0: <10}'.format(sec.upper()),
+                  '{0: <16}'.format(key.upper()),
+                  val, file=fp, sep=' ')
+
+        for sec in self.sections():
+            print("", file=fp)
+            for key, val in self.items(sec):
+                if sec.lower() == 'data' and key.lower() == 'channels':
+                    for chan in val.split():
+                        _write_option(sec, key, chan)
+                else:
+                    _write_option(sec, key, val)
+    write.__doc__ = configparser.ConfigParser.write.__doc__
+
+    def write_distributed(self, directory, nchannels=10):
+        """Write multiple parameters files to distribute processing
+
+        This method separates the channels list into blocks of ``nchannels``
+        and writes a parameters file for each one into ``directory``.
+
+        Parameters
+        ----------
+        directory : `str`
+            the output directory for the parameters files
+
+        nchannels : `int`, optional, default: ``10``
+            the number of channels to insert in each parameters file
+
+        Returns
+        -------
+        paramfile : `str`
+            the file path of the complete parameters.txt file, written for
+            reference
+        parametermap : `dict`
+            a `dict` of ``(filename, channel_list)`` pairs that indicate
+            which written file contains which channels
+        """
+        # get channels list
+        channels = self.getlist('DATA', 'CHANNELS')
+        with open(os.path.join(directory, 'parameters.txt'), 'w') as f:
+            self.write(f)
+        tmpcp = type(self)(version=self.version)
+        tmpcp.read([f.name])
+
+        # write files
+        files = OrderedDict()
+        i = 0
+        while i * nchannels < len(channels):
+            chans = channels[i * nchannels:(i+1) * nchannels]
+            pfile = os.path.join(directory, 'parameters-%d.txt' % i)
+            tmpcp.set('DATA', 'CHANNELS', ' '.join(chans))
+            with open(pfile, 'w') as f2:
+                tmpcp.write(f2)
+            files[pfile] = chans
+            i += 1
+        return f.name, files
+
+    @classmethod
+    def from_channel_list_config(cls, config, section, version=None):
+        """Read `OmicronParameters` from a LIGO channel list file configuration
+
+        Parameters
+        ----------
+        config : `configparser.ConfigParser`, `str`
+            either a configuration object, or a path to a config file
+
+        section : `str`
+            the name of the section to parse
+
+        version : `str`, optional
+           the version of Omicron for which this configuration is valid
+
+        Returns
+        -------
+        parameters : `OmicronParameters`
+            an Omicron-format version of the parameters from the configuration
+        """
+        new = cls(version=version)
+
+        # open and parse config filename
+        if isinstance(config, str):
+            fn = config
+            config = configparser.ConfigParser()
+            config.read(fn)
+
+        # reformat from separate low, high to a tuple of values
+        for (range_, low_, high_) in [('frequency-range', 'flow', 'fhigh'),
+                                      ('q-range', 'qlow', 'qhigh')]:
+            if (not config.has_option(section, range_) and
+                    config.has_option(section, low_)):
+                config.set(
+                    section, range_,
+                    '%s %s' % (config.getfloat(section, low_),
+                               config.getfloat(section, high_)))
+            for opt in (low_, high_):
+                try:
+                    config.remove_option(section, opt)
+                except configparser.NoOptionError:
+                    pass
+
+        for key, val in config.items(section):
+            if key in UNUSED_PARAMS:
+                continue
+            elif key == 'channels':
+                new.set('DATA', 'CHANNELS', ' '.join(val.split()))
+            else:
+                omikey = ''.join(key.split('-')).upper()
+                try:
+                    group, attr = OMICRON_PARAM_MAP[key]
+                except KeyError:
+                    if val in [None, 'None', 'none', '']:  # unset default
+                        new.remove_option('PARAMETER', omikey)
+                    else:
+                        new.set('PARAMETER', omikey, val)
+                else:
+                    new.set(group, omikey, val)
+
+        # get parameters
+        if new.version >= 'v2r2':
+            # rename 'CHUNKDURATION' -> 'PSDLENGTH'
+            try:
+                psdlength = new.get('PARAMETER', 'CHUNKDURATION')
             except configparser.NoOptionError:
                 pass
-
-    # get parameters
-    params = DEFAULTS.copy()
-    cpparams = dict(config.items(section))
-    channellist = cpparams.pop('channels').split('\n')
-    # remove params that can't be parsed
-    for key in UNUSED_PARAMS:
-        cpparams.pop(key, None)
-    # set custom params
-    params['DATA']['FFL'] = cachefile
-    params['OUTPUT']['DIRECTORY'] = trigdir
-
-    for d in [cpparams, kwargs]:
-        for key in d:
-            try:
-                group, attr = OMICRON_PARAM_MAP[key]
-            except KeyError:
-                val = d[key]
-                okey = ''.join(key.split('-')).upper()
-                if val in [None, 'None', 'none', '']:  # unset default
-                    params['PARAMETER'].pop(okey, None)
-                else:
-                    params['PARAMETER'][okey] = d[key]
             else:
-                params[group][attr] = d[key]
+                new.remove_option('PARAMETER', 'CHUNKDURATION')
+                new.set('PARAMETER', 'PSDLENGTH', psdlength)
+            # combine 'SEGMENTDURATION' and 'OVERLAPDURATION' into 'TIMING'
+            try:
+                timing = (new.get('PARAMETER', 'SEGMENTDURATION'),
+                          new.get('PARAMETER', 'OVERLAPDURATION'))
+            except configparser.NoOptionError:
+                pass
+            else:
+                new.remove_option('PARAMETER', 'SEGMENTDURATION')
+                new.remove_option('PARAMETER', 'OVERLAPDURATION')
+                new.set('PARAMETER', 'TIMING', '%s %s' % timing)
 
-    # set segment parameters for this omicron version
-    if omicron_version >= 'v2r2':
-        # re-structure timing parameters
-        params['PARAMETER']['PSDLENGTH'] = (
-            params['PARAMETER'].pop('CHUNKDURATION'))
-        params['PARAMETER']['TIMING'] = '%s %s' % (
-            params['PARAMETER'].pop('SEGMENTDURATION'),
-            params['PARAMETER'].pop('OVERLAPDURATION'))
-        # add FFT parameters
-        params['PARAMETER'].setdefault('FFTPLAN', 'FFTW_ESTIMATE')
+        return new
 
-    # write files
-    parfiles = []
-    i = 0
-    while i * channellimit < len(channellist):
-        channels = channellist[i * channellimit:(i+1) * channellimit]
-        pfile = os.path.join(pardir, 'parameters_%d.txt' % i)
-        with open(pfile, 'w') as f:
-            for group in params:
-                for key, val in params[group].iteritems():
-                    if isinstance(val, (list, tuple)):
-                        val = ' '.join(val, (list, tuple))
-                    print('{0: <10}'.format(group), '{0: <16}'.format(key), val,
-                          file=f, sep=' ')
-                print("", file=f)
-            for c in channels:
-                print('{0: <10}'.format('DATA'), '{0: <16}'.format('CHANNELS'),
-                      str(c), file=f, sep=' ')
-        parfiles.append((pfile, channels))
-        i += 1
-    return parfiles
+    # -- utilities ------------------------------
 
+    def validate(self):
+        """Validate that Omicron will accept the segment parameters
 
-def validate_parameters(chunk, segment, overlap, frange=None, sampling=None):
-    """Validate that Omicron will accept the segment parameters
+        Parameters
+        ----------
+        chunk : `int`
+            omicron CHUNKDURATION parameter
+        segment : `int`
+            omicron SEGMENTDURATION parameter
+        overlap : `int`
+            omicron OVERLAPDURATION parameter
+        frange : `tuple` of `float`
+            omicron FREQUENCYRANGE parameter
 
-    Parameters
-    ----------
-    chunk : `int`
-        omicron CHUNKDURATION parameter
-    segment : `int`
-        omicron SEGMENTDURATION parameter
-    overlap : `int`
-        omicron OVERLAPDURATION parameter
-    frange : `tuple` of `float`
-        omicron FREQUENCYRANGE parameter
+        Raises
+        ------
+        AssertionError
+            if any of the parameters isn't acceptable for Omicron to process
+        """
+        # extract parameters (for convenience)
+        try:
+            sampling = self.getfloat('DATA', 'SAMPLEFREQUENCY')
+        except configparser.NoOptionError:
+            sampling = None
+        frange = self.getfloats('PARAMETER', 'FREQUENCYRANGE')
+        if self.version >= 'v2r2':
+            chunk = self.getfloat('PARAMETER', 'PSDLENGTH')
+            segment, overlap = self.getfloats('PARAMETER', 'TIMING')
+        else:
+            chunk = self.getfloat('PARAMETER', 'CHUNKDURATION')
+            segment = self.getfloat('PARAMETER', 'SEGMENTDURATION')
+            overlap = self.getfloat('PARAMETER', 'OVERLAPDURATION')
 
-    Raises
-    ------
-    AssertionError
-        if any of the parameters isn't acceptable for Omicron to process
-    """
-    assert segment <= chunk, "Segment length is greater than chunk length"
-    assert overlap <= segment, "Overlap length is greater than segment length"
-    assert overlap != 0, "Omicron cannot run with zero overlap"
-    assert overlap % 2 == 0, "Padding (overlap/2) is non-integer"
-    assert segment >= (2 * overlap), (
-        "Overlap is too large, cannot be more than 50%")
-    dchunk = chunk - overlap
-    dseg = segment - overlap
-    assert dchunk % dseg == 0, (
-        "Chunk duration doesn't allow an integer number of segments, "
-        "%ds too large" % (dchunk % dseg))
-    if sampling is None or frange is None:
-        return
-    if frange[0] < 1:
-        x = 10 * floor(sampling / frange[0])
-        psdsize = 2 * int(2 ** ceil(log(x) / log(2.)))
-    else:
-        psdsize = 2 * sampling
-    psdlen = psdsize / sampling
-    chunkp = chunk * sampling
-    overlapp = overlap * sampling
-    flow = 5 * sampling / exp(log((chunk - overlap)/4., 2))
-    assert (chunkp - overlapp) >= 2 * psdsize, (
-        "Chunk duration not large enough to resolve lower-frequency bound, "
-        "Omicron needs at least %ds. Minimum lower-frequency bound for "
-        "this chunk duration is %.2gHz" % (2 * psdlen + overlap, flow))
+        # check parameters are valid
+        assert segment <= chunk, (
+            "Segment length is greater than chunk length")
+        assert overlap <= segment, (
+            "Overlap length is greater than segment length")
+        assert overlap != 0, "Omicron cannot run with zero overlap"
+        assert overlap % 2 == 0, "Padding (overlap/2) is non-integer"
+        assert segment >= (2 * overlap), (
+            "Overlap is too large, cannot be more than 50%")
+        dchunk = chunk - overlap
+        dseg = segment - overlap
+        assert dchunk % dseg == 0, (
+            "Chunk duration doesn't allow an integer number of segments, "
+            "%ds too large" % (dchunk % dseg))
+        if sampling is None or frange is None:
+            return
+        if frange[0] < 1:
+            x = 10 * floor(sampling / frange[0])
+            psdsize = 2 * int(2 ** ceil(log(x) / log(2.)))
+        else:
+            psdsize = 2 * sampling
+        psdlen = psdsize / sampling
+        chunkp = chunk * sampling
+        overlapp = overlap * sampling
+        flow = 5 * sampling / exp(log((chunk - overlap)/4., 2))
+        assert (chunkp - overlapp) >= 2 * psdsize, (
+            "Chunk duration not large enough to resolve lower-frequency bound, "
+            "Omicron needs at least %ds. Minimum lower-frequency bound for "
+            "this chunk duration is %.2gHz" % (2 * psdlen + overlap, flow))
+
+    @integer_segments
+    def output_segments(self, start, end):
+        """Prints the list of processing segments for a given data segment
+        """
+        # get parameters
+        if self.version >= 'v2r2':
+            segment, overlap = self.getfloats('PARAMETER', 'TIMING')
+            fileduration = segment - overlap
+        else:
+            chunk = self.getfloat('PARAMETER', 'CHUNKDURATION')
+            segment = self.getfloat('PARAMETER', 'SEGMENTDURATION')
+            overlap = self.getfloat('PARAMETER', 'OVERLAPDURATION')
+            fileduration = chunk - overlap
+        filesegment = segment - overlap
+        padding = overlap / 2.
+
+        # build list of file segments
+        t = start + padding
+        stop = end - padding
+        segments = SegmentList()
+        while t < stop:
+            e = min(t + fileduration, stop)
+            seg = Segment(t, e)
+            if filesegment < abs(seg) < fileduration:
+                remaining = abs(seg)
+                nseg = remaining // filesegment * filesegment
+                segments.append(Segment(t, t+nseg))
+                if nseg != remaining:
+                    segments.append(Segment(t+nseg, t+remaining))
+            else:
+                segments.append(seg)
+            t = e
+        return segments
+
+    @integer_segments
+    def distribute_segment(self, start, end, nperjob=1):
+        """Determine processing segments to parallelise an Omicron job
+
+        This function is meant to return a `segmentlist` of job [start, stop)
+        times to pass to condor. Each segment will have duration `chunk * nperjob`
+        *OR* `chunk * nperjob + remainder` if the remainder until the `end` is
+        less than 1 chunk.
+
+        Parameters
+        ----------
+        start : `int`
+            the start GPS time of the Omicron segment
+
+        end : `int`
+            the end GPS time of the Omicron segment
+
+        nperjob : `int`
+            the number of chunks to put into each job
+
+        Returns
+        -------
+        jobsegs : :class:`~glue.segments.segmentlist`
+            a `segmentlist` of [start, stop) times over which to distribute
+            a single segment under condor
+        """
+        # get parameters
+        if self.version >= 'v2r2':
+            chunk = self.getfloat('PARAMETER', 'PSDLENGTH')
+            _, overlap = self.getfloats('PARAMETER', 'TIMING')
+        else:
+            chunk = self.getfloat('PARAMETER', 'CHUNKDURATION')
+            overlap = self.getfloat('PARAMETER', 'OVERLAPDURATION')
+
+        # single small segment
+        if end - start <= chunk * 2:
+            return SegmentList([Segment(start, end)])
+
+        # multiple larger segments
+        out = SegmentList()
+        t = start
+        while t < end - overlap:
+            seg = Segment(t, t)
+            c = chunk
+            while abs(seg) < chunk * nperjob and seg[1] < end:
+                seg = Segment(seg[0], min(seg[1] + c, end))
+                c = chunk - overlap
+            if abs(seg) < chunk:
+                out[-1] += seg
+            else:
+                out.append(seg)
+            t = seg[1] - overlap
+        return out
+
+    def output_files(self, start, end, flatten=False):
+        """Prints the list of output files for a given processing segment
+
+        Parameters
+        ----------
+        start : `int`
+            GPS start time of job
+
+        end : `int`
+            GPS end time of job
+
+        flatten : `bool`, optional, default: `False`
+            return a flat list of file names, rather than the default
+            `dict` structure
+
+        Returns
+        -------
+        files : `dict` of `dicts`
+            `dict` of ``(channel, fdict)`` pairs, where ``fdict`` is a `dict`
+            of ``(fileformat, filenames)`` pairs.
+        """
+        segments = self.output_segments(start, end)
+
+        # parse list of file formats
+        fileformats = []
+        for form in ['root', 'txt', 'xml']:
+            if form in self.get('OUTPUT', 'FORMAT'):
+                fileformats.append(form)
+
+        # build list of files
+        outdir = self.get('OUTPUT', 'DIRECTORY')
+        out = {}
+        for channel in self.getlist('DATA', 'CHANNELS'):
+            cstr = CHANNEL_DELIM_REGEX.sub('_', channel).replace('_', '-', 1)
+            out[channel] = dict((form, []) for form in fileformats)
+            for seg in segments:
+                basename = '%s_OMICRON-%d-%d' % (cstr, seg[0], abs(seg))
+                for form in fileformats:
+                    out[channel][form].append(os.path.join(
+                        outdir, channel, '%s.%s' % (basename, form)))
+        if flatten:  # return a basic list of filenames
+            return [f for c in out for form in out[c] for f in out[c][form]]
+        return out

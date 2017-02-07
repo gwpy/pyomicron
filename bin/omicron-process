@@ -288,6 +288,7 @@ elif args.rescue:
 
 # set omicron version for future use
 omicronv = utils.get_omicron_version(args.executable)
+const.OMICRON_VERSION = str(omicronv)
 os.environ.setdefault('OMICRON_VERSION', str(omicronv))
 logger.debug('Omicron version: %s' % omicronv)
 
@@ -355,7 +356,6 @@ except configparser.NoOptionError:
         sampling = None
 if sampling:
     logger.debug('samplingfrequency = %s' % sampling)
-parameters.validate_parameters(chunkdur, segdur, overlap, frange, sampling)
 
 # get state channel
 try:
@@ -414,15 +414,30 @@ if statechannel or stateflag:
 rundir = utils.get_output_directory(args)
 cachedir = os.path.join(rundir, 'cache')
 
-# -- set directories and check for an existing process ------------------------
+# convert to omicron parameters format
+oconfig = parameters.OmicronParameters.from_channel_list_config(
+    cp, group, version=omicronv)
+# and validate things
+oconfig.validate()
+
+# -- set directories ----------------------------------------------------------
 
 if not os.path.isdir(rundir):
     os.makedirs(rundir)
 logger.info("Using run directory\n%s" % rundir)
 
 condir = os.path.join(rundir, 'condor')
-if not os.path.isdir(condir):
-    os.makedirs(condir)
+trigdir = os.path.join(rundir, 'triggers')
+pardir = os.path.join(rundir, 'parameters')
+logdir = os.path.join(rundir, 'logs')
+
+for d in [condir, trigdir, pardir, logdir]:
+    if not os.path.isdir(d):
+        os.makedirs(d)
+
+oconfig.set('OUTPUT', 'DIRECTORY', trigdir)
+
+# -- check for an existing process --------------------------------------------
 
 # check dagman lock file
 running = condor.dag_is_running(os.path.join(condir, 'omicron.dag'))
@@ -630,6 +645,7 @@ cachefile = os.path.join(cachedir, 'frames.lcf')
 keepfiles.append(cachefile)
 if newdag:
     data.write_cache(cache, cachefile)
+oconfig.set('DATA', 'FFL', cachefile)
 logger.info("Cache of %d frames written to\n%s" % (len(cache), cachefile))
 
 # restrict analysis to available data (and warn about missing data)
@@ -674,27 +690,14 @@ logger.info("Duration = %d seconds" % abs(trigsegs))
 
 # -- make parameters files then generate the DAG ------------------------------
 
+fileformats = oconfig.get('OUTPUT', 'FORMAT')
+
 # generate a 'master' parameters.txt file for archival purposes
 if newdag:
-    tmpparfile = parameters.generate_parameters_files(
-        cp, group, cachefile, rundir, channellimit=int(1e8))[0][0]
-    parfile = os.path.join(rundir, 'parameters.txt')
+    parfile, jobfiles = oconfig.write_distributed(
+        pardir, nchannels=args.max_channels_per_job)
     logger.debug("Created master parameters file\n%s" % parfile)
-    os.rename(tmpparfile, parfile)
     keepfiles.append(parfile)
-
-# then generate actual parameters files for submission (channel groups)
-if args.rescue:
-    pardir = gettempdir()
-else:
-    pardir = rundir
-jobfiles = parameters.generate_parameters_files(
-    cp, group, cachefile, pardir, channellimit=args.max_channels_per_job)
-
-# create log directory
-logdir = os.path.join(rundir, 'logs')
-if not os.path.isdir(logdir):
-    os.mkdir(logdir)
 
 # create dag
 dag = pipeline.CondorDAG(os.path.join(logdir, 'omicron.log'))
@@ -727,119 +730,147 @@ ligolw_add = utils.which('ligolw_add')
 gzip = utils.which('gzip')
 
 # create node to remove files
-rmjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
-                                 subdir=condir, logdir=logdir,
-                                 tag='post-processing-rm', **condorcmds)
+rmjob = condor.OmicronProcessJob(
+    args.universe, os.path.join(condir, 'post-process-rm.sh'),
+    subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
 rm = utils.which('rm')
 rmfiles = []
 rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
-rmjob.add_short_opt('e', '')
 
 if args.archive:
     archivejob = condor.OmicronProcessJob(
         args.universe, os.path.join(condir, 'archive.sh'),
         subdir=condir, logdir=logdir, tag='archive', **condorcmds)
+    archivejob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
     archivefiles = {}
 
+# loop over data segments
 for s, e in segs:
+
+    # build trigger segment
     ts = s + padding
     te = e - padding
     td = te - ts
 
-    # work out job segments
-    filesegments = segments.omicron_output_segments(
-        s, e, chunkdur, segdur, overlap)
+    # distribute segment across multiple nodes
+    nodesegs = oconfig.distribute_segment(
+        s, e, nperjob=args.max_chunks_per_job)
 
-    # separate long segments into shorter chunks
-    nodesegs = segments.parallel_omicron_segments(
-        s, e, chunkdur, overlap, nperjob)
+    omicronfiles = {}
 
     # build node for each parameter file
-    for i, (pf, chanlist) in enumerate(jobfiles):
+    for i, pf in enumerate(jobfiles):
+        chanlist = jobfiles[pf]
         nodes = []
+        # loop over distributed segments
         for subseg in nodesegs:
-            # process
             if not args.skip_omicron:
+                # work out files for this job
+                nodefiles = oconfig.output_files(*subseg)
+                # build node
                 node = pipeline.CondorDAGNode(ojob)
                 node.set_category('omicron')
-                node.set_retry(str(args.condor_retry))
+                node.set_retry(args.condor_retry)
                 node.add_var_arg(str(subseg[0]))
                 node.add_var_arg(str(subseg[1]))
-                node.add_var_arg(os.path.abspath(pf))
+                node.add_file_arg(pf)
+                for chan in chanlist:
+                    for form, flist in nodefiles[chan].items():
+                        # record file as output from this node
+                        for f in flist:
+                            node.add_output_file(f)
+                        # record file as output for this channel
+                        try:
+                            omicronfiles[chan][form].extend(flist)
+                        except KeyError:
+                            try:
+                                omicronfiles[chan][form] = flist
+                            except KeyError:
+                                omicronfiles[chan] = {form: flist}
                 dag.add_node(node)
                 nodes.append(node)
 
-        # post-process
+        # post-process (one post-processing job per channel per data segment)
         if not args.skip_postprocessing:
             script = os.path.join(
                 condir, 'post-process-%d-%d-%d.sh' % (i, s, e))
+            ppnode = pipeline.CondorDAGNode(ppjob)
+            ppnode.add_var_arg(script)
             operations = []
 
             # build post-processing nodes for each channel
             for c in chanlist:
                 operations.append('\n# %s' % c)
+                chandir = os.path.join(trigdir, c)
                 # work out filenames for coalesced files
-                chandir = os.path.join(rundir, 'triggers', c)
-                cname = re.sub('[:_-]', '_', c).replace('_', '-', 1)
                 target, filename = os.path.split(
                     io.get_archive_filename(
                         c, ts, td, filetag=afiletag, ext='root'))
 
-                # get list of output files
-                if omicronv >= 'v2r2':
-                    roots = ' '.join(
-                        os.path.join(chandir, '%s_%s-%d-%d.root' % (
-                            cname, const.OMICRON_FILETAG, fs, fe-fs))
-                        for (fs, fe) in filesegments)
-                    xmls = roots.replace('.root', '.xml')
-                else:
-                    roots = ' '.join(
-                        os.path.join(
-                            chandir, '%s_%d_%d.root' % (c, fs, fe-fs))
-                        for (fs, fe) in filesegments)
-                    xmls = ' '.join(
-                        os.path.join(chandir, '%s_%s-%d-%d.xml' % (
-                            cname, const.OMICRON_FILETAG, fs, fe-fs))
-                        for (fs, fe) in filesegments)
+                # add ROOT operations
+                if 'root' in fileformats:
+                    rootfiles = ' '.join(omicronfiles[c]['root'])
+                    for f in omicronfiles[c]['root']:
+                        ppnode.add_input_file(f)
+                    if args.skip_root_merge or (
+                            len(omicronfiles[c]['root']) == 1):
+                        root = rootfiles
+                    else:
+                        root = os.path.join(chandir, filename)
+                        operations.append('%s %s %s --strict'
+                                          % (rootmerge, rootfiles, root))
+                        rmfiles.append(rootfiles)
+                        ppnode.add_output_file(root)
+                    if args.archive:
+                        try:
+                            archivefiles[target].append(root)
+                        except KeyError:
+                            archivefiles[target] = [root]
+                        rmfiles.append(root)
 
-                # add omicron-root-merge
-                if args.skip_root_merge or len(filesegments) == 1:
-                    root = roots
-                else:
-                    root = os.path.join(chandir, filename)
-                    operations.append('%s %s %s --strict'
-                                      % (rootmerge, roots, root))
+                # add LIGO_LW operations
+                if 'xml' in fileformats:
+                    xmlfiles = ' '.join(omicronfiles[c]['xml'])
+                    for f in omicronfiles[c]['xml']:
+                        ppnode.add_input_file(f)
+                    if args.skip_ligolw_add or len(omicronfiles[c]['xml']) == 1:
+                        xml = xmlfiles
+                    else:
+                        xml = os.path.join(chandir,
+                                           filename.replace('root', 'xml'))
+                        operations.append('%s %s --output %s'
+                                          % (ligolw_add, xmlfiles, xml))
+                        rmfiles.append(xmlfiles)
+                        ppnode.add_output_file(xml)
 
-                # add ligolw_add
-                if args.skip_ligolw_add or len(filesegments) == 1:
-                    xml = xmls
-                else:
-                    xml = os.path.join(chandir,
-                                       filename.replace('root', 'xml'))
-                    operations.append('%s %s --output %s'
-                                      % (ligolw_add, xmls, xml))
+                    if not args.skip_gzip:
+                        operations.append('%s --force --stdout %s > %s.gz'
+                                          % (gzip, xml, xml))
+                        rmfiles.append(xml)
+                        xml = '%s.gz' % xml
+                        ppnode.add_output_file(xml)
 
-                # add gzip
-                if not args.skip_gzip:
-                    operations.append('%s --force %s' % (gzip, xml))
-                    xml = '%s.gz' % xml
+                    if args.archive:
+                        try:
+                            archivefiles[target].append(xml)
+                        except KeyError:
+                            archivefiles[target] = [xml]
+                        rmfiles.append(xml)
 
-                # add archive
-                if args.archive:
-                    try:
-                        archivefiles[target].extend([xml, root])
-                    except KeyError:
-                        archivefiles[target] = [xml, root]
+                # add ASCII operations
+                if 'txt' in fileformats:
+                    txtfiles = ' '.join(omicronfiles[c]['txt'])
+                    for f in omicronfiles[c]['txt']:
+                        ppnode.add_input_file(f)
+                    if args.archive:
+                        try:
+                            archivefiles[target].append(txtfiles)
+                        except KeyError:
+                            archivefiles[target] = [txtfiles]
+                        rmfiles.append(txtfiles)
 
-                # add rm jobs (only if files were manipulated)
-                if root != roots:
-                    rmfiles.append(roots)
-                if xml != xmls:
-                    rmfiles.append(xmls)
-
-            ppnode = pipeline.CondorDAGNode(ppjob)
-            ppnode.add_var_arg(script)
             ppnode.set_category('postprocessing')
+            ppnode.set_retry(str(args.condor_retry))
             if not args.skip_omicron:
                 for node in nodes:
                     ppnode.add_parent(node)
@@ -865,32 +896,8 @@ for s, e in segs:
                 if newdag:
                     os.chmod(script, 0o755)
 
-# add rm job
-rmnode = pipeline.CondorDAGNode(rmjob)
-rmscript = os.path.join(condir, 'post-process-rm.sh')
-with open(rmscript, 'w') as f:
-    print('#!/bin/bash -e\n#', file=f)
-    print("# omicron-process post-processing-rm", file=f)
-    print('#\n# File created by\n# %s\n#' % ' '.join(sys.argv),
-          file=f)
-    print("# Group: %s" % group, file=f)
-    print("# Segment: [%d, %d)" % (s, e), file=f)
-    print("# Channels:\n#", file=f)
-    for c in chanlist:
-        print('# %s' % c, file=f)
-    print('', file=f)
-    for rmset in rmfiles:
-        print('%s -f %s' % (rm, rmset), file=f)
-if newdag:
-    os.chmod(rmscript, 0o755)
-tempfiles.append(rmscript)
-rmnode.add_var_arg(rmscript)
-rmnode.set_category('postprocessing')
-for node in ppnodes:
-    rmnode.add_parent(node)
-dag.add_node(rmnode)
-
 # set 'strict' option for newer versions of Omicron
+# this is done after the nodes are written so that 'strict' is last in the call
 if omicronv >= 'v2r2':
     ojob.add_arg('strict')
 
@@ -899,36 +906,78 @@ if args.archive:
     archivenode = pipeline.CondorDAGNode(archivejob)
     xmlcache = Cache()
     rootcache = Cache()
+    txtcache = Cache()
     if newdag:
         # write shell script to seed archive
         with open(archivejob.get_executable(), 'w') as f:
             print('#!/bin/bash -e\n', file=f)
             for gpsdir, filelist in archivefiles.iteritems():
+                for fn in filelist:
+                    archivenode.add_input_file(fn)
                 # write 'mv' op to script
                 print("mkdir -p %s" % gpsdir, file=f)
-                print("mv %s %s" % (' '.join(filelist), gpsdir), file=f)
+                print("cp %s %s" % (' '.join(filelist), gpsdir), file=f)
                 # record archived files in caches
                 filenames = [os.path.join(gpsdir, os.path.basename(x)) for
                              x in filelist]
+                for fn in filenames:
+                    archivenode.add_output_file(fn)
                 xmlcache.extend(CacheEntry.from_T050017(x) for x in filenames
-                                if x.endswith('xml.gz'))
+                                if x.endswith(('xml.gz', 'xml')))
                 rootcache.extend(CacheEntry.from_T050017(x) for x in filenames
                                 if x.endswith('root'))
+                txtcache.extend(CacheEntry.from_T050017(x) for x in filenames
+                                if x.endswith('txt'))
         os.chmod(archivejob.get_executable(), 0o755)
         # write caches to disk
-        xmlcachefile = os.path.join(cachedir, 'omicron-xml.lcf')
-        data.write_cache(xmlcache, xmlcachefile)
-        logger.debug("XML cache written to %s" % xmlcachefile)
-        rootcachefile = os.path.join(cachedir, 'omicron-root.lcf')
-        data.write_cache(rootcache, rootcachefile)
-        logger.debug("ROOT cache written to %s" % rootcachefile)
+        if 'xml' in fileformats:
+            xmlcachefile = os.path.join(cachedir, 'omicron-xml.lcf')
+            data.write_cache(xmlcache, xmlcachefile)
+            logger.debug("XML cache written to %s" % xmlcachefile)
+        if 'root' in fileformats:
+            rootcachefile = os.path.join(cachedir, 'omicron-root.lcf')
+            data.write_cache(rootcache, rootcachefile)
+            logger.debug("ROOT cache written to %s" % rootcachefile)
+        if 'txt' in fileformats:
+            txtcachefile = os.path.join(cachedir, 'omicron-txt.lcf')
+            data.write_cache(txtcache, txtcachefile)
+            logger.debug("ASCII cache written to %s" % txtcachefile)
     # add node to DAG
     for node in ppnodes:
         archivenode.add_parent(node)
+    archivenode.set_retry(args.condor_retry)
     archivenode.set_category('archive')
     dag.add_node(archivenode)
     tempfiles.append(archivejob.get_executable())
 
+# add rm job right at the end
+rmnode = pipeline.CondorDAGNode(rmjob)
+rmscript = rmjob.get_executable()
+with open(rmscript, 'w') as f:
+    print('#!/bin/bash -e\n#', file=f)
+    print("# omicron-process post-processing-rm", file=f)
+    print('#\n# File created by\n# %s\n#' % ' '.join(sys.argv),
+          file=f)
+    print("# Group: %s" % group, file=f)
+    print("# Segment: [%d, %d)" % (s, e), file=f)
+    print("# Channels:\n#", file=f)
+    for c in channels:
+        print('# %s' % c, file=f)
+    print('', file=f)
+    for rmset in rmfiles:
+        print('%s -f %s' % (rm, rmset), file=f)
+if newdag:
+    os.chmod(rmscript, 0o755)
+tempfiles.append(rmscript)
+rmnode.set_category('postprocessing')
+if args.archive:  # run this after archiving
+    rmnode.add_parent(archivenode)
+else:  # or just after post-processing if not archiving
+    for node in ppnodes:
+        rmnode.add_parent(node)
+dag.add_node(rmnode)
+
+# print DAG to file
 dagfile = dag.get_dag_file()
 if args.rescue:
     logger.info("In --rescue mode, this DAG has been reproduced in memory "
