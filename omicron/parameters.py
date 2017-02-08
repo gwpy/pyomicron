@@ -179,7 +179,7 @@ class OmicronParameters(configparser.ConfigParser):
         channels = self.getlist('DATA', 'CHANNELS')
         with open(os.path.join(directory, 'parameters.txt'), 'w') as f:
             self.write(f)
-        tmpcp = type(self)(version=self.version)
+        tmpcp = self.__class__(version=self.version)
         tmpcp.read([f.name])
 
         # write files
