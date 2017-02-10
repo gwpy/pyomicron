@@ -57,7 +57,7 @@ class OmicronParameters(configparser.ConfigParser):
         'OUTPUT': {
             'DIRECTORY': os.path.curdir,
             'PRODUCTS': 'triggers',
-            'VERBOSITY': 2,
+            'VERBOSITY': 1,
             'FORMAT': 'rootxml',
             'NTRIGGERMAX': 1e7,
         },
