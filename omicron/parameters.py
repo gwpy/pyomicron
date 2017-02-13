@@ -304,7 +304,10 @@ class OmicronParameters(configparser.ConfigParser):
             sampling = self.getfloat('DATA', 'SAMPLEFREQUENCY')
         except configparser.NoOptionError:
             sampling = None
-        frange = self.getfloats('PARAMETER', 'FREQUENCYRANGE')
+        try:
+            frange = self.getfloats('PARAMETER', 'FREQUENCYRANGE')
+        except configparser.NoOptionError:
+            frange = None
         if self.version >= 'v2r2':
             chunk = self.getfloat('PARAMETER', 'PSDLENGTH')
             segment, overlap = self.getfloats('PARAMETER', 'TIMING')
