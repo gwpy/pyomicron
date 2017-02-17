@@ -30,6 +30,7 @@ from time import sleep
 from os import stat
 from glob import glob
 from getpass import getuser
+from subprocess import CalledProcessError
 
 import htcondor
 from classad import ClassAd
@@ -214,7 +215,7 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
                 try:
                     status[s] = int(shell(['condor_q', str(dagmanid),
                                            '-autoformat', c]))
-                except ValueError as e:
+                except (ValueError, CalledProcessError) as e:
                     status[s] = '-'
     # DAG has exited
     except RuntimeError as e:
