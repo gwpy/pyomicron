@@ -27,10 +27,11 @@ import warnings
 from functools import wraps
 
 from glue import datafind
-from glue.lal import Cache
+from glue.lal import (Cache, CacheEntry)
 from glue.segments import (segment as Segment, segmentlist as SegmentList)
 
 re_ll = re.compile('\A[A-Z]\d_ll')
+re_gwf_gps_epoch = re.compile('[-\/](?P<gpsepoch>\d+)$')
 
 
 def connect(host=None, port=None):
@@ -107,6 +108,20 @@ def get_latest_data_gps(obs, frametype, connection=None):
     try:
         latest = connection.find_latest(obs[0], frametype, urltype='file',
                                         on_missing='error')[0]
+        try:
+            ngps = len(re_gwf_gps_epoch.search(
+                os.path.dirname(latest.path)).groupdict()['gpsepoch'])
+        except AttributeError:
+            pass
+        else:
+            while True:
+                s, e = latest.segment
+                new = latest.path.replace('-%d-' % s, '-%d-' % e)
+                new = new.replace('%s/' % str(s)[:ngps], '%s/' % str(e)[:ngps])
+                if os.path.isfile(new):
+                    latest = CacheEntry.from_T050017(new)
+                else:
+                    break
     except IndexError as e:
         e.args = ('No %s-%s frames found' % (obs[0], frametype),)
         raise
@@ -188,8 +203,30 @@ def find_frames(obs, frametype, start, end, connection=None, **kwargs):
         return find_ll_frames(obs, frametype, start, end, **kwargs)
     else:
         kwargs.setdefault('urltype', 'file')
-        return connection.find_frame_urls(obs[0], frametype, start, end,
-                                          **kwargs)
+        cache = connection.find_frame_urls(obs[0], frametype, start, end,
+                                           **kwargs)
+        # use latest frame to find more recent frames that aren't in
+        # datafind yet, this is quite hacky, and isn't guaranteed to
+        # work at any point, but it shouldn't break anything
+        latest = cache[-1]
+        try:
+            ngps = len(re_gwf_gps_epoch.search(
+                os.path.dirname(latest.path)).groupdict()['gpsepoch'])
+        except AttributeError:
+            pass
+        else:
+            while True:
+                s, e = latest.segment
+                if s >= end:  # dont' go beyond requested times
+                    break
+                new = latest.path.replace('-%d-' % s, '-%d-' % e)
+                new = new.replace('%s/' % str(s)[:ngps], '%s/' % str(e)[:ngps])
+                if os.path.isfile(new):
+                    latest = CacheEntry.from_T050017(new)
+                    cache.append(latest)
+                else:
+                    break
+            return cache
 
 
 def write_cache(cache, outfile):
