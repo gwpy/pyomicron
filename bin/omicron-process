@@ -778,7 +778,7 @@ for s, e in segs:
                     for form, flist in nodefiles[chan].items():
                         # record file as output from this node
                         for f in flist:
-                            node.add_output_file(f)
+                            node._CondorDAGNode__output_files.append(f)
                         # record file as output for this channel
                         try:
                             omicronfiles[chan][form].extend(flist)
@@ -811,7 +811,7 @@ for s, e in segs:
                 if 'root' in fileformats:
                     rootfiles = ' '.join(omicronfiles[c]['root'])
                     for f in omicronfiles[c]['root']:
-                        ppnode.add_input_file(f)
+                        ppnode._CondorDAGNode__input_files.append(f)
                     if args.skip_root_merge or (
                             len(omicronfiles[c]['root']) == 1):
                         root = rootfiles
@@ -820,7 +820,7 @@ for s, e in segs:
                         operations.append('%s %s %s --strict'
                                           % (rootmerge, rootfiles, root))
                         rmfiles.append(rootfiles)
-                        ppnode.add_output_file(root)
+                        ppnode._CondorDAGNode__output_files.append(root)
                     if args.archive:
                         try:
                             archivefiles[target].append(root)
@@ -832,7 +832,7 @@ for s, e in segs:
                 if 'xml' in fileformats:
                     xmlfiles = ' '.join(omicronfiles[c]['xml'])
                     for f in omicronfiles[c]['xml']:
-                        ppnode.add_input_file(f)
+                        ppnode._CondorDAGNode__input_files.append(f)
                     if args.skip_ligolw_add or len(omicronfiles[c]['xml']) == 1:
                         xml = xmlfiles
                     else:
@@ -841,14 +841,14 @@ for s, e in segs:
                         operations.append('%s %s --output %s'
                                           % (ligolw_add, xmlfiles, xml))
                         rmfiles.append(xmlfiles)
-                        ppnode.add_output_file(xml)
+                        ppnode._CondorDAGNode__output_files.append(xml)
 
                     if not args.skip_gzip:
                         operations.append('%s --force --stdout %s > %s.gz'
                                           % (gzip, xml, xml))
                         rmfiles.append(xml)
                         xml = '%s.gz' % xml
-                        ppnode.add_output_file(xml)
+                        ppnode._CondorDAGNode__output_files.append(xml)
 
                     if args.archive:
                         try:
@@ -861,7 +861,7 @@ for s, e in segs:
                 if 'txt' in fileformats:
                     txtfiles = ' '.join(omicronfiles[c]['txt'])
                     for f in omicronfiles[c]['txt']:
-                        ppnode.add_input_file(f)
+                        ppnode._CondorDAGNode__input_files.append(f)
                     if args.archive:
                         try:
                             archivefiles[target].append(txtfiles)
@@ -913,7 +913,7 @@ if args.archive:
             print('#!/bin/bash -e\n', file=f)
             for gpsdir, filelist in archivefiles.iteritems():
                 for fn in filelist:
-                    archivenode.add_input_file(fn)
+                    archivenode._CondorDAGNode__input_files.append(fn)
                 # write 'mv' op to script
                 print("mkdir -p %s" % gpsdir, file=f)
                 print("cp %s %s" % (' '.join(filelist), gpsdir), file=f)
@@ -921,7 +921,7 @@ if args.archive:
                 filenames = [os.path.join(gpsdir, os.path.basename(x)) for
                              x in filelist]
                 for fn in filenames:
-                    archivenode.add_output_file(fn)
+                    archivenode._CondorDAGNode__output_files.append(fn)
                 xmlcache.extend(CacheEntry.from_T050017(x) for x in filenames
                                 if x.endswith(('xml.gz', 'xml')))
                 rootcache.extend(CacheEntry.from_T050017(x) for x in filenames
