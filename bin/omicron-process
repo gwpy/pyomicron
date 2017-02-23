@@ -693,10 +693,12 @@ logger.info("Duration = %d seconds" % abs(trigsegs))
 fileformats = oconfig.get('OUTPUT', 'FORMAT')
 
 # generate a 'master' parameters.txt file for archival purposes
+if not newdag:  # if not writing a new dag, dump parameters.txt files to /tmp
+    pardir = gettempdir()
+parfile, jobfiles = oconfig.write_distributed(
+    pardir, nchannels=args.max_channels_per_job)
+logger.debug("Created master parameters file\n%s" % parfile)
 if newdag:
-    parfile, jobfiles = oconfig.write_distributed(
-        pardir, nchannels=args.max_channels_per_job)
-    logger.debug("Created master parameters file\n%s" % parfile)
     keepfiles.append(parfile)
 
 # create dag
