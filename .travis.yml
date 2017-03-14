@@ -60,7 +60,7 @@ after_success:
   - coveralls
 
 cache:
-  - pip
-  - apt
+  pip: true
+  apt: true
   directories:
     - lal-${LAL_VERSION}
