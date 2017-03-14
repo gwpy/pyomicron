@@ -71,7 +71,7 @@ __author__ = "Duncan Macleod <duncan.macleod@ligo.org>"
 
 logger = log.Logger('omicron-status')
 
-NOW = to_gps('now').seconds
+NOW = int(to_gps('now'))
 
 try:
     omicronversion = str(get_omicron_version())
