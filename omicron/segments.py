@@ -107,8 +107,10 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
         csegs = cache.to_segmentlistdict()[ifo[0]]
     except KeyError:
         return segs
-    for s, e in csegs & span:
-        sv = StateVector.read(cache, channel, nproc=nproc, start=s, end=e,
+    for seg in csegs & span:
+        scache = cache.sieve(segment=seg)
+        s, e = seg
+        sv = StateVector.read(scache, channel, nproc=nproc, start=s, end=e,
                               bits=bits, gap='pad', pad=0).astype('uint32')
         segs += sv.to_dqflags().intersection().active
     # truncate to integers, and apply padding
