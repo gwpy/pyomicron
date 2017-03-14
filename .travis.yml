@@ -17,6 +17,7 @@ addons:
       - libgsl0-dev  # lal
       - swig  # lal
       - bc  # lal
+      - libfftw3-dev  # lal
 
 python:
   - '2.6'
