@@ -167,8 +167,8 @@ eparser.add_argument('-R', '--reverse-rank', action='store_true',
 
 # -- parse args and simplify variables
 args = parser.parse_args()
-start = args.gpsstart.seconds
-end = args.gpsend.seconds
+start = int(args.gpsstart)
+end = int(args.gpsend)
 gaps = args.gaps
 
 # set default columns

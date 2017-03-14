@@ -57,7 +57,7 @@ def nagios_exit_factory(name, author=None, json=False, **kwargs):
         """
         if json:
             out = {
-                'created_gps': to_gps('now').seconds,
+                'created_gps': int(to_gps('now')),
                 'status_intervals': [
                     {'start_sec': 0,
                      'end_sec': timeout,

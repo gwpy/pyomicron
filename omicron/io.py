@@ -153,7 +153,7 @@ def find_latest_omicron_file(channel, basepath, ext='xml.gz',
     """
     from gwpy.time import tconvert
     if gps is None:
-        gps = tconvert('now').seconds
+        gps = int(tconvert('now'))
     gps5 = int(str(gps)[:5])
     while gps5:
         cache = _find_files_in_gps_directory(channel, basepath, gps5,
