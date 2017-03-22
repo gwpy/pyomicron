@@ -19,6 +19,25 @@ where ``<config-file>`` is the name of your configuration file, and ``<group>`` 
    To generate the workflow but *not* submit the DAG, add the ``--no-submit``
    option on the command line.
 
+.. note::
+
+   By default, `omicron-process` won't output very much to the screen, so it
+   can be useful to supply ``--verbose --verbose`` (i.e. ``--verbose`` twice)
+   to get the ``DEBUG`` logging statements. This will provide a running
+   progress report for the workflow, which can be very informative.
+
+.. warning::
+
+   `omicron-process` will complain loudly if it can't find ``omicron.exe``
+   on the path somewhere. You can either specify ``--executable`` manually
+   on the command line, or **if you are working on the LIGO Data Grid** you
+   can source the virgosoft ``environment.sh`` script to set the paths
+   appropriately:
+
+   .. code-block:: bash
+
+      source /home/detchar/opt/virgosoft/environment.sh
+
 -----------------------
 Details of the workflow
 -----------------------
