@@ -27,6 +27,9 @@ import mock_classad
 sys.modules['htcondor'] = mock_htcondor
 sys.modules['classad'] = mock_classad
 
+import os.path
+import tempfile
+
 import utils
 from compat import (unittest, mock)
 
@@ -111,3 +114,11 @@ class CondorTests(unittest.TestCase):
         with mock.patch('htcondor.Schedd', schedd_):
             self.assertTrue(condor.dag_is_running('test.dag'))
             self.assertFalse(condor.dag_is_running('test2.dag'))
+
+    def test_find_rescue_dag(self):
+        with tempfile.NamedTemporaryFile(suffix='.dag.rescue001') as f:
+            dagf = os.path.splitext(f.name)[0]
+            self.assertEqual(condor.find_rescue_dag(dagf), f.name)
+        with self.assertRaises(IndexError) as exc:
+            self.assertEqual(condor.find_rescue_dag(dagf), f.name)
+        self.assertIn('No rescue DAG files found', str(exc.exception))

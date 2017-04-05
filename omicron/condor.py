@@ -142,7 +142,7 @@ def find_rescue_dag(dagfile):
         if no related rescue DAG files are found
     """
     try:
-        return sorted(glob('%s.rescue[0-9][0-9][0-9]'))[-1]
+        return sorted(glob('%s.rescue[0-9][0-9][0-9]' % dagfile))[-1]
     except IndexError as e:
         e.args = ('No rescue DAG files found',)
         raise
