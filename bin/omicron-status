@@ -216,7 +216,7 @@ logger.info("Processing %d-%d" % (start, end))
 
 # -- define nagios JSON printer -----------------------------------------------
 
-def print_nagios_json(code, message, outfile, tag='status'):
+def print_nagios_json(code, message, outfile, tag='status', **extras):
     out = {
         'created_gps': NOW,
         'status_intervals': [
@@ -243,6 +243,7 @@ def print_nagios_json(code, message, outfile, tag='status'):
             'version': __version__,
         },
     }
+    out.update(extras)
     with open(outfile, 'w') as f:
         f.write(json.dumps(out))
     logger.debug("nagios info written to %s" % outfile)
