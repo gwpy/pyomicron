@@ -562,22 +562,23 @@ for segset, tag in zip([gaps, overlap], ['gaps', 'overlap']):
     else:
         code = 0
         message = "No %s found in Omicron files for group %r" % (tag, group)
-    print_nagios_json(code, message, jsonfp, tag=tag)
+    print_nagios_json(code, message, jsonfp, tag=tag, **{tag: dict(chans)})
 
 # write group JSON
 jsonfp = os.path.join(outdir, 'nagios-latency-%s.json' % group)
 status.append(('latency', jsonfp))
 code = 0
 message = 'No channels have high latency for group %r' % group
+ldict = dict((c, max(latency[c].values())) for c in latency)
 for x, dt in zip([2, 1], [args.error, args.warning]):
     dh = dt / 3600.
-    chans = [c for c in latency if max(latency[c].values()) >= dh]
+    chans = [c for c in ldict if ldict[c] >= dh]
     if chans:
         code = x
         message = ("%d channels found with high latency (above %s seconds)"
                    % (len(chans), dt))
         break
-print_nagios_json(code, message, jsonfp, tag='latency')
+print_nagios_json(code, message, jsonfp, tag='latency', latency=ldict)
 
 # auto-detect 'standard' JSON files
 for tag, name in zip(
