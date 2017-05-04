@@ -1035,6 +1035,8 @@ for i in range(args.submit_rescue_dag + 1):
         if i == 0:
             segments.write_segments(span, segfile)
             logger.info("Segments written to\n%s" % segfile)
+        if 'force' in args.dagman_option:
+            args.dagman_option.pop(args.dagman_option.index('force'))
 
     # wait for DAG to be in running state
     schedd = htcondor.Schedd()
