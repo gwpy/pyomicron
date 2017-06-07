@@ -30,7 +30,7 @@ from glue import datafind
 from glue.lal import (Cache, CacheEntry)
 from glue.segments import (segment as Segment, segmentlist as SegmentList)
 
-re_ll = re.compile('\A[A-Z]\d_ll')
+re_ll = re.compile('\A[HL]1_ll')
 re_gwf_gps_epoch = re.compile('[-\/](?P<gpsepoch>\d+)$')
 
 
