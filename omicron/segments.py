@@ -46,6 +46,8 @@ STATE_CHANNEL = {
                                 'H1_HOFT_C00'),
     'L1:DMT-ANALYSIS_READY:1': ('L1:GDS-CALIB_STATE_VECTOR', [0, 1, 2],
                                 'L1_HOFT_C00'),
+    'V1:ITF_LOCKED:1': ('V1:DQ_ANALYSIS_STATE_VECTOR', [2], 'V1_llhoft'),
+    'V1:ITF_SCIENCE:1': ('V1:DQ_ANALYSIS_STATE_VECTOR', [0, 1, 2], 'V1_llhoft'),
 }
 
 
