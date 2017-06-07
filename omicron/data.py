@@ -301,4 +301,5 @@ def _find_ll_frames(ifo, frametype, root='/dev/shm'):
     obs = ifo[0]
     globstr = os.path.join(root, frametype, ifo,
                            '%s-%s_%s-*-*.gwf' % (obs, ifo, frametype))
-    return Cache.from_urls(glob.glob(globstr))
+    # don't return the last file, as it might not have been fully written yet
+    return Cache.from_urls(sorted(glob.glob(globstr)[:-1]))
