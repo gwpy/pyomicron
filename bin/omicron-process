@@ -206,9 +206,12 @@ condorg.add_argument('-d', '--dagman-option', action='append', type=str,
 
 # input data options
 datag = parser.add_argument_group('Data options')
-datag.add_argument('--use-dev-shm', action='store_true', default=False,
-                   help='use low-latency frame buffer in /dev/shm, '
-                        'default: %(default)s')
+dataexc = datag.add_mutually_exclusive_group()
+dataexc.add_argument('--cache-file', type=os.path.abspath, metavar='FILE',
+                     help='use frame locations from FILE')
+dataexc.add_argument('--use-dev-shm', action='store_true', default=False,
+                     help='use low-latency frame buffer in /dev/shm, '
+                          'default: %(default)s')
 datag.add_argument('--no-segdb', action='store_true', default=False,
                    help='don\'t use the segment database for state '
                         'determination, default: %(default)s')
@@ -252,6 +255,11 @@ if args.archive:
     for arg in ['skip-root-merge', 'skip-ligolw-add', 'skip-gzip']:
         if argsd[arg.replace('-', '_')]:
             parser.error("Cannot use --%s with --archive" % arg)
+
+# check conflicts
+if args.gps is None and args.cache_file is not None:
+    parser.error("Cannot use --cache-file in 'online' mode, "
+                 "please use --cache-file with --gps")
 
 # extract key variables
 ifo = args.ifo
@@ -509,22 +517,24 @@ span = (start, end)
 # -- double-check frametype for h(t)
 # don't use aggregated h(t) if running online
 
-try:
-    data.check_data_availability(ifo, '%s_HOFT_C00' % ifo, start, end)
-except RuntimeError:
-    use_online_hoft = True
-    msg = "Gaps found in %s availability, turning to %s" % (frametype, llhoft)
-else:
-    use_online_hoft = False
-
-if frametype == '%s_HOFT_C00' % ifo and use_online_hoft:
-    if online:
-        logger.debug(msg)
+if not args.cache_file:
+    try:
+        data.check_data_availability(ifo, '%s_HOFT_C00' % ifo, start, end)
+    except RuntimeError:
+        use_online_hoft = True
+        msg = "Gaps found in %s availability, turning to %s" % (
+            frametype, llhoft)
     else:
-        logger.warning(msg)
-    frametype = llhoft
-if statechannel and use_online_hoft and stateft == '%s_HOFT_C00' % ifo:
-    stateft = llhoft
+        use_online_hoft = False
+
+    if frametype == '%s_HOFT_C00' % ifo and use_online_hoft:
+        if online:
+            logger.debug(msg)
+        else:
+            logger.warning(msg)
+        frametype = llhoft
+    if statechannel and use_online_hoft and stateft == '%s_HOFT_C00' % ifo:
+        stateft = llhoft
 
 # -- find segments and frame files --------------------------------------------
 
@@ -613,7 +623,10 @@ dataspan = type(segs)([segments.Segment(datastart, dataend)])
 
 # -- find the frames
 # find frames under /dev/shm (which creates a cache of temporary files)
-if args.use_dev_shm:
+if args.cache_file:
+    with open(args.cache_file, 'r') as fobj:
+        cache = Cache.fromfile(fobj)
+elif args.use_dev_shm:
     cache = data.find_frames(ifo, frametype, datastart, dataend,
                              on_gaps='warn', tmpdir=cachedir)
     tempfiles.extend(cache.pfnlist())
