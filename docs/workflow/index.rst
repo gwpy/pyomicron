@@ -93,6 +93,13 @@ where ``<gpsstart>`` and ``<gpsend>`` are your two GPS times.
 
       $ omicron-process <group> --config-file <config-file> --gps "Jan 1" "Jan 2"
 
+Additionally, when using ``-gps``, you can specify ``--cache-file`` to submit your own LAL-formatted data cache file:
+
+.. code-block:: bash
+
+   $ omicron-process <group> --config-file <config-file> --gps <gpsstart> <gpsend> --cache-file /path/to/cache.lcf
+
+
 ---------
 More help
 ---------
