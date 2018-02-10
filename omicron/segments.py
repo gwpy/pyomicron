@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import shutil
 import json
+import re
 from math import (floor, ceil)
 from tempfile import mkdtemp
 from functools import wraps
@@ -34,6 +35,13 @@ from glue.segments import (segmentlist as SegmentList, segment as Segment)
 from dqsegdb.urifunctions import getDataUrllib2 as dqsegdb_uri_query
 
 from . import (const, data, utils)
+
+try:
+    from LDAStools import frameCPP
+except ImportError:
+    HAS_FRAMECPP = False
+else:
+    HAS_FRAMECPP = True
 
 STATE_CHANNEL = {
     'H1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('H1:GRD-ISC_LOCK_OK', [0], 'H1_R'),
@@ -49,6 +57,7 @@ STATE_CHANNEL = {
     'V1:ITF_LOCKED:1': ('V1:DQ_ANALYSIS_STATE_VECTOR', [2], 'V1_llhoft'),
     'V1:ITF_SCIENCE:1': ('V1:DQ_ANALYSIS_STATE_VECTOR', [0, 1, 2], 'V1_llhoft'),
 }
+RAW_TYPE_REGEX = re.compile('[A-Z]1_R')
 
 
 def integer_segments(f):
@@ -95,14 +104,25 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
     ifo = channel[:2]
     pstart = start - pad[0]
     pend = end + pad[1]
+
+    # find frame cache
     if data.re_ll.match(frametype):
         tmpdir = mkdtemp(prefix='tmp-pyomicron-')
         cache = data.find_frames(ifo, frametype, pstart, pend, tmpdir=tmpdir)
     else:
         cache = data.find_frames(ifo, frametype, pstart, pend)
+
+    # optimise I/O based on type and library
+    if RAW_TYPE_REGEX.match(frametype) and HAS_FRAMECPP:
+        io_kw = {'type': 'adc', 'format': 'gwf.framecpp'}
+    else:
+        io_kw = {}
+
     bits = map(str, bits)
     # FIXME: need to read from cache with single segment but doesn't match
     # [start, end)
+
+    # read data segments
     span = SegmentList([Segment(pstart, pend)])
     segs = SegmentList()
     try:
@@ -113,13 +133,17 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
         scache = cache.sieve(segment=seg)
         s, e = seg
         sv = StateVector.read(scache, channel, nproc=nproc, start=s, end=e,
-                              bits=bits, gap='pad', pad=0).astype('uint32')
+                              bits=bits, gap='pad', pad=0,
+                              **io_kw).astype('uint32')
         segs += sv.to_dqflags().intersection().active
+
     # truncate to integers, and apply padding
     for i, seg in enumerate(segs):
         segs[i] = type(seg)(int(ceil(seg[0])) + pad[0],
                             int(floor(seg[1])) - pad[1])
     segs.coalesce()
+
+    # clean up and return
     if data.re_ll.match(frametype):
         shutil.rmtree(tmpdir)
     return segs.coalesce()
