@@ -41,7 +41,7 @@ except ImportError:  # python 2.6
 
 import numpy
 
-from matplotlib import use
+from matplotlib import (rcParams, use)
 use('agg')
 from matplotlib.gridspec import GridSpec
 
@@ -51,7 +51,7 @@ from glue import markup
 
 from gwpy.time import to_gps
 from gwpy.segments import (Segment, SegmentList)
-from gwpy.plotter import (rcParams, TimeSeriesPlot, SegmentAxes)
+from gwpy.plotter import (TimeSeriesPlot, SegmentAxes)
 
 from omicron import (condor, const, io, log, segments, __version__)
 from omicron.utils import get_omicron_version
