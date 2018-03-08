@@ -36,13 +36,6 @@ from dqsegdb.urifunctions import getDataUrllib2 as dqsegdb_uri_query
 
 from . import (const, data, utils)
 
-try:
-    from LDAStools import frameCPP
-except ImportError:
-    HAS_FRAMECPP = False
-else:
-    HAS_FRAMECPP = True
-
 STATE_CHANNEL = {
     'H1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('H1:GRD-ISC_LOCK_OK', [0], 'H1_R'),
     'L1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('L1:GRD-ISC_LOCK_OK', [0], 'L1_R'),
@@ -113,10 +106,12 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
         cache = data.find_frames(ifo, frametype, pstart, pend)
 
     # optimise I/O based on type and library
-    if RAW_TYPE_REGEX.match(frametype) and HAS_FRAMECPP:
-        io_kw = {'type': 'adc', 'format': 'gwf.framecpp'}
-    else:
-        io_kw = {}
+    io_kw = {}
+    try:
+        from LDAStools import frameCPP
+    except ImportError:
+        if RAW_TYPE_REGEX.match(frametype):
+            io_kw.update({'type': 'adc', 'format': 'gwf.framecpp'})
 
     bits = map(str, bits)
     # FIXME: need to read from cache with single segment but doesn't match
