@@ -34,6 +34,9 @@ from glue.segments import (segmentlist as SegmentList, segment as Segment)
 
 from dqsegdb.urifunctions import getDataUrllib2 as dqsegdb_uri_query
 
+from gwpy.segments import DataQualityFlag
+from gwpy.timeseries import StateVector
+
 from . import (const, data, utils)
 
 STATE_CHANNEL = {
@@ -81,7 +84,6 @@ def query_state_segments(flag, start, end, url='https://segments.ligo.org',
                          pad=(0, 0)):
     """Query a segment database for active segments associated with a flag
     """
-    from gwpy.segments import DataQualityFlag
     segs = DataQualityFlag.query(flag, start-pad[0], end+pad[1], url=url).pad(
         pad[0], -pad[1])  # DQF.pad pads forward in time at end
     segs.coalesce()
@@ -93,7 +95,6 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
                        pad=(0, 0)):
     """Read state segments from a state-vector channel in the frames
     """
-    from gwpy.timeseries import StateVector
     ifo = channel[:2]
     pstart = start - pad[0]
     pend = end + pad[1]

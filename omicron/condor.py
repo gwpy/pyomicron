@@ -39,6 +39,8 @@ import numpy
 
 from glue import pipeline
 
+from gwpy.time import to_gps
+
 from .utils import (shell, which)
 
 re_dagman_cluster = re.compile('(?<=submitted\sto\scluster )[0-9]+')
@@ -286,7 +288,6 @@ def get_job_duration_history_shell(classad, value, user=getuser(),
         two arrays with the job end time and durations of each matched
         condor process
     """
-    from gwpy.time import to_gps
     if isinstance(value, str):
         value = '"%s"' % value
     cmd = ['condor_history', '-constraint',
@@ -337,7 +338,6 @@ def get_job_duration_history(classad, value, user=getuser(), maxjobs=0,
         two arrays with the job end time and durations of each matched
         condor process
     """
-    from gwpy.time import to_gps
     if schedd is None:
         schedd = htcondor.Schedd()
     if isinstance(value, str):
