@@ -208,11 +208,14 @@ def find_frames(obs, frametype, start, end, connection=None, **kwargs):
         # use latest frame to find more recent frames that aren't in
         # datafind yet, this is quite hacky, and isn't guaranteed to
         # work at any point, but it shouldn't break anything
-        latest = cache[-1]
+        try:
+            latest = cache[-1]
+        except IndexError:  # no frames
+            return cache
         try:
             ngps = len(re_gwf_gps_epoch.search(
                 os.path.dirname(latest.path)).groupdict()['gpsepoch'])
-        except AttributeError:
+        except AttributeError:  # no match
             pass
         else:
             while True:
