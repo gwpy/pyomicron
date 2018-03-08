@@ -26,6 +26,8 @@ import re
 
 from glue.lal import Cache
 
+from gwpy.time import tconvert
+
 from . import const
 from .segments import (Segment, segmentlist_from_tree)
 
@@ -151,7 +153,6 @@ def find_latest_omicron_file(channel, basepath, ext='xml.gz',
                              gps=None):
     """Find the most recent Omicron file for a given channel
     """
-    from gwpy.time import tconvert
     if gps is None:
         gps = int(tconvert('now'))
     gps5 = int(str(gps)[:5])
