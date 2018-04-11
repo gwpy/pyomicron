@@ -376,7 +376,7 @@ except ValueError:
     ends = []
 
 # load archive latency
-latencyfile = os.path.join(outdir, 'nagios-latency-%s.hdf' % tag)
+latencyfile = os.path.join(outdir, 'nagios-latency-%s.h5' % tag)
 times = dict((c, dict((ft, {}) for ft in filetypes)) for c in channels)
 ldata = dict((c, dict((ft, {}) for ft in filetypes)) for c in channels)
 if os.path.isfile(latencyfile):
