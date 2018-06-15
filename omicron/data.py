@@ -30,7 +30,7 @@ from glue import datafind
 from glue.lal import (Cache, CacheEntry)
 from glue.segments import (segment as Segment, segmentlist as SegmentList)
 
-re_ll = re.compile('\A[HL]1_ll')
+re_ll = re.compile('_(llhoft|lldetchar)\Z')
 re_gwf_gps_epoch = re.compile('[-\/](?P<gpsepoch>\d+)$')
 
 
@@ -103,25 +103,27 @@ def get_latest_data_gps(obs, frametype, connection=None):
     gpstime : `int`
         the GPS time marking the end of the latest frame
     """
-    if re_ll.match(frametype):
-        latest = _find_ll_frames(obs, frametype)[-1]
     try:
-        latest = connection.find_latest(obs[0], frametype, urltype='file',
-                                        on_missing='error')[0]
-        try:
-            ngps = len(re_gwf_gps_epoch.search(
-                os.path.dirname(latest.path)).groupdict()['gpsepoch'])
-        except AttributeError:
-            pass
+        if re_ll.search(frametype):
+            latest = _find_ll_frames(obs, frametype)[-1]
         else:
-            while True:
-                s, e = latest.segment
-                new = latest.path.replace('-%d-' % s, '-%d-' % e)
-                new = new.replace('%s/' % str(s)[:ngps], '%s/' % str(e)[:ngps])
-                if os.path.isfile(new):
-                    latest = CacheEntry.from_T050017(new)
-                else:
-                    break
+            latest = connection.find_latest(obs[0], frametype, urltype='file',
+                                            on_missing='error')[0]
+            try:
+                ngps = len(re_gwf_gps_epoch.search(
+                    os.path.dirname(latest.path)).groupdict()['gpsepoch'])
+            except AttributeError:
+                pass
+            else:
+                while True:
+                    s, e = latest.segment
+                    new = latest.path.replace('-%d-' % s, '-%d-' % e)
+                    new = new.replace('%s/' % str(s)[:ngps],
+                                      '%s/' % str(e)[:ngps])
+                    if os.path.isfile(new):
+                        latest = CacheEntry.from_T050017(new)
+                    else:
+                        break
     except IndexError as e:
         e.args = ('No %s-%s frames found' % (obs[0], frametype),)
         raise
@@ -199,7 +201,7 @@ def find_frames(obs, frametype, start, end, connection=None, **kwargs):
     cache : `~glue.lal.Cache`
         a cache of frame file locations
     """
-    if re_ll.match(frametype):
+    if re_ll.search(frametype):
         return find_ll_frames(obs, frametype, start, end, **kwargs)
     else:
         kwargs.setdefault('urltype', 'file')
@@ -298,11 +300,11 @@ def find_ll_frames(ifo, frametype, start, end, root='/dev/shm',
     return cache
 
 
-def _find_ll_frames(ifo, frametype, root='/dev/shm'):
-    if frametype.startswith('%s_' % ifo):
-        frametype = frametype.split('_', 1)[1]
+def _find_ll_frames(ifo, frametype, root='/dev/shm', ext='gwf'):
     obs = ifo[0]
-    globstr = os.path.join(root, frametype, ifo,
-                           '%s-%s_%s-*-*.gwf' % (obs, ifo, frametype))
+    bits = frametype.rsplit('_', 1)
+    basedir = os.path.join(root, *bits[::-1])
+    globstr = os.path.join(basedir, '{obs}-{frametype}-*-*.{ext}'.format(
+        obs=obs, frametype=frametype, ext=ext))
     # don't return the last file, as it might not have been fully written yet
     return Cache.from_urls(sorted(glob.glob(globstr)[:-1]))
