@@ -601,10 +601,11 @@ dataspan = type(segs)([segments.Segment(datastart, dataend)])
 if args.cache_file:
     with open(args.cache_file, 'r') as fobj:
         cache = Cache.fromfile(fobj)
-elif args.use_dev_shm:
+elif args.use_dev_shm and len(segs):  # only cache if we have state segments
     cache = data.find_frames(ifo, frametype, datastart, dataend,
                              on_gaps='warn', tmpdir=cachedir)
-    tempfiles.extend(cache.pfnlist())
+    # remove cached files at end of process
+    tempfiles.extend(filter(lambda p: cachedir in p, cache.pfnlist()))
 # find frames using datafind
 else:
     cache = data.find_frames(ifo, frametype, datastart, dataend,
