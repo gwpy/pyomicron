@@ -263,7 +263,6 @@ if args.gps is None and args.cache_file is not None:
 
 # extract key variables
 ifo = args.ifo
-llhoft = data.ligo_low_latency_hoft_type(ifo, use_devshm=args.use_dev_shm)
 group = args.group
 online = args.gps is None
 
@@ -478,19 +477,17 @@ segfile = os.path.join(rundir, 'segments.txt')
 keepfiles.append(segfile)
 
 if newdag and online:
-    if frametype == '%s_HOFT_C00' % ifo:
-        end = data.get_latest_data_gps(ifo, llhoft)
-    else:
-        end = data.get_latest_data_gps(ifo, frametype)
-    end -= (chunkdur + padding)
-    try:
+    # get limit of available data (allowing for padding)
+    end = data.get_latest_data_gps(ifo, frametype) - padding
+
+    try:  # start from where we got to last time
         start = segments.get_last_run_segment(segfile)[1]
-    except IOError:
-        if llhoft.endswith('llhoft'):
+    except IOError:  # otherwise start with a sensible amount of data
+        if args.use_dev_shm:  # process one chunk
             logger.debug("No online segment record, starting with "
                          "%s seconds" % chunkdur)
             start = end - chunkdur + padding
-        else:
+        else:  # process the last 4000 seconds (arbitrarily)
             logger.debug("No online segment record, starting with "
                          "4000 seconds")
             start = end - 4000
@@ -513,28 +510,6 @@ logger.info("    %d %d" % (datastart, dataend))
 logger.info("Duration = %d seconds" % dataduration)
 
 span = (start, end)
-
-# -- double-check frametype for h(t)
-# don't use aggregated h(t) if running online
-
-if not args.cache_file:
-    try:
-        data.check_data_availability(ifo, '%s_HOFT_C00' % ifo, start, end)
-    except RuntimeError:
-        use_online_hoft = True
-        msg = "Gaps found in %s availability, turning to %s" % (
-            frametype, llhoft)
-    else:
-        use_online_hoft = False
-
-    if frametype == '%s_HOFT_C00' % ifo and use_online_hoft:
-        if online:
-            logger.debug(msg)
-        else:
-            logger.warning(msg)
-        frametype = llhoft
-    if statechannel and use_online_hoft and stateft == '%s_HOFT_C00' % ifo:
-        stateft = llhoft
 
 # -- find segments and frame files --------------------------------------------
 
@@ -626,10 +601,11 @@ dataspan = type(segs)([segments.Segment(datastart, dataend)])
 if args.cache_file:
     with open(args.cache_file, 'r') as fobj:
         cache = Cache.fromfile(fobj)
-elif args.use_dev_shm:
+elif args.use_dev_shm and len(segs):  # only cache if we have state segments
     cache = data.find_frames(ifo, frametype, datastart, dataend,
                              on_gaps='warn', tmpdir=cachedir)
-    tempfiles.extend(cache.pfnlist())
+    # remove cached files at end of process
+    tempfiles.extend(filter(lambda p: cachedir in p, cache.pfnlist()))
 # find frames using datafind
 else:
     cache = data.find_frames(ifo, frametype, datastart, dataend,

@@ -100,11 +100,7 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
     pend = end + pad[1]
 
     # find frame cache
-    if data.re_ll.match(frametype):
-        tmpdir = mkdtemp(prefix='tmp-pyomicron-')
-        cache = data.find_frames(ifo, frametype, pstart, pend, tmpdir=tmpdir)
-    else:
-        cache = data.find_frames(ifo, frametype, pstart, pend)
+    cache = data.find_frames(ifo, frametype, pstart, pend)
 
     # optimise I/O based on type and library
     io_kw = {}
