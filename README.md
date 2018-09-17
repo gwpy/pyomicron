@@ -20,8 +20,8 @@ This package is dependent upon the following packages
 
 ## Project Status
 
-[![Build Status](https://travis-ci.org/ligovirgo/pyomicron.svg?branch=master)](https://travis-ci.org/ligovirgo/pyomicron)
-[![Coverage Status](https://coveralls.io/repos/github/ligovirgo/pyomicron/badge.svg?branch=master)](https://coveralls.io/github/ligovirgo/pyomicron?branch=master)
+[![Build Status](https://travis-ci.org/gwpy/pyomicron.svg?branch=master)](https://travis-ci.org/gwpy/pyomicron)
+[![Coverage Status](https://coveralls.io/repos/github/gwpy/pyomicron/badge.svg?branch=master)](https://coveralls.io/github/gwpy/pyomicron?branch=master)
 
 ## License
 
