@@ -22,3 +22,7 @@ This package is dependent upon the following packages
 
 [![Build Status](https://travis-ci.org/ligovirgo/pyomicron.svg?branch=master)](https://travis-ci.org/ligovirgo/pyomicron)
 [![Coverage Status](https://coveralls.io/repos/github/ligovirgo/pyomicron/badge.svg?branch=master)](https://coveralls.io/github/ligovirgo/pyomicron?branch=master)
+
+## License
+
+PyOmicron is released under the GNU General Public License v3.0, see [here](https://choosealicense.com/licenses/gpl-3.0/) for a description of this license, or see [COPYING](https://github.com/gwpy/pyomicron/blob/master/COPYING) for the full text.
