@@ -1,67 +1,37 @@
 language: python
 
-addons:
-  apt:
-    sources:
-      - sourceline: deb http://software.ligo.org/lscsoft/debian wheezy contrib
-        key_url: http://software.ligo.org/keys/deb/lscsoft.key
-      - sourceline: deb-src http://software.ligo.org/lscsoft/debian wheezy contrib
-        key_url: http://software.ligo.org/keys/deb/lscsoft.key
-    packages:
-      - gcc  # numpy/scipy
-      - gfortran  # numpy/scipy
-      - libblas-dev  # numpy/scipy
-      - liblapack-dev  # numpy/scipy
-      - pkg-config  # lal
-      - zlib1g-dev  # lal
-      - libgsl0-dev  # lal
-      - swig  # lal
-      - bc  # lal
-      - libfftw3-dev  # lal
-
 python:
-  - '2.6'
   - '2.7'
+  - '3.4'
   - '3.5'
+  - '3.6'
 
 env:
-  global:
-    - LAL_VERSION="6.18.0"
   matrix:
     - PIP_FLAGS="--quiet"
     - PIP_FLAGS="--quiet --pre"
 
 matrix:
-  exclude:
-    - python: '2.6'
-      env: PIP_FLAGS="--quiet --pre"
   allow_failures:
-    - python: '2.6'
-    - python: '3.5'
-    - python: '2.7'
-      env: PIP_FLAGS="--quiet --pre"
+    - env: PIP_FLAGS="--quiet --pre"
   fast_finish: true
 
 before_install:
-  - pip install -q --upgrade pip
-  - pip install -q ${PRE} coveralls "pytest>=2.8" unittest2
-  # need to install astropy 1.1 specifically for py26
-  - if [[ ${TRAVIS_PYTHON_VERSION} == '2.6' ]]; then pip install "astropy==1.1"; fi
-  - pip install ${PRE} -r requirements.txt
-  - .travis/build-lal.sh
+  - python -m pip install ${PIP_FLAGS} --upgrade pip
+  - python -m pip install ${PIP_FLAGS} "pytest>=2.8" pytest-cov unittest2
+  - python -m pip install ${PIP_FLAGS} -r requirements.txt
 
 install:
-  - python setup.py build
+  # note: need --editable for coverage with `which ...` to work
+  - python -m pip install --editable .
 
 script:
-  - coverage run --source=omicron --omit="omicron/tests/*,omicron/_version.py" -m py.test -v omicron/
-  - pip install .
+  - python -m coverage run -m pytest omicron/
+  - python -m coverage run -a $(which omicron-process) --help
+  - python -m coverage run -a $(which omicron-status) --help
 
 after_success:
   - coveralls
 
 cache:
   pip: true
-  apt: true
-  directories:
-    - lal-${LAL_VERSION}
