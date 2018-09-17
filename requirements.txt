@@ -3,5 +3,7 @@ six
 pyOpenSSL
 pykerberos
 lscsoft-glue
+lalsuite
 dqsegdb
 gwpy
+htcondor
