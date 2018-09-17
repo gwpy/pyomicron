@@ -48,6 +48,7 @@ setup_requires = [
     'setuptools',
 ]
 install_requires = [
+    'six',
     'numpy',
     'lscsoft-glue',
     'htcondor',
