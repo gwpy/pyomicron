@@ -49,9 +49,9 @@ setup_requires = [
 ]
 install_requires = [
     'numpy',
-    'glue',
+    'lscsoft-glue',
     'htcondor',
-    'lal',
+    'lalsuite',
     'gwpy',
 ]
 tests_require = [
