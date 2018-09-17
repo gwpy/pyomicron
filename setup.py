@@ -48,10 +48,12 @@ setup_requires = [
     'setuptools',
 ]
 install_requires = [
+    'six',
     'numpy',
     'lscsoft-glue',
     'htcondor',
     'lalsuite',
+    'dqsegdb',
     'gwpy',
 ]
 tests_require = [

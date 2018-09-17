@@ -32,7 +32,7 @@ from compat import unittest
 
 from omicron.parameters import OmicronParameters
 
-TEST_PARAMETERS = """
+TEST_PARAMETERS = b"""
 OUTPUT DIRECTORY /tmp/omicron-test
 OUTPUT VERBOSTIY 1
 DATA CHANNELS L1:CAL-DELTAL_EXTERNAL_DQ
@@ -97,7 +97,7 @@ class ParametersTestCase(unittest.TestCase):
         cp.set(section, 'channels', 'X1:TEST-CHANNEL\nX1:TEST-CHANNEL_2')
         cp.set(section, 'flow', '10')
         cp.set(section, 'fhigh', '100')
-        with tempfile.NamedTemporaryFile(suffix='.ini') as f:
+        with tempfile.NamedTemporaryFile(suffix='.ini', mode='w') as f:
             cp.write(f)
             pars = OmicronParameters.from_channel_list_config(cp, section)
         self.assertListEqual(pars.getlist('DATA', 'CHANNELS'),
@@ -110,11 +110,11 @@ class ParametersTestCase(unittest.TestCase):
         section = 'DATA'
         cp.add_section(section)
         cp.set(section, 'channels', 'X1:TEST-CHANNEL')
-        with tempfile.NamedTemporaryFile(suffix='.ini') as f:
+        with tempfile.NamedTemporaryFile(suffix='.ini', mode='w') as f:
             cp.write(f)
             f.seek(0)
             pars = self.create()
-            pars.readfp(f)
+            pars.read(f.name)
         self.assertListEqual(pars.getlist('DATA', 'CHANNELS'),
                              ['X1:TEST-CHANNEL'])
 
@@ -136,11 +136,11 @@ class ParametersTestCase(unittest.TestCase):
                  'L1:CAL-DARM_CTRL_WHITEN_OUT_DBL_DQ')
         pars.set('PARAMETER', 'PSDLENGTH', '124')
         pars.set('PARAMETER', 'TIMING', '64 4')
-        with tempfile.NamedTemporaryFile(suffix=suffix) as f:
+        with tempfile.NamedTemporaryFile(suffix=suffix, mode='w') as f:
             pars.write(f)
             f.seek(0)
             p2 = self.create()
-            p2.readfp(f)
+            p2.read(f.name)
         self.assertEqual(pars.get('DATA', 'CHANNELS'),
                          p2.get('DATA', 'CHANNELS'))
         self.assertTupleEqual(tuple(p2.getfloats('PARAMETER', 'TIMING')),

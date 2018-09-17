@@ -23,10 +23,11 @@ from __future__ import print_function
 
 import re
 import os
-import string
 import sys
 from subprocess import Popen, PIPE, CalledProcessError
 from distutils.version import StrictVersion
+
+from six import PY2
 
 from . import const
 
@@ -92,18 +93,18 @@ class OmicronVersion(StrictVersion):
     def parse (self, vstring):
         match = self.version_re.match(vstring)
         if not match:
-            raise ValueError, "invalid version number '%s'" % vstring
+            raise ValueError("invalid version number '%s'" % vstring)
 
         (major, minor, patch, prerelease, prerelease_num) = \
             match.group(1, 2, 4, 5, 6)
 
         if patch:
-            self.version = tuple(map(string.atoi, [major, minor, patch]))
+            self.version = tuple(map(int, [major, minor, patch]))
         else:
-            self.version = tuple(map(string.atoi, [major, minor]) + [None])
+            self.version = tuple(map(int, [major, minor])) + (None,)
 
         if prerelease:
-            self.prerelease = (prerelease[0], string.atoi(prerelease_num))
+            self.prerelease = (prerelease[0], int(prerelease_num))
         else:
             self.prerelease = None
 
@@ -114,10 +115,16 @@ class OmicronVersion(StrictVersion):
             return 'v%sr%sp%s' % (self.version[0], self.version[1],
                                   self.version[2])
 
-    def __cmp__(self, other):
-        if isinstance(other, str):
-            other = OmicronVersion(other)
-        return StrictVersion.__cmp__(self, other)
+    if PY2:
+        def __cmp__(self, other):
+            if isinstance(other, str):
+                other = OmicronVersion(other)
+            return StrictVersion.__cmp__(self, other)
+    else:
+        def _cmp(self, other):
+            if isinstance(other, str):
+                other = OmicronVersion(other)
+            return StrictVersion._cmp(self, other)
 
 
 def get_omicron_version(executable=None):

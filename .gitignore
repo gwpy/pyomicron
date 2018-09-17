@@ -14,3 +14,6 @@
 # documentation stuff
 /docs/_build/
 /docs/api/
+
+# testing stuff
+/.pytest_cache/

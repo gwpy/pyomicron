@@ -99,7 +99,7 @@ def submit_dag(dagfile, *arguments, **options):
         if the call to `condor_submit_dag` fails for some reason
     """
     cmd = [which('condor_submit_dag')] + list(arguments)
-    for opt, val in options.iteritems():
+    for opt, val in options.items():
         cmd.extend([opt, val])
     cmd.append(dagfile)
     print("$ %s" % ' '.join(cmd))
@@ -239,7 +239,7 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
                 job = get_condor_history_shell(
                     'ClusterId == %d' % dagmanid,
                     classads+['ExitCode'], 1)[0]
-                job = dict((k, int(v)) for k, v in job.iteritems())
+                job = dict((k, int(v)) for k, v in job.items())
             else:
                 raise
         history = dict((s, job[c]) for s, c in zip(states, classads))
@@ -613,7 +613,7 @@ class OmicronProcessJob(pipeline.CondorDAGJob):
             self.set_stdout_file(os.path.join(
                 logdir, '%s-%s.out' % (tag, self.logtag)))
         cmds.setdefault('getenv', 'True')
-        for key, val in cmds.iteritems():
+        for key, val in cmds.items():
             if hasattr(self, 'set_%s' % key.lower()):
                 getattr(self, 'set_%s' % key.lower())(val)
             else:
