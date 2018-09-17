@@ -116,7 +116,9 @@ class OmicronParameters(configparser.ConfigParser):
             return configparser.ConfigParser._read(self, fp, fpname)
         channels = []
         for line in fp:
-            if line.strip() == '' or line[0] in '#;':  # blank
+            if isinstance(line, bytes):
+                line = line.decode()
+            if not line.strip() or line[0] in '#;':  # blank
                 continue
             sec, key, val = line.rstrip().split(None, 2)
             if sec.lower() == 'data' and key.lower() == 'channels':
