@@ -53,6 +53,7 @@ install_requires = [
     'lscsoft-glue',
     'htcondor',
     'lalsuite',
+    'dqsegdb',
     'gwpy',
 ]
 tests_require = [
