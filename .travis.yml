@@ -34,6 +34,7 @@ script:
   - python -m coverage run -a $(which omicron-status) --help
 
 after_success:
+  - python -m pip install coveralls
   - coveralls
 
 cache:
