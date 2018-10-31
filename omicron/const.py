@@ -21,7 +21,7 @@
 
 import os
 
-from glue.segments import segment as Segment
+from ligo.segments import segment as Segment
 
 # -- generic parameters
 try:
