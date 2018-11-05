@@ -50,7 +50,8 @@ setup_requires = [
 install_requires = [
     'six',
     'numpy',
-    'lscsoft-glue',
+    'lscsoft-glue >= 1.60.0',
+    'ligo-segments',
     'htcondor',
     'lalsuite',
     'dqsegdb',

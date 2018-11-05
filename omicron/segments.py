@@ -30,7 +30,7 @@ from functools import wraps
 
 from glue.lal import Cache
 from glue.segmentsUtils import fromsegwizard
-from glue.segments import (segmentlist as SegmentList, segment as Segment)
+from ligo.segments import (segmentlist as SegmentList, segment as Segment)
 
 from dqsegdb.urifunctions import getDataUrllib2 as dqsegdb_uri_query
 

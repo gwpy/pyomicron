@@ -28,7 +28,7 @@ from functools import wraps
 
 from glue import datafind
 from glue.lal import (Cache, CacheEntry)
-from glue.segments import (segment as Segment, segmentlist as SegmentList)
+from ligo.segments import (segment as Segment, segmentlist as SegmentList)
 
 re_ll = re.compile('_(llhoft|lldetchar)\Z')
 re_gwf_gps_epoch = re.compile('[-\/](?P<gpsepoch>\d+)$')
