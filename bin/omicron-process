@@ -829,7 +829,7 @@ for s, e in segs:
                     else:
                         xml = os.path.join(chandir,
                                            filename.replace('root', 'xml'))
-                        operations.append('%s %s --output %s'
+                        operations.append('%s %s --ilwdchar-compat --output %s'
                                           % (ligolw_add, xmlfiles, xml))
                         rmfiles.append(xmlfiles)
                         ppnode._CondorDAGNode__output_files.append(xml)
