@@ -56,6 +56,7 @@ install_requires = [
     'lalsuite',
     'dqsegdb',
     'gwpy',
+    'python-ligo-lw >= 1.4.0',
 ]
 tests_require = [
     'pytest',
