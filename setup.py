@@ -57,6 +57,7 @@ install_requires = [
     'dqsegdb',
     'gwpy',
     'python-ligo-lw >= 1.4.0',
+    'h5py',
 ]
 tests_require = [
     'pytest',

@@ -223,13 +223,17 @@ pipeg.add_argument('--skip-omicron', action='store_true', default=False,
 pipeg.add_argument('--skip-root-merge', action='store_true', default=False,
                    help='skip running omicron-root-merge, '
                         'default: %(default)s')
+pipeg.add_argument('--skip-hdf5-merge', action='store_true', default=False,
+                   help='skip running omicron-hdf5-merge, '
+                        'default: %(default)s')
 pipeg.add_argument('--skip-ligolw_add', action='store_true', default=False,
                    help='skip running ligolw_add, default: %(default)s')
 pipeg.add_argument('--skip-gzip', action='store_true', default=False,
                    help='skip running gzip, default: %(default)s')
 pipeg.add_argument('--skip-postprocessing', action='store_true', default=False,
                    help='skip all post-processing, equivalent to '
-                        '--skip-root-merge --skip-lioglw_add --skip-gzip, '
+                        '--skip-root-merge --skip-hdf5-merge '
+                        '--skip-ligolw_add --skip-gzip, '
                         'default: %(default)s')
 
 args = parser.parse_args()
@@ -247,12 +251,13 @@ if args.executable is None:
                  "--executable on the command line")
 
 # validate processing options
-if all((args.skip_root_merge, args.skip_ligolw_add, args.skip_gzip,
-        not args.archive)):
+if all((args.skip_root_merge, args.skip_hdf5_merge, args.skip_ligolw_add,
+        args.skip_gzip, not args.archive)):
     args.skip_postprocessing = True
 if args.archive:
     argsd = vars(args)
-    for arg in ['skip-root-merge', 'skip-ligolw-add', 'skip-gzip']:
+    for arg in ['skip-root-merge', 'skip-hdf5-merge',
+                'skip-ligolw-add', 'skip-gzip']:
         if argsd[arg.replace('-', '_')]:
             parser.error("Cannot use --%s with --archive" % arg)
 
@@ -717,6 +722,7 @@ ppjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 ppjob.add_short_opt('e', '')
 ppnodes = []
 rootmerge = utils.which('omicron-root-merge')
+hdf5merge = utils.which('omicron-hdf5-merge')
 ligolw_add = utils.which('ligolw_add')
 gzip = utils.which('gzip')
 
@@ -819,6 +825,28 @@ for s, e in segs:
                             archivefiles[target] = [root]
                         rmfiles.append(root)
 
+                # add HDF5 operations
+                if 'hdf5' in fileformats:
+                    hdf5files = ' '.join(omicronfiles[c]['hdf5'])
+                    for f in omicronfiles[c]['hdf5']:
+                        ppnode._CondorDAGNode__input_files.append(f)
+                    if args.skip_hdf5_merge or (
+                            len(omicronfiles[c]['hdf5']) == 1):
+                        hdf5 = hdf5files
+                    else:
+                        hdf5 = os.path.join(
+                            chandir, filename.replace('root', 'h5'))
+                        operations.append('{cmd} {infiles} {outfile}'.format(
+                            cmd=hdf5merge, infiles=hdf5files, outfile=hdf5))
+                        rmfiles.append(hdf5files)
+                        ppnode._CondorDAGNode__output_files.append(hdf5)
+                    if args.archive:
+                        try:
+                            archivefiles[target].append(hdf5)
+                        except KeyError:
+                            archivefiles[target] = [hdf5]
+                        rmfiles.append(hdf5)
+
                 # add LIGO_LW operations
                 if 'xml' in fileformats:
                     xmlfiles = ' '.join(omicronfiles[c]['xml'])
@@ -895,9 +923,7 @@ if omicronv >= 'v2r2':
 # do all archiving last, once all post-processing has completed
 if args.archive:
     archivenode = pipeline.CondorDAGNode(archivejob)
-    xmlcache = Cache()
-    rootcache = Cache()
-    txtcache = Cache()
+    acache = {fmt: Cache() for fmt in fileformats}
     if newdag:
         # write shell script to seed archive
         with open(archivejob.get_executable(), 'w') as f:
@@ -913,26 +939,20 @@ if args.archive:
                              x in filelist]
                 for fn in filenames:
                     archivenode._CondorDAGNode__output_files.append(fn)
-                xmlcache.extend(CacheEntry.from_T050017(x) for x in filenames
-                                if x.endswith(('xml.gz', 'xml')))
-                rootcache.extend(CacheEntry.from_T050017(x) for x in filenames
-                                if x.endswith('root'))
-                txtcache.extend(CacheEntry.from_T050017(x) for x in filenames
-                                if x.endswith('txt'))
+                for fmt, extensions in {
+                        'xml': ('xml.gz', '.xml'),
+                        'root': 'root',
+                        'hdf5': 'hdf5',
+                        'txt': 'txt',
+                }.items():
+                    cache[fmt].extend(map(CacheEntry.from_T050017, filter(
+                        lambda x: x.endswith(extensions), filenames)))
         os.chmod(archivejob.get_executable(), 0o755)
         # write caches to disk
-        if 'xml' in fileformats:
-            xmlcachefile = os.path.join(cachedir, 'omicron-xml.lcf')
-            data.write_cache(xmlcache, xmlcachefile)
-            logger.debug("XML cache written to %s" % xmlcachefile)
-        if 'root' in fileformats:
-            rootcachefile = os.path.join(cachedir, 'omicron-root.lcf')
-            data.write_cache(rootcache, rootcachefile)
-            logger.debug("ROOT cache written to %s" % rootcachefile)
-        if 'txt' in fileformats:
-            txtcachefile = os.path.join(cachedir, 'omicron-txt.lcf')
-            data.write_cache(txtcache, txtcachefile)
-            logger.debug("ASCII cache written to %s" % txtcachefile)
+        for fmt, fcache in acache.items():
+            cachefile = os.path.join(cachedir, 'omicron-{0}.lcf'.format(fmt))
+            data.write_cache(fcache, cachefile)
+            logger.debug("{0} cache written to {1}".format(fmt, cachefile))
     # add node to DAG
     for node in ppnodes:
         archivenode.add_parent(node)

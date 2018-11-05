@@ -67,6 +67,9 @@ class OmicronParameters(configparser.ConfigParser):
     OMICRON_DEFAULTS['v2r2'] = {
         'PARAMETER': {'FFTPLAN': 'FFTW_ESTIMATE'},
     }
+    OMICRON_DEFAULTS['v2r3'] = {
+        'OUTPUT': {'FORMAT': 'root xml hdf5'},
+    }
 
     def __init__(self, version=None, defaults=dict(), **kwargs):
         configparser.ConfigParser.__init__(self, defaults=defaults, **kwargs)
@@ -460,10 +463,13 @@ class OmicronParameters(configparser.ConfigParser):
         segments = self.output_segments(start, end)
 
         # parse list of file formats
-        fileformats = []
-        for form in ['root', 'txt', 'xml']:
-            if form in self.get('OUTPUT', 'FORMAT'):
-                fileformats.append(form)
+        fileformats = {
+            form: ext for (form, ext) in {
+                'root': 'root',
+                'txt': 'txt',
+                'xml': 'xml',
+                'hdf5': 'h5',
+            }.items() if form in self.get('OUTPUT', 'FORMAT')}
 
         # build list of files
         outdir = self.get('OUTPUT', 'DIRECTORY')
@@ -473,9 +479,9 @@ class OmicronParameters(configparser.ConfigParser):
             out[channel] = dict((form, []) for form in fileformats)
             for seg in segments:
                 basename = '%s_OMICRON-%d-%d' % (cstr, seg[0], abs(seg))
-                for form in fileformats:
+                for form, ext in fileformats.items():
                     out[channel][form].append(os.path.join(
-                        outdir, channel, '%s.%s' % (basename, form)))
+                        outdir, channel, '{0}.{1}'.format(basename, ext)))
         if flatten:  # return a basic list of filenames
             return [f for c in out for form in out[c] for f in out[c][form]]
         return out
