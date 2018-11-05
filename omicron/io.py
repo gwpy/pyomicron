@@ -23,6 +23,9 @@ import warnings
 import os.path
 import glob
 import re
+from collections import defaultdict
+
+import numpy
 
 from glue.lal import Cache
 
@@ -224,3 +227,77 @@ def get_archive_filename(channel, start, duration, ext='xml.gz',
     else:
         gps5 = str(int(start))[:5]
     return os.path.join(archive, ifo, description, gps5, filename)
+
+
+def merge_hdf5_files(inputfiles, outputfile, **compression_kw):
+    """Merge several HDF5 files into a single file
+
+    Parameters
+    ----------
+    inputfile : `list` of `str`
+        the paths of the input HDF5 files to merge
+    outputfile : `str`
+        the path of the output HDF5 file to write
+    tree : `list` of `str`
+        the names of the HDF5 Trees to include
+    strict : `bool`, default: `True`
+        only combine contiguous files (as described by the contained segmenets)
+    on_missing : `str`, optional
+        what to do when an input file is not found, one of
+
+        - ``'ignore'``: do nothing
+        - ``'warn'``: print a warning
+        - ``'raise'``: raise an `IOError`
+
+    Notes
+    -----
+    This method requires the `HDF5 <https://root.cern.ch/pyroot>`_ package.
+    """
+    import h5py
+
+    # get list of datasets
+    attributes = {}
+    datasets = {}
+    for path in inputfiles:
+        with h5py.File(path, 'r') as h5f:
+            attributes = dict(h5f.attrs)
+            for dset in h5f:
+                # assert datatype is the same, and append shape
+                shape = h5f[dset].shape
+                dtype = h5f[dset].dtype
+                try:
+                    shape = numpy.sum(datasets[dset][0] + shape, keepdims=True)
+                except KeyError:
+                    chunk = shape
+                else:
+                    assert dtype == datasets[dset][1], (
+                        "Cannot merge {0}/{1}, does not match dtype".format(
+                            path, dset))
+                    if chunk != datasets[dset][2]:
+                       chunk = True
+                datasets[dset] = (shape, dtype, chunk)
+
+                # use default compression options from this file
+                for copt in ('compression', 'compression_opts'):
+                    compression_kw.setdefault(copt, getattr(h5f[dset], copt))
+
+    # combine sets
+    position = defaultdict(int)
+    with h5py.File(outputfile, 'w') as h5out:
+        # copy attributes (just from last file)
+        h5out.attrs.update(attributes)
+        # create datasets
+        for dset, (shape, dtype, chunk) in datasets.items():
+            h5out.create_dataset(dset, shape=shape, dtype=dtype,
+                                 chunks=chunk, **compression_kw)
+        # copy dataset contents
+        for path in inputfiles:
+            with h5py.File(path, 'r') as h5in:
+                for dset in datasets:
+                    data = h5in[dset]
+                    size = data.shape[0]
+                    pos = position[dset]
+                    h5out[dset][pos:pos+size] = data
+                    position[dset] += size
+
+    return outputfile

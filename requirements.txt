@@ -9,3 +9,4 @@ lalsuite
 dqsegdb
 gwpy
 htcondor
+h5py
