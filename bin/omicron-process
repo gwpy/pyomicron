@@ -684,7 +684,7 @@ logger.info("Duration = %d seconds" % abs(trigsegs))
 
 # -- make parameters files then generate the DAG ------------------------------
 
-fileformats = oconfig.get('OUTPUT', 'FORMAT')
+fileformats = oconfig.output_formats()
 
 # generate a 'master' parameters.txt file for archival purposes
 if not newdag:  # if not writing a new dag, dump parameters.txt files to /tmp
@@ -940,13 +940,16 @@ if args.archive:
                 for fn in filenames:
                     archivenode._CondorDAGNode__output_files.append(fn)
                 for fmt, extensions in {
-                        'xml': ('xml.gz', '.xml'),
-                        'root': 'root',
-                        'hdf5': 'hdf5',
-                        'txt': 'txt',
+                        'xml': ('.xml.gz', '.xml'),
+                        'root': '.root',
+                        'hdf5': '.h5',
+                        'txt': '.txt',
                 }.items():
-                    cache[fmt].extend(map(CacheEntry.from_T050017, filter(
-                        lambda x: x.endswith(extensions), filenames)))
+                    try:
+                        acache[fmt].extend(map(CacheEntry.from_T050017, filter(
+                            lambda x: x.endswith(extensions), filenames)))
+                    except KeyError:  # file format not used
+                        continue
         os.chmod(archivejob.get_executable(), 0o755)
         # write caches to disk
         for fmt, fcache in acache.items():
