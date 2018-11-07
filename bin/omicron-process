@@ -81,7 +81,8 @@ except ImportError:
 import htcondor
 
 from glue import pipeline
-from glue.lal import (Cache, CacheEntry)
+
+from gwpy.io.cache import read_cache
 
 from omicron import (const, segments, log, data, parameters, utils, condor, io,
                      __version__)
@@ -604,8 +605,7 @@ dataspan = type(segs)([segments.Segment(datastart, dataend)])
 # -- find the frames
 # find frames under /dev/shm (which creates a cache of temporary files)
 if args.cache_file:
-    with open(args.cache_file, 'r') as fobj:
-        cache = Cache.fromfile(fobj)
+    cache = read_cache(args.cache_file)
 elif args.use_dev_shm and len(segs):  # only cache if we have state segments
     cache = data.find_frames(ifo, frametype, datastart, dataend,
                              on_gaps='warn', tmpdir=cachedir)
@@ -923,7 +923,7 @@ if omicronv >= 'v2r2':
 # do all archiving last, once all post-processing has completed
 if args.archive:
     archivenode = pipeline.CondorDAGNode(archivejob)
-    acache = {fmt: Cache() for fmt in fileformats}
+    acache = {fmt: list() for fmt in fileformats}
     if newdag:
         # write shell script to seed archive
         with open(archivejob.get_executable(), 'w') as f:
@@ -946,8 +946,8 @@ if args.archive:
                         'txt': '.txt',
                 }.items():
                     try:
-                        acache[fmt].extend(map(CacheEntry.from_T050017, filter(
-                            lambda x: x.endswith(extensions), filenames)))
+                        acache[fmt].extend(filter(
+                            lambda x: x.endswith(extensions), filenames))
                     except KeyError:  # file format not used
                         continue
         os.chmod(archivejob.get_executable(), 0o755)

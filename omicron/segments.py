@@ -34,6 +34,7 @@ from ligo.segments import (segmentlist as SegmentList, segment as Segment)
 
 from dqsegdb.urifunctions import getDataUrllib2 as dqsegdb_uri_query
 
+from gwpy.io.cache import cache_segments as _cache_segments
 from gwpy.segments import DataQualityFlag
 from gwpy.timeseries import StateVector
 
@@ -118,14 +119,12 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
     span = SegmentList([Segment(pstart, pend)])
     segs = SegmentList()
     try:
-        csegs = cache.to_segmentlistdict()[ifo[0]]
+        csegs = cache_segments(cache)
     except KeyError:
         return segs
     for seg in csegs & span:
-        scache = cache.sieve(segment=seg)
-        s, e = seg
-        sv = StateVector.read(scache, channel, nproc=nproc, start=s, end=e,
-                              bits=bits, gap='pad', pad=0,
+        sv = StateVector.read(cache, channel, nproc=nproc, start=seg[0],
+                              end=seg[1], bits=bits, gap='pad', pad=0,
                               **io_kw).astype('uint32')
         segs += sv.to_dqflags().intersection().active
 
@@ -149,10 +148,8 @@ def get_frame_segments(obs, frametype, start, end):
 
 
 @integer_segments
-def cache_segments(cache, span=None):
-    segmentlist = SegmentList(e.segment for e in
-                              cache.checkfilesexist(on_missing='warn')[0])
-    return segmentlist.coalesce()
+def cache_segments(cache):
+    return _cache_segments(cache).coalesce()
 
 
 def segmentlist_from_tree(tree, coalesce=False):

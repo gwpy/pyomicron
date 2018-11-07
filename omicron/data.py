@@ -19,115 +19,74 @@
 """Data utilities for Omicron
 """
 
+from __future__ import print_function
+
 import os
 import glob
 import re
 import shutil
 import warnings
-from functools import wraps
+try:
+    from urllib.parse import urlparse
+except ImportError:  # python < 3
+    from urlparse import urlparse
 
-from glue import datafind
-from glue.lal import (Cache, CacheEntry)
+import gwdatafind
+from gwdatafind.utils import (filename_metadata, file_segment)
+
 from ligo.segments import (segment as Segment, segmentlist as SegmentList)
 
 re_ll = re.compile('_(llhoft|lldetchar)\Z')
 re_gwf_gps_epoch = re.compile('[-\/](?P<gpsepoch>\d+)$')
 
 
-def connect(host=None, port=None):
-    """Open a connection to the datafind server
+# -- utilities ----------------------------------------------------------------
+
+def path_from_file_url(url):
+    """Return the path of a `file://` URL
+    """
+    return urlparse(url).path
+
+
+def _find_more_files(path):
+    """Find more files similar to ``path`` by incrementing the GPS times
+
+    This is mainly to find more files for a given (ifo, type) that aren't (yet)
+    in the datafind server cache.
 
     Parameters
     ----------
-    host : `str`
-        the IP/hostname of the server to connect to
-    port : `int`
-        the port on the server to connect
+    path : `str`
+        the path of a file to use as the base, must conform to LIGO-T050017
 
     Returns
     -------
-    connection : `datafind.GWDataFindHTTPConnection`
-        an open connection to the server
+    morepaths : `list` of `str`
+        the list of all files found by walking forward in time
     """
-    if host is None:
-        try:
-            host = os.environ['LIGO_DATAFIND_SERVER']
-        except KeyError:
-            host = None
-            port = None
-        else:
-            try:
-                host, port = host.rsplit(':', 1)
-            except ValueError:
-                port = None
-            else:
-                port = int(port)
-    if port == 80:
-        cert = None
-        key = None
-    else:
-        cert, key = datafind.find_credential()
-    if cert is None:
-        return datafind.GWDataFindHTTPConnection(host=host, port=port)
-    else:
-        return datafind.GWDataFindHTTPSConnection(host=host, port=port,
-                                                  cert_file=cert, key_file=key)
-
-
-def with_datafind_connection(f):
-    """Decorate a method to ensure an open connection to the datafind server
-    """
-    @wraps(f)
-    def decorated_method(*args, **kwargs):
-        if kwargs.get('connection', None) is None:
-            kwargs['connection'] = connect()
-        return f(*args, **kwargs)
-    return decorated_method
-
-
-@with_datafind_connection
-def get_latest_data_gps(obs, frametype, connection=None):
-    """Get the end GPS time of the latest available frame file
-
-    Parameters
-    ----------
-    obs : `str`
-        the initial for the observatory
-    frametype : `str`
-        the name of the frame type for which to search
-    connection : `datafind.GWDataFindHTTPConnection`
-        the connection to the datafind server
-
-    Returns
-    -------
-    gpstime : `int`
-        the GPS time marking the end of the latest frame
-    """
+    # parse the GPS epoch from the path
     try:
-        if re_ll.search(frametype):
-            latest = _find_ll_frames(obs, frametype)[-1]
-        else:
-            latest = connection.find_latest(obs[0], frametype, urltype='file',
-                                            on_missing='error')[0]
-            try:
-                ngps = len(re_gwf_gps_epoch.search(
-                    os.path.dirname(latest.path)).groupdict()['gpsepoch'])
-            except AttributeError:
-                pass
-            else:
-                while True:
-                    s, e = latest.segment
-                    new = latest.path.replace('-%d-' % s, '-%d-' % e)
-                    new = new.replace('%s/' % str(s)[:ngps],
-                                      '%s/' % str(e)[:ngps])
-                    if os.path.isfile(new):
-                        latest = CacheEntry.from_T050017(new)
-                    else:
-                        break
-    except IndexError as e:
-        e.args = ('No %s-%s frames found' % (obs[0], frametype),)
-        raise
-    return int(latest.segment[1])
+        ngps = len(re_gwf_gps_epoch.search(
+            os.path.dirname(path)).groupdict()['gpsepoch'])
+    except AttributeError:
+        # this failed, so we can't do anything
+        return []
+    else:
+        found = []
+        while True:
+            s, e = file_segment(path)
+            # replace start time with end time in filename
+            new = path.replace('-{start}-'.format(start=s),
+                               '-{end}-'.format(end=e))
+            # and 5-digit GPS path in directory
+            new = new.replace('{start5}/'.format(start5=str(s)[:ngps]),
+                              '{end5}/'.format(end5=str(e)[:ngps]))
+            # if this file doesn't exist, the previous file is what we want
+            if not os.path.isfile(new):
+                return found
+            # otherwise keep going
+            found.append(new)
+            path = new
 
 
 def ligo_low_latency_hoft_type(ifo, use_devshm=False):
@@ -151,8 +110,7 @@ def ligo_low_latency_hoft_type(ifo, use_devshm=False):
         return '%s_DMT_C00' % ifo.upper()
 
 
-@with_datafind_connection
-def check_data_availability(obs, frametype, start, end, connection=None):
+def check_data_availability(obs, frametype, start, end):
     """Check for the full data availability for this frame type
 
     Parameters
@@ -165,19 +123,31 @@ def check_data_availability(obs, frametype, start, end, connection=None):
         the GPS start time of this search
     end : `int`
         the GPS end time of this search
-    connection : `datafind.GWDataFindHTTPConnection`
-        the connection to the datafind server
 
     Raises
     ------
     ValueError
         if gaps are found in the frame archive for the given frame type
     """
-    connection.find_frame_urls(obs[0], frametype, start, end, on_gaps='error')
+    return gwdatafind.find_urls(obs[0], frametype, start, end, on_gaps='error')
 
 
-def find_frames(obs, frametype, start, end, connection=None, on_gaps='warn',
-                **kwargs):
+def write_cache(cache, outfile):
+    if isinstance(outfile, str):
+        with open(outfile, 'w') as fp:
+            return write_cache(cache, fp).name
+
+    for path in cache:
+        obs, tag, seg = filename_metadata(path)
+        print(
+            '{0} {1} {2} {3} {4}'.format(obs, tag, seg[0], abs(seg), path),
+            file=outfile)
+    return outfile
+
+
+# -- find files ---------------------------------------------------------------
+
+def find_frames(obs, frametype, start, end, on_gaps='warn', **kwargs):
     """Find all frames for the given frametype in the GPS interval
 
     Parameters
@@ -190,29 +160,25 @@ def find_frames(obs, frametype, start, end, connection=None, on_gaps='warn',
         the GPS start time of this search
     end : `int`
         the GPS end time of this search
-    connection : `datafind.GWDataFindHTTPConnection`
-        the connection to the datafind server
     **kwargs
         all other keyword arguments are passed directly to
-        `~glue.datafind.GWDataFindHTTPConnection.find_frame_urls`
+        :func:`~gwdatafind.find_urls`
 
     Returns
     -------
-    cache : `~glue.lal.Cache`
-        a cache of frame file locations
+    paths : `list` of `str`
+        a list of GWF file pths
     """
     ll_kw = {key: kwargs.pop(key) for key in ('tmpdir', 'root',) if
              key in kwargs}
 
-    # find files using datafind
-    cache = _find_frames_datafind(obs, frametype, start, end,
-                                  connection=connection, on_gaps='ignore',
+    cache = _find_frames_datafind(obs, frametype, start, end, on_gaps='ignore',
                                   **kwargs)
 
     # find more files for low-latency under /dev/shm (or similar)
     if re_ll.search(frametype):
         try:
-            latest = cache[-1].segment[1]
+            latest = file_segment(cache[-1])[1]
         except IndexError:
             latest = start
         if latest < end:
@@ -220,7 +186,7 @@ def find_frames(obs, frametype, start, end, connection=None, on_gaps='warn',
 
     # handle missing files
     if on_gaps != 'ignore':
-        seglist = SegmentList(e.segment for e in cache).coalesce()
+        seglist = SegmentList(map(file_segment, cache)).coalesce()
         missing = (SegmentList([Segment(start, end)]) - seglist).coalesce()
         msg = "Missing segments:\n%s" % '\n'.join(map(str, missing))
         if missing and on_gaps == 'warn':
@@ -231,45 +197,22 @@ def find_frames(obs, frametype, start, end, connection=None, on_gaps='warn',
     return cache
 
 
-@with_datafind_connection
-def _find_frames_datafind(obs, frametype, start, end, connection=None,
-                          **kwargs):
+def _find_frames_datafind(obs, frametype, start, end, **kwargs):
     kwargs.setdefault('urltype', 'file')
-    cache = connection.find_frame_urls(obs[0], frametype, start, end,
-                                       **kwargs)
+    cache = list(map(
+        path_from_file_url,
+        gwdatafind.find_urls(obs[0], frametype, start, end, **kwargs),
+    ))
 
     # use latest frame to find more recent frames that aren't in
     # datafind yet, this is quite hacky, and isn't guaranteed to
     # work at any point, but it shouldn't break anything
-
     try:
         latest = cache[-1]
-    except IndexError:  # no frames
+    except IndexError:  # no frames, `cache` is list()
         return cache
-
-    try:  # find number of GPS digits in paths
-        ngps = len(re_gwf_gps_epoch.search(
-            os.path.dirname(latest.path)).groupdict()['gpsepoch'])
-    except AttributeError:  # no match
-        return cache
-
-    while True:
-        s, e = latest.segment
-        if s >= end:  # dont' go beyond requested times
-            break
-        new = latest.path.replace('-%d-' % s, '-%d-' % e)
-        new = new.replace('%s/' % str(s)[:ngps], '%s/' % str(e)[:ngps])
-        if os.path.isfile(new):
-            latest = CacheEntry.from_T050017(new)
-            cache.append(latest)
-        else:
-            break
+    cache.extend(_find_more_files(latest))
     return cache
-
-
-def write_cache(cache, outfile):
-    with open(outfile, 'w') as fp:
-        cache.tofile(fp)
 
 
 def find_ll_frames(ifo, frametype, start, end, root='/dev/shm', tmpdir=None):
@@ -300,8 +243,8 @@ def find_ll_frames(ifo, frametype, start, end, root='/dev/shm', tmpdir=None):
 
     Returns
     -------
-    cache : `~glue.lal.Cache`
-        a cache of frame file locations
+    paths : `list` of `str`
+        a list of GWF file pths
 
     .. warning::
 
@@ -310,17 +253,17 @@ def find_ll_frames(ifo, frametype, start, end, root='/dev/shm', tmpdir=None):
 
     """
     seg = Segment(start, end)
-    cache = _find_ll_frames(ifo, frametype, root=root).sieve(segment=seg)
+    cache = list(filter(lambda x: file_segment(x).intersects(seg),
+                        _find_ll_frames(ifo, frametype, root=root)))
     if tmpdir:
         out = []
         if not os.path.isdir(tmpdir):
             os.makedirs(tmpdir)
-        for e in cache:
-            f = e.path
-            new = os.path.join(tmpdir, os.path.basename(e.path))
-            shutil.copyfile(e.path, new)
+        for path in cache:
+            new = os.path.join(tmpdir, os.path.basename(path))
+            shutil.copyfile(path, new)
             out.append(new)
-        cache = Cache.from_urls(out)
+        return out
     return cache
 
 
@@ -331,4 +274,46 @@ def _find_ll_frames(ifo, frametype, root='/dev/shm', ext='gwf'):
     globstr = os.path.join(basedir, '{obs}-{frametype}-*-*.{ext}'.format(
         obs=obs, frametype=frametype, ext=ext))
     # don't return the last file, as it might not have been fully written yet
-    return Cache.from_urls(sorted(glob.glob(globstr)[:-1]))
+    return sorted(glob.glob(globstr)[:-1])
+
+
+# -- find latest file ---------------------------------------------------------
+
+def get_latest_data_gps(obs, frametype):
+    """Get the end GPS time of the latest available frame file
+
+    Parameters
+    ----------
+    obs : `str`
+        the initial for the observatory
+    frametype : `str`
+        the name of the frame type for which to search
+
+    Returns
+    -------
+    gpstime : `int`
+        the GPS time marking the end of the latest frame
+    """
+    try:
+        latest = _find_latest_file(obs, frametype)
+    except IndexError as e:
+        e.args = ('No {0[0]}-{1} frames found'.format(obs, frametype),)
+        raise
+    # return end time of file as indicated by filename
+    return int(file_segment(latest)[1])
+
+
+def _find_latest_file(obs, frametype):
+    # find latest low-latency file using glob
+    if re_ll.search(frametype):
+        return _find_ll_frames(obs, frametype)[-1]
+
+    # otherwise use gwdatafind to find the latest file it knows about
+    latest = gwdatafind.find_latest(obs[0], frametype, urltype='file',
+                                    on_missing='error')[-1]
+
+    # and then find more
+    try:
+        return _find_more_files(latest)[-1]
+    except IndexError:
+        return latest

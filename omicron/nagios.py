@@ -27,8 +27,6 @@ from getpass import getuser
 
 import htcondor
 
-from glue.lal import CacheEntry
-
 from . import (const, condor)
 from .io import find_latest_omicron_file
 from .data import get_latest_data_gps
@@ -185,6 +183,6 @@ def find_archive_latency(channel, padding, frametype=None, state=None,
     latency = {}
     for ext in ['root', 'xml.gz']:
         f = find_latest_omicron_file(channel, base, ext=ext)
-        e = CacheEntry.from_T050017(f)
-        latency[ext] = (int(target - e.segment[1]), f)
+        end = file_segment(f)[1]
+        latency[ext] = (int(target - end), f)
     return latency
