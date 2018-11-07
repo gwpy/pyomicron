@@ -439,6 +439,10 @@ class OmicronParameters(configparser.ConfigParser):
             t = seg[1] - overlap
         return out
 
+    def output_formats(self):
+        return [fmt for fmt in ('root', 'txt', 'xml', 'hdf5') if
+                fmt in self.get('OUTPUT', 'FORMAT')]
+
     def output_files(self, start, end, flatten=False):
         """Prints the list of output files for a given processing segment
 
@@ -461,15 +465,13 @@ class OmicronParameters(configparser.ConfigParser):
             of ``(fileformat, filenames)`` pairs.
         """
         segments = self.output_segments(start, end)
-
-        # parse list of file formats
-        fileformats = {
-            form: ext for (form, ext) in {
-                'root': 'root',
-                'txt': 'txt',
-                'xml': 'xml',
-                'hdf5': 'h5',
-            }.items() if form in self.get('OUTPUT', 'FORMAT')}
+        fileformats = self.output_formats()
+        extension = {
+            'root': 'root',
+            'txt': 'txt',
+            'xml': 'xml',
+            'hdf5': 'h5',
+        }
 
         # build list of files
         outdir = self.get('OUTPUT', 'DIRECTORY')
@@ -479,9 +481,11 @@ class OmicronParameters(configparser.ConfigParser):
             out[channel] = dict((form, []) for form in fileformats)
             for seg in segments:
                 basename = '%s_OMICRON-%d-%d' % (cstr, seg[0], abs(seg))
-                for form, ext in fileformats.items():
+                for form in fileformats:
                     out[channel][form].append(os.path.join(
-                        outdir, channel, '{0}.{1}'.format(basename, ext)))
+                        outdir, channel,
+                        '{0}.{1}'.format(basename, extension[form]),
+                    ))
         if flatten:  # return a basic list of filenames
             return [f for c in out for form in out[c] for f in out[c][form]]
         return out
