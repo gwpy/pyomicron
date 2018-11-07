@@ -58,6 +58,7 @@ install_requires = [
     'gwpy',
     'python-ligo-lw >= 1.4.0',
     'h5py',
+    'gwdatafind',
 ]
 tests_require = [
     'pytest',

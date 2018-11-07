@@ -27,8 +27,7 @@ from collections import defaultdict
 
 import numpy
 
-from glue.lal import Cache
-
+from gwpy.io.cache import file_segment
 from gwpy.time import tconvert
 
 from . import const
@@ -95,25 +94,6 @@ def merge_root_files(inputfiles, outputfile,
     return outputfile
 
 
-def root_cache(rootfiles):
-    """Return a `~glue.lal.Cache` containing the given ROOT file paths
-    """
-    out = Cache()
-    append = out.append
-    for f in rootfiles:
-        base = os.path.basename(f)
-        stub, start, duration = base[:-5].rsplit('_', 2)
-        ifo, description = stub.split(':', 1)
-        try:
-            ce = type(out).entry_class(
-                ' '.join([ifo, description, start, duration, f]))
-        except ValueError as e:
-            warnings.warn(str(e))
-        else:
-            append(ce)
-    return out
-
-
 def _parse_channel_and_filetag(channel, filetag):
     """Work out the relevant observatory and description given the inputs
     """
@@ -124,18 +104,17 @@ def _parse_channel_and_filetag(channel, filetag):
     return obs, description
 
 
-def _find_files_in_gps_directory(channel, basepath, gps5, ext,
+def _iter_files_in_gps_directory(channel, basepath, gps5, ext,
                                  filetag=const.OMICRON_FILETAG.upper()):
     """Internal method to glob Omicron files from a directory structure
     """
     ifo, description = _parse_channel_and_filetag(channel, filetag)
-    out = Cache()
     dg = os.path.join(basepath, ifo, description, str(gps5))
     for d in glob.iglob(dg):
         g = os.path.join(
             d, '%s-%s-*.%s' % (ifo, description, ext))
-        out.extend(Cache.from_urls(glob.iglob(g)))
-    return out
+        for path in glob.iglob(g):
+            yield path
 
 
 def find_omicron_files(channel, start, end, basepath, ext='xml.gz',
@@ -143,12 +122,15 @@ def find_omicron_files(channel, start, end, basepath, ext='xml.gz',
     """Find Omicron files under a given starting directory
     """
     gps5 = int(str(start)[:5])-1
-    cache = Cache()
+    cache = list()
+    span = Segment(start, end)
     while gps5 <= int(str(end)[:5]):
-        cache.extend(_find_files_in_gps_directory(channel, basepath, gps5,
-                                                  ext, filetag=filetag))
+        new = _iter_files_in_gps_directory(channel, basepath, gps5,
+                                           ext, filetag=filetag)
+        cache.extend(path for path in new if
+                     file_segment(path).intersects(span))
         gps5 += 1
-    return cache.sieve(segment=Segment(start, end))
+    return cache
 
 
 def find_latest_omicron_file(channel, basepath, ext='xml.gz',
@@ -160,10 +142,10 @@ def find_latest_omicron_file(channel, basepath, ext='xml.gz',
         gps = int(tconvert('now'))
     gps5 = int(str(gps)[:5])
     while gps5:
-        cache = _find_files_in_gps_directory(channel, basepath, gps5,
+        cache = _iter_files_in_gps_directory(channel, basepath, gps5,
                                              ext, filetag=filetag)
         try:
-            return cache[-1].path
+            return list(cache)[-1]
         except IndexError:
             pass
         gps5 -= 1
@@ -174,8 +156,8 @@ def find_pending_files(channel, proddir, ext='xml.gz'):
     """Find files that have just been created, pending archival
     """
     ifo = channel.split(':', 1)[0]
-    return Cache.from_urls(glob.iglob(os.path.join(
-        proddir, 'triggers', channel, '%s-*.%s' % (ifo, ext))))
+    return glob.glob(os.path.join(
+        proddir, 'triggers', channel, '%s-*.%s' % (ifo, ext)))
 
 
 def get_archive_filename(channel, start, duration, ext='xml.gz',

@@ -31,15 +31,13 @@ from tokenize import generate_tokens
 from StringIO import StringIO
 
 import numpy
-from numpy.lib import recfunctions
 
-from glue.lal import Cache
-
-from gwpy.table.lsctables import SnglBurstTable
+from gwpy.table import EventTable
+from gwpy.table.filters import in_segmentlist
 from gwpy.time import to_gps
 
 from omicron import (io, const, __version__)
-from omicron.segments import (Segment, SegmentList)
+from omicron.segments import (Segment, SegmentList, cache_segments)
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
@@ -134,7 +132,8 @@ fopts.add_argument('-g', '--gaps', action='store_true', default=False,
                         'exitcode as follows: 0, no gaps found; '
                         '1, some files found with gaps')
 fopts.add_argument('-t', '--file-type', default='xml.gz',
-                   choices=['root', 'xml.gz'], help='type of files to find')
+                   choices=['root', 'xml.gz', 'h5'],
+                   help='type of files to find')
 
 # -- print files
 fparser = parsers.add_parser(
@@ -171,22 +170,18 @@ start = int(args.gpsstart)
 end = int(args.gpsend)
 gaps = args.gaps
 
-# set default columns
-if not args.column:
-    args.column = ['time', 'peak_frequency', 'snr']
-
 # -- find files ---------------------------------------------------------------
 
 # build segment list (placeholder for allowing custom states, perhaps)
 segs = SegmentList([Segment(start, end)])
 
-cache = Cache()
+cache = []
 for seg in segs:
     cache.extend(io.find_omicron_files(
         args.channel, start, end, args.base_directory, ext=args.file_type))
 
 # find gaps
-known = cache.to_segmentlistdict()[args.channel.split(':')[0]] & segs
+known = cache_segments(cache) & segs
 if gaps:
     gaps = segs - known
 if not known:
@@ -200,58 +195,45 @@ elif gaps:
 
 if args.mode == 'files':
     if args.lal_cache:
-        cache.tofile(sys.stdout)
+        write_cache(cache, sys.stdout)
     else:
-        cache.topfnfile(sys.stdout)
+        for path in cache:
+            print(path)
     if gaps:
         sys.exit(1)
-    else:
-        sys.exit(0)
+    sys.exit(0)
 
 
 # -- read events --------------------------------------------------------------
 
-# build filt based on conditions
-def filter_events(array):
-    """Returns `True` if we should keep this event
-    """
-    keep = numpy.ones(array.shape[0], dtype=bool)
-    # filter on segments
-    for seg in segs:
-        keep &= array['time'] >= seg[0]
-        keep &= array['time'] < seg[1]
-    # apply user conditions
-    for col, math in args.condition:
-        vals = array[col]
-        for l, op in math:
-            keep &= op(vals, l)
-    return keep
-
+# set default columns
+if not args.column and args.file_type == 'xml.gz':
+    args.column = ['peak', 'peak_frequency', 'snr']
+elif not args.column:
+    args.column = ['time', 'frequency', 'snr']
 
 # read events (with simple filter on segments)
 if args.file_type == 'xml.gz':
     cname = args.channel.split(':', 1)[1]
-    table = SnglBurstTable.read(cache, filt=lambda x: x.channel == cname)
+    events = EventTable.read(cache, format='ligolw', tablename='sngl_burst',
+                             selection=[('peak', in_segmentlist, segs),
+                                        'channel == "{0}"'.format(cname)],
+                             columns=set(args.column + ['peak', 'channel']))
+elif args.file_type == 'root':
+    events = EventTable.read(cache, format='root', treename='triggers',
+                             selection=('time', in_segmentlist, segs),
+                             columns=set(args.column + ['time']))
 else:
-    table = SnglBurstTable.read(cache)
-events = table.to_recarray()
-
-# inject time column into recarray
-if 'time' not in events.dtype.names:
-    times = events['peak_time'] + events['peak_time_ns'] * 1e-9
-    events = recfunctions.rec_append_fields(events, 'time', times, times.dtype)
-
-# apply conditions
-events = events[filter_events(events)]
+    full = EventTable.read(cache, format='hdf5', path='triggers')
+    events = full.filter(('time', in_segmentlist, segs))[args.column]
 
 # sort events
 if args.rank_by:
-    events.sort(order=args.rank_by)
+    events.sort(args.rank_by)
     if not args.reverse_rank:
         events = events[::-1]
 
 # print events
 print("#%s" % args.delimiter.join(args.column))
 for e in events[:args.max_events]:
-    print(args.delimiter.join(['%%%s' % e[col].dtype.kind % e[col]
-                               for col in args.column]))
+    print(args.delimiter.join(map(str, (e[col] for col in args.column))))
