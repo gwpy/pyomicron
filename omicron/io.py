@@ -267,7 +267,8 @@ def merge_hdf5_files(inputfiles, outputfile, **compression_kw):
     position = defaultdict(int)
     with h5py.File(outputfile, 'w') as h5out:
         # copy attributes (just from last file)
-        h5out.attrs.update(attributes)
+        for key in attributes:
+            h5out.attrs[key] = attributes[key]
         # create datasets
         for dset, (shape, dtype, chunk) in datasets.items():
             h5out.create_dataset(dset, shape=shape, dtype=dtype,
