@@ -32,6 +32,7 @@ from glue.lal import Cache
 from glue.segmentsUtils import fromsegwizard
 from ligo.segments import (segmentlist as SegmentList, segment as Segment)
 
+from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
 from dqsegdb2.http import request as dqsegdb2_request
 
 from gwpy.io.cache import cache_segments as _cache_segments
@@ -162,7 +163,7 @@ def segmentlist_from_tree(tree, coalesce=False):
     return segs
 
 
-def get_flag_coverage(flag, url='https://segments.ligo.org'):
+def get_flag_coverage(flag, url=DEFAULT_SEGMENT_SERVER):
     """Return the coverage data for the given flag
     """
     ifo, name, version = flag.rsplit(':', 2)
