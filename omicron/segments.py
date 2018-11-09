@@ -32,7 +32,7 @@ from glue.lal import Cache
 from glue.segmentsUtils import fromsegwizard
 from ligo.segments import (segmentlist as SegmentList, segment as Segment)
 
-from dqsegdb.urifunctions import getDataUrllib2 as dqsegdb_uri_query
+from dqsegdb2.http import request as dqsegdb2_request
 
 from gwpy.io.cache import cache_segments as _cache_segments
 from gwpy.segments import DataQualityFlag
@@ -167,8 +167,8 @@ def get_flag_coverage(flag, url='https://segments.ligo.org'):
     """
     ifo, name, version = flag.rsplit(':', 2)
     flagu = '/dq/%s/%s/%s' % (ifo, name, version)
-    raw = dqsegdb_uri_query('%s/report/coverage' % url)
-    return json.loads(raw)['results'][flagu]
+    raw = dqsegdb2_request('%s/report/coverage' % url)
+    return json.loads(raw.read().decode('utf-8'))['results'][flagu]
 
 
 def get_latest_active_gps(flag, url='https://segments.ligo.org'):

@@ -54,7 +54,7 @@ install_requires = [
     'ligo-segments',
     'htcondor',
     'lalsuite',
-    'dqsegdb',
+    'dqsegdb2',
     'gwpy',
     'python-ligo-lw >= 1.4.0',
     'h5py',
