@@ -19,30 +19,31 @@
 """Test logging for Omicron
 """
 
-import unittest
+import re
 
-from omicron import log
+from .. import log
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
 
-class LogTestCase(unittest.TestCase):
+def test_bold():
+    assert log.bold('TEST') == '\x1b[1mTEST\x1b[0m'
 
-    def test_bold(self):
-        self.assertEqual(log.bold('TEST'), '\x1b[1mTEST\x1b[0m')
 
-    def test_color_text(self):
-        self.assertEqual(log.color_text('TEST', 'blue'),
-                         '\x1b[1;34mTEST\x1b[0m')
+def test_color_text():
+    assert log.color_text('TEST', 'blue') == '\x1b[1;34mTEST\x1b[0m'
 
-    def test_logger(self):
-        # create logger
-        logger = log.Logger('TEST')
-        # fudge a record
-        record = logger.makeRecord(logger.name, log.logging.DEBUG, 'FILE', 0,
-                                   'test message', (), None, 'FUNC', None)
-        # test that the formatter prints the correct thing
-        outhandler = logger.handlers[0]
-        self.assertRegexpMatches(outhandler.format(record),
-                                 '\[\\x1b\[1mTEST\\x1b\[0m \d+\]    '
-                                 '\\x1b\[1;34mDEBUG\\x1b\[0m: test message')
+
+def test_logger():
+    # create logger
+    logger = log.Logger('TEST')
+
+    # fudge a record
+    record = logger.makeRecord(logger.name, log.logging.DEBUG, 'FILE', 0,
+                               'test message', (), None, 'FUNC', None)
+
+    # test that the formatter prints the correct thing
+    outhandler = logger.handlers[0]
+    assert re.match(r'\[\x1b\[1mTEST\x1b\[0m \d+\]    '
+                    r'\x1b\[1;34mDEBUG\x1b\[0m: test message',
+                    outhandler.format(record))

@@ -19,28 +19,28 @@
 """Tests for omicron.io
 """
 
-# mock up condor modules for testing purposes
-# (so we don't need to have htcondor installed)
 import sys
-import mock_htcondor
-import mock_classad
-sys.modules['htcondor'] = mock_htcondor
-sys.modules['classad'] = mock_classad
-
 import os.path
 import tempfile
 
-import utils
-from compat import (unittest, mock)
+try:
+    from unittest import mock
+except ImportError:  # python < 3
+    import mock
 
-from omicron import condor
+import pytest
+
+# mock up condor modules for testing purposes
+# (so we don't need to have htcondor installed)
+from . import (mock_htcondor, mock_classad)
+sys.modules['htcondor'] = mock_htcondor
+sys.modules['classad'] = mock_classad
+
+from . import utils
+from .. import condor
 
 
 # -- mock utilities -----------------------------------------------------------
-
-def mock_which(exe):
-    return '/path/to/executable'
-
 
 def mock_shell_factory(output):
     def shell(*args, **kwargs):
@@ -49,76 +49,96 @@ def mock_shell_factory(output):
 
 
 def mock_schedd_factory(jobs):
-    Schedd = mock_htcondor.Schedd
-    Schedd._jobs = jobs
+    class Schedd(mock_htcondor.Schedd):
+        _jobs = jobs
     return Schedd
 
 
 # -- tests --------------------------------------------------------------------
 
-class CondorTests(unittest.TestCase):
+@mock.patch('omicron.condor.which', return_value=sys.executable)
+@mock.patch('omicron.condor.shell',
+            return_value='1 job(s) submitted to cluster 12345')
+def test_submit_dag(shell, which):
+    dagid = condor.submit_dag('test.dag')
+    assert dagid == 12345
 
-    def test_submit_dag(self):
-        shell_ = mock_shell_factory('1 job(s) submitted to cluster 12345')
-        with mock.patch('omicron.condor.which', mock_which):
-            with mock.patch('omicron.condor.shell', shell_):
-                dagid = condor.submit_dag('test.dag')
-                with utils.capture(condor.submit_dag, 'test.dag', '-append',
-                                   '+OmicronDAGMan="GW"') as output:
-                    cmd = output.split('\n')[0]
-                    self.assertEqual(cmd, '$ /path/to/executable -append '
-                                          '+OmicronDAGMan="GW" test.dag')
-        self.assertEqual(dagid, 12345)
-        shell_ = mock_shell_factory('Error')
-        with mock.patch('omicron.condor.which', mock_which):
-            with mock.patch('omicron.condor.shell', shell_):
-               self.assertRaises(AttributeError, condor.submit_dag, 'test.dag')
 
-    def test_find_jobs(self):
-        schedd_ = mock_schedd_factory([{'ClusterId': 1}, {'ClusterId': 2}])
-        with mock.patch('htcondor.Schedd', schedd_):
-            jobs = condor.find_jobs()
-            self.assertListEqual(jobs, [{'ClusterId': 1}, {'ClusterId': 2}])
-            jobs = condor.find_jobs(ClusterId=1)
-            self.assertListEqual(jobs, [{'ClusterId': 1}])
-            jobs = condor.find_jobs(ClusterId=3)
-            self.assertListEqual(jobs, [])
+@mock.patch('omicron.condor.which', return_value=sys.executable)
+@mock.patch('omicron.condor.shell',
+            return_value='1 job(s) submitted to cluster 12345')
+def test_submit_dag_append(shell, which):
+    condor.submit_dag('test.dag', '-append', '+OmicronDAGMan="GW"')
+    assert shell.called_with([sys.executable, '-append',
+                              '+OmicronDAGMan="GW"', 'test.dag'])
 
-    def test_find_job(self):
-        schedd_ = mock_schedd_factory([{'ClusterId': 1}, {'ClusterId': 2}])
-        with mock.patch('htcondor.Schedd', schedd_):
-            job = condor.find_job(ClusterId=1)
-            self.assertDictEqual(job, {'ClusterId': 1})
-            # check 0 jobs returned throws the right error
-            with self.assertRaises(RuntimeError) as e:
-                condor.find_job(ClusterId=3)
-            self.assertTrue(str(e.exception).startswith('No jobs found'))
-            # check multiple jobs returned throws the right error
-            with self.assertRaises(RuntimeError) as e:
-                condor.find_job()
-            self.assertTrue(str(e.exception).startswith('Multiple jobs found'))
 
-    def test_get_job_status(self):
-        schedd_ = mock_schedd_factory([{'ClusterId': 1, 'JobStatus': 4}])
-        with mock.patch('htcondor.Schedd', schedd_):
-            status = condor.get_job_status(1)
-            self.assertEqual(status, 4)
+@mock.patch('omicron.condor.which', return_value=sys.executable)
+@mock.patch('omicron.condor.shell', return_value='Something else')
+def test_submit_dag_error(shell, which):
+    with pytest.raises(AttributeError) as exc:
+        condor.submit_dag('test.dag')
+    assert str(exc.value).startswith('Failed to extract DAG cluster ID')
 
-    def test_dag_is_running(self):
-        self.assertFalse(condor.dag_is_running('test.dag'))
-        with mock.patch('os.path.isfile') as isfile:
-            isfile.return_value = True
-            self.assertTrue(condor.dag_is_running('test.dag'))
-        schedd_ = mock_schedd_factory(
-            [{'UserLog': 'test.dag.dagman.log'}])
-        with mock.patch('htcondor.Schedd', schedd_):
-            self.assertTrue(condor.dag_is_running('test.dag'))
-            self.assertFalse(condor.dag_is_running('test2.dag'))
 
-    def test_find_rescue_dag(self):
-        with tempfile.NamedTemporaryFile(suffix='.dag.rescue001') as f:
-            dagf = os.path.splitext(f.name)[0]
-            self.assertEqual(condor.find_rescue_dag(dagf), f.name)
-        with self.assertRaises(IndexError) as exc:
-            self.assertEqual(condor.find_rescue_dag(dagf), f.name)
-        self.assertIn('No rescue DAG files found', str(exc.exception))
+@mock.patch('htcondor.Schedd',
+            mock_schedd_factory([{'ClusterId': 1}, {'ClusterId': 2}]))
+@pytest.mark.parametrize('kwargs, output', [
+    ({}, [{'ClusterId': 1}, {'ClusterId': 2}]),
+    ({'ClusterId': 1}, [{'ClusterId': 1}]),
+    ({'ClusterId': 3}, []),
+])
+def test_find_jobs(kwargs, output):
+    print('kwargs', kwargs)
+    print('jobs', condor.find_jobs(**kwargs))
+    print('output', output)
+    assert condor.find_jobs(**kwargs) == output
+
+
+@mock.patch('htcondor.Schedd',
+            mock_schedd_factory([{'ClusterId': 1}, {'ClusterId': 2}]))
+def test_find_job():
+    job = condor.find_job(ClusterId=1)
+    assert job == {'ClusterId': 1}
+
+    # check 0 jobs returned throws the right error
+    with pytest.raises(RuntimeError) as exc:
+        condor.find_job(ClusterId=3)
+    assert str(exc.value).startswith('No jobs found')
+
+    # check multiple jobs returned throws the right error
+    with pytest.raises(RuntimeError) as exc:
+        condor.find_job()
+    assert str(exc.value).startswith('Multiple jobs found')
+
+
+@mock.patch('htcondor.Schedd',
+            mock_schedd_factory([{'ClusterId': 1, 'JobStatus': 4}]))
+def test_get_job_status():
+    status = condor.get_job_status(1)
+    assert condor.get_job_status(1) == 4
+
+
+@mock.patch('os.path.isfile')
+def test_dag_is_running(isfile):
+    isfile.return_value = False
+    assert not condor.dag_is_running('test.dag')
+
+    isfile.return_value = True
+    assert condor.dag_is_running('test.dag')
+
+    isfile.return_value = False
+    schedd_ = mock_schedd_factory(
+        [{'UserLog': 'test.dag.dagman.log'}])
+    with mock.patch('htcondor.Schedd', schedd_):
+        assert condor.dag_is_running('test.dag')
+        assert not condor.dag_is_running('test2.dag')
+
+
+def test_find_rescue_dag():
+    with tempfile.NamedTemporaryFile(suffix='.dag.rescue001') as f:
+        dagf = os.path.splitext(f.name)[0]
+        assert condor.find_rescue_dag(dagf) == f.name
+    with pytest.raises(IndexError) as exc:
+        assert condor.find_rescue_dag(dagf)
+    assert 'No rescue DAG files found' in str(exc.value)

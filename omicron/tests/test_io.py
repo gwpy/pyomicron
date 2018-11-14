@@ -19,20 +19,15 @@
 """Tests for omicron.io
 """
 
-from compat import unittest
-
-from omicron import (io, const)
+from .. import (io, const)
 
 
-class IoTestCase(unittest.TestCase):
-    def test_get_archive_filename(self):
-        self.assertEqual(
-            io.get_archive_filename('L1:GDS-CALIB_STRAIN', 0, 100),
-            '%s/L1/GDS_CALIB_STRAIN_OMICRON/00000/'
-            'L1-GDS_CALIB_STRAIN_OMICRON-0-100.xml.gz' % const.OMICRON_ARCHIVE)
-        self.assertEqual(
-            io.get_archive_filename('L1:GDS-CALIB_STRAIN', 1234567890, 123,
-                                    archive='/triggers', filetag='TEST-TAg',
-                                    ext='root'),
-            '/triggers/L1/GDS_CALIB_STRAIN_TEST_TAg/12345/'
-            'L1-GDS_CALIB_STRAIN_TEST_TAg-1234567890-123.root')
+def test_get_archive_filename():
+    assert io.get_archive_filename('L1:GDS-CALIB_STRAIN', 0, 100) == (
+        '%s/L1/GDS_CALIB_STRAIN_OMICRON/00000/'
+        'L1-GDS_CALIB_STRAIN_OMICRON-0-100.xml.gz' % const.OMICRON_ARCHIVE)
+    assert io.get_archive_filename(
+            'L1:GDS-CALIB_STRAIN', 1234567890, 123, archive='/triggers',
+            filetag='TEST-TAg', ext='root') == (
+        '/triggers/L1/GDS_CALIB_STRAIN_TEST_TAg/12345/'
+        'L1-GDS_CALIB_STRAIN_TEST_TAg-1234567890-123.root')

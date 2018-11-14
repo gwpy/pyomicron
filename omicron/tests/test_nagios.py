@@ -19,9 +19,7 @@
 """Test logging for Omicron
 """
 
-import unittest
-
-from omicron import nagios
+from .. import nagios
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
