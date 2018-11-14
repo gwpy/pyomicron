@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import shutil
 import json
+import os
 import re
 from math import (floor, ceil)
 from tempfile import mkdtemp
@@ -57,6 +58,9 @@ STATE_CHANNEL = {
 }
 RAW_TYPE_REGEX = re.compile('[A-Z]1_R')
 
+DEFAULT_SEGMENT_SERVER = os.getenv('DEFAULT_SEGMENT_SERVER',
+                                   'https://segments.ligo.org')
+
 
 def integer_segments(f):
     @wraps(f)
@@ -82,7 +86,7 @@ def write_segments(segmentlist, outfile, coltype=int):
 
 
 @integer_segments
-def query_state_segments(flag, start, end, url='https://segments.ligo.org',
+def query_state_segments(flag, start, end, url=DEFAULT_SEGMENT_SERVER,
                          pad=(0, 0)):
     """Query a segment database for active segments associated with a flag
     """
@@ -172,13 +176,13 @@ def get_flag_coverage(flag, url=DEFAULT_SEGMENT_SERVER):
     return json.loads(raw.read().decode('utf-8'))['results'][flagu]
 
 
-def get_latest_active_gps(flag, url='https://segments.ligo.org'):
+def get_latest_active_gps(flag, url=DEFAULT_SEGMENT_SERVER):
     """Return the end time of the latest active segment for this flag
     """
     return get_flag_coverage(flag, url=url)['latest_active_segment']
 
 
-def get_latest_known_gps(flag, url='https://segments.ligo.org'):
+def get_latest_known_gps(flag, url=DEFAULT_SEGMENT_SERVER):
     """Return the end time of the latest known segment for this flag
     """
     return get_flag_coverage(flag, url=url)['latest_known_segment']
