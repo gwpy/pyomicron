@@ -36,7 +36,7 @@ from ligo.segments import (segmentlist as SegmentList, segment as Segment)
 from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
 from dqsegdb2.http import request as dqsegdb2_request
 
-from gwpy.io.cache import cache_segments as _cache_segments
+from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
 from gwpy.segments import DataQualityFlag
 from gwpy.timeseries import StateVector
 
@@ -193,12 +193,13 @@ def cache_overlaps(*caches):
     """Find segments of overlap in the given cache sets
     """
     cache = Cache(e for c in caches for e in c)
-    cache.sort(key=lambda e: e.segment[0])
+    cache.sort(key=lambda e: file_segment(e)[0])
     overlap = SegmentList()
     segments = SegmentList()
     for e in cache:
-        ol = SegmentList([e.segment]) & segments
+        seg = file_segment(e)
+        ol = SegmentList([seg]) & segments
         if abs(ol):
             overlap.extend(ol)
-        segments.append(e.segment)
+        segments.append(seg)
     return overlap
