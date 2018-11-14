@@ -7,10 +7,10 @@
 class Schedd(object):
     """Mock of the `htcondor.Schedd` object
     """
-
     _jobs = []
 
     def query(self, constraints, attr_list=[], **kwargs):
+        print('_jobs', self._jobs)
         x = {}
         for con in constraints.split(' && '):
             try:
@@ -20,8 +20,8 @@ class Schedd(object):
             else:
                 x[a] = eval(b)
         match = []
+        print(x)
         def match(job):
-            print(job, x)
             for key in x:
                 if x[key] != job[key]:
                     return False

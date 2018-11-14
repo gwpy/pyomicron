@@ -21,24 +21,23 @@
 
 import os
 
-from compat import unittest
-
-from omicron import utils
+from .. import utils
 
 
-class UtilsTestCase(unittest.TestCase):
-    def test_get_omicron_version(self):
-        testv = 'v2r1'
-        v = utils.get_omicron_version(
-            "/home/detchar/opt/virgosoft/Omicron/%s/Linux-x86_64/omicron.exe"
-            % testv
-        )
-        self.assertEqual(v, testv)
-        os.environ['OMICRON_VERSION'] = testv
-        self.assertEqual(utils.get_omicron_version(), testv)
-        os.environ.pop('OMICRON_VERSION')
-        os.environ['OMICRONROOT'] = (
-            "/home/detchar/opt/virgosoft/Omicron/%s" % testv)
-        self.assertEqual(utils.get_omicron_version(), testv)
-        self.assertGreater(utils.get_omicron_version(), 'v1r2')
-        self.assertLess(utils.get_omicron_version(), 'v2r2')
+def test_get_omicron_version():
+    testv = 'v2r1'
+    v = utils.get_omicron_version(
+        "/home/detchar/opt/virgosoft/Omicron/%s/Linux-x86_64/omicron.exe"
+        % testv
+    )
+    assert v == testv
+
+    os.environ['OMICRON_VERSION'] = testv
+    assert utils.get_omicron_version() == testv
+
+    os.environ.pop('OMICRON_VERSION')
+    os.environ['OMICRONROOT'] = (
+        "/home/detchar/opt/virgosoft/Omicron/%s" % testv)
+    assert utils.get_omicron_version() == testv
+    assert utils.get_omicron_version() > 'v1r2'
+    assert utils.get_omicron_version() < 'v2r2'

@@ -23,14 +23,12 @@ import os
 import tempfile
 try:
     from configparser import ConfigParser
-except ImportError:
+except ImportError:  # python < 3
     from ConfigParser import ConfigParser
 
 import pytest
 
-from compat import unittest
-
-from omicron.parameters import OmicronParameters
+from ..parameters import OmicronParameters
 
 TEST_PARAMETERS = b"""
 OUTPUT DIRECTORY /tmp/omicron-test
@@ -41,161 +39,169 @@ DATA CHANNELS L1:CAL-DARM_ERR_WHITEN_OUT_DBL_DQ
 """
 
 
-class ParametersTestCase(unittest.TestCase):
+def create(*args, **kwargs):
+    return OmicronParameters(*args, **kwargs)
 
-    def create(self, *args, **kwargs):
-        return OmicronParameters(*args, **kwargs)
 
-    def test_validate_parameters(self):
-        pars = self.create(version='v2r2')
-        # test zero overlap
-        pars.set('PARAMETER', 'PSDLENGTH', '8')
-        pars.set('PARAMETER', 'TIMING', '4 0')
-        with pytest.raises(AssertionError) as excinfo:
-            pars.validate()
-        assert 'cannot run with zero overlap' in str(excinfo)
-        # test odd-valued overlap
-        pars.set('PARAMETER', 'TIMING', '4 1')
-        with pytest.raises(AssertionError) as excinfo:
-            pars.validate()
-        assert 'Padding (overlap/2) is non-integer' in str(excinfo)
-        # test odd-valued overlap
-        pars.set('PARAMETER', 'TIMING', '8 6')
-        with pytest.raises(AssertionError) as excinfo:
-            pars.validate()
-        assert 'Overlap is too large, cannot be more than 50%' in str(excinfo)
-        # test odd-valued overlap
-        pars.set('PARAMETER', 'TIMING', '4 5')
-        with pytest.raises(AssertionError) as excinfo:
-            pars.validate()
-        assert 'Overlap length is greater than segment length' in str(excinfo)
-        # test segment duration too long
-        pars.set('PARAMETER', 'TIMING', '9 3')
-        with pytest.raises(AssertionError) as excinfo:
-            pars.validate()
-        assert 'Segment length is greater than chunk length' in str(excinfo)
+@pytest.fixture
+def pars():
+    return create(version='v2r2')
 
-        # tests ahoy
-        pars.set('PARAMETER', 'PSDLENGTH', '64')
-        pars.set('PARAMETER', 'TIMING', '64 8')
+
+def test_validate_parameters(pars):
+    # test zero overlap
+    pars.set('PARAMETER', 'PSDLENGTH', '8')
+    pars.set('PARAMETER', 'TIMING', '4 0')
+    with pytest.raises(AssertionError) as excinfo:
         pars.validate()
+    assert 'cannot run with zero overlap' in str(excinfo)
 
-        pars.set('PARAMETER', 'PSDLENGTH', '232')
+    # test odd-valued overlap
+    pars.set('PARAMETER', 'TIMING', '4 1')
+    with pytest.raises(AssertionError) as excinfo:
         pars.validate()
+    assert 'Padding (overlap/2) is non-integer' in str(excinfo)
 
-        # test chunks and segments match
-        pars.set('PARAMETER', 'PSDLENGTH', '128')
-        pars.set('PARAMETER', 'TIMING', '65 8')
-        with pytest.raises(AssertionError) as excinfo:
-            pars.validate()
-        assert 'Chunk duration doesn\'t allow an integer' in str(excinfo)
+    # test odd-valued overlap
+    pars.set('PARAMETER', 'TIMING', '8 6')
+    with pytest.raises(AssertionError) as excinfo:
+        pars.validate()
+    assert 'Overlap is too large, cannot be more than 50%' in str(excinfo)
 
-    def test_from_channel_list_config(self):
-        cp = ConfigParser()
-        section = 'test'
-        cp.add_section(section)
-        cp.set(section, 'channels', 'X1:TEST-CHANNEL\nX1:TEST-CHANNEL_2')
-        cp.set(section, 'flow', '10')
-        cp.set(section, 'fhigh', '100')
-        with tempfile.NamedTemporaryFile(suffix='.ini', mode='w') as f:
-            cp.write(f)
-            pars = OmicronParameters.from_channel_list_config(cp, section)
-        self.assertListEqual(pars.getlist('DATA', 'CHANNELS'),
-                             ['X1:TEST-CHANNEL', 'X1:TEST-CHANNEL_2'])
-        self.assertTupleEqual(
-            tuple(pars.getfloats('PARAMETER', 'FREQUENCYRANGE')), (10., 100.))
+    # test odd-valued overlap
+    pars.set('PARAMETER', 'TIMING', '4 5')
+    with pytest.raises(AssertionError) as excinfo:
+        pars.validate()
+    assert 'Overlap length is greater than segment length' in str(excinfo)
 
-    def test_read_ini(self):
-        cp = ConfigParser()
-        section = 'DATA'
-        cp.add_section(section)
-        cp.set(section, 'channels', 'X1:TEST-CHANNEL')
-        with tempfile.NamedTemporaryFile(suffix='.ini', mode='w') as f:
-            cp.write(f)
-            f.seek(0)
-            pars = self.create()
-            pars.read(f.name)
-        self.assertListEqual(pars.getlist('DATA', 'CHANNELS'),
-                             ['X1:TEST-CHANNEL'])
+    # test segment duration too long
+    pars.set('PARAMETER', 'TIMING', '9 3')
+    with pytest.raises(AssertionError) as excinfo:
+        pars.validate()
+    assert 'Segment length is greater than chunk length' in str(excinfo)
 
-    def test_read_txt(self):
-        with tempfile.NamedTemporaryFile(suffix='.txt') as f:
-            f.write(TEST_PARAMETERS)
-            f.seek(0)
-            pars = self.create()
-            pars.readfp(f)
-        self.assertListEqual(pars.getlist('DATA', 'CHANNELS'),
-                             ['L1:CAL-DELTAL_EXTERNAL_DQ',
-                              'L1:CAL-DARM_CTRL_WHITEN_OUT_DBL_DQ',
-                              'L1:CAL-DARM_ERR_WHITEN_OUT_DBL_DQ'])
+    # tests ahoy
+    pars.set('PARAMETER', 'PSDLENGTH', '64')
+    pars.set('PARAMETER', 'TIMING', '64 8')
+    pars.validate()
 
-    def _test_write(self, suffix):
-        pars = self.create()
-        pars.set('DATA', 'CHANNELS',
-                 'L1:CAL-DELTAL_EXTERNAL_DQ '
-                 'L1:CAL-DARM_CTRL_WHITEN_OUT_DBL_DQ')
-        pars.set('PARAMETER', 'PSDLENGTH', '124')
-        pars.set('PARAMETER', 'TIMING', '64 4')
-        with tempfile.NamedTemporaryFile(suffix=suffix, mode='w') as f:
-            pars.write(f)
-            f.seek(0)
-            p2 = self.create()
-            p2.read(f.name)
-        self.assertEqual(pars.get('DATA', 'CHANNELS'),
-                         p2.get('DATA', 'CHANNELS'))
-        self.assertTupleEqual(tuple(p2.getfloats('PARAMETER', 'TIMING')),
-                              (64.0, 4.0))
+    pars.set('PARAMETER', 'PSDLENGTH', '232')
+    pars.validate()
 
-    def test_write_ini(self):
-        self._test_write('.ini')
+    # test chunks and segments match
+    pars.set('PARAMETER', 'PSDLENGTH', '128')
+    pars.set('PARAMETER', 'TIMING', '65 8')
+    with pytest.raises(AssertionError) as excinfo:
+        pars.validate()
+    assert 'Chunk duration doesn\'t allow an integer' in str(excinfo)
 
-    def test_write_txt(self):
-        self._test_write('.txt')
 
-    def test_write_distributed(self):
-        pars = self.create()
-        stub = 'X1:TEST_CHANNEL_%d'
-        channels = [stub % i for i in range(50)]
-        pars.set('PARAMETER', 'PSDLENGTH', '100')
-        pars.set('DATA', 'CHANNELS', ' '.join(channels))
-        tmpdir = tempfile.gettempdir()
+def test_from_channel_list_config():
+    cp = ConfigParser()
+    section = 'test'
+    cp.add_section(section)
+    cp.set(section, 'channels', 'X1:TEST-CHANNEL\nX1:TEST-CHANNEL_2')
+    cp.set(section, 'flow', '10')
+    cp.set(section, 'fhigh', '100')
+    with tempfile.NamedTemporaryFile(suffix='.ini', mode='w') as f:
+        cp.write(f)
+        pars = OmicronParameters.from_channel_list_config(cp, section)
+    assert pars.getlist('DATA', 'CHANNELS') == ['X1:TEST-CHANNEL',
+                                                'X1:TEST-CHANNEL_2']
+    assert tuple(pars.getfloats('PARAMETER', 'FREQUENCYRANGE')) == (10., 100.)
+
+
+def test_read_ini(pars):
+    cp = ConfigParser()
+    section = 'DATA'
+    cp.add_section(section)
+    cp.set(section, 'channels', 'X1:TEST-CHANNEL')
+    with tempfile.NamedTemporaryFile(suffix='.ini', mode='w') as f:
+        cp.write(f)
+        f.seek(0)
+        pars.read(f.name)
+    assert pars.getlist('DATA', 'CHANNELS') == ['X1:TEST-CHANNEL']
+
+
+def test_read_txt(pars):
+    with tempfile.NamedTemporaryFile(suffix='.txt') as f:
+        f.write(TEST_PARAMETERS)
+        f.seek(0)
+        pars.readfp(f)
+    assert pars.getlist('DATA', 'CHANNELS') == [
+        'L1:CAL-DELTAL_EXTERNAL_DQ',
+        'L1:CAL-DARM_CTRL_WHITEN_OUT_DBL_DQ',
+        'L1:CAL-DARM_ERR_WHITEN_OUT_DBL_DQ',
+    ]
+
+
+def _test_write(pars, suffix):
+    pars.set('DATA', 'CHANNELS',
+             'L1:CAL-DELTAL_EXTERNAL_DQ '
+             'L1:CAL-DARM_CTRL_WHITEN_OUT_DBL_DQ')
+    pars.set('PARAMETER', 'PSDLENGTH', '124')
+    pars.set('PARAMETER', 'TIMING', '64 4')
+    with tempfile.NamedTemporaryFile(suffix=suffix, mode='w') as f:
+        pars.write(f)
+        f.seek(0)
+        p2 = create()
+        p2.read(f.name)
+    assert pars.get('DATA', 'CHANNELS') == p2.get('DATA', 'CHANNELS')
+    assert tuple(p2.getfloats('PARAMETER', 'TIMING')) == (64.0, 4.0)
+
+
+def test_write_ini(pars):
+    _test_write(pars, '.ini')
+
+
+def test_write_txt(pars):
+    _test_write(pars, '.txt')
+
+
+def test_write_distributed(pars):
+    stub = 'X1:TEST_CHANNEL_%d'
+    channels = [stub % i for i in range(50)]
+    pars.set('PARAMETER', 'PSDLENGTH', '100')
+    pars.set('DATA', 'CHANNELS', ' '.join(channels))
+    tmpdir = tempfile.gettempdir()
+    try:
         _, files = pars.write_distributed(tmpdir, nchannels=10)
         for i, f in enumerate(files):
             cset = channels[i*10: (i+1)*10]
-            p2 = self.create()
+            p2 = create()
             p2.read(f)
-            self.assertListEqual(cset, p2.getlist('DATA', 'CHANNELS'))
-            self.assertEqual(p2.getfloat('PARAMETER', 'PSDLENGTH'), 100)
-            os.remove(f)
+            assert cset == p2.getlist('DATA', 'CHANNELS')
+            assert p2.getfloat('PARAMETER', 'PSDLENGTH') == 100
+    finally:
+        for path in filter(os.path.isfile, files):
+            os.remove(path)
 
-    def test_output_segments(self):
-        pars = self.create(version='v2r2')
-        pars.set('PARAMETER', 'TIMING', '64 4')
-        segs = pars.output_segments(0, 100)
-        self.assertListEqual(segs, [(2, 62), (62, 98)])
 
-    def test_distribute_segments(self):
-        pars = self.create(version='v2r2')
-        pars.set('PARAMETER', 'TIMING', '64 4')
-        pars.set('PARAMETER', 'PSDLENGTH', '124')
-        segs = pars.distribute_segment(0, 1000, nperjob=4)
-        self.assertListEqual(segs, [(0, 604), (600, 1000)])
+def test_output_segments(pars):
+    pars.set('PARAMETER', 'TIMING', '64 4')
+    segs = pars.output_segments(0, 100)
+    assert segs == [(2, 62), (62, 98)]
 
-    def test_output_files(self):
-        pars = self.create(version='v2r2')
-        pars.set('PARAMETER', 'TIMING', '64 4')
-        pars.set('DATA', 'CHANNELS', 'X1:TEST-CHANNEL')
-        files = pars.output_files(0, 100)
-        self.assertDictEqual(
-            files,
-            {'X1:TEST-CHANNEL': {
-                 'root': [
-                     './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.root',
-                     './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.root',
-                 ],
-                 'xml': [
-                     './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.xml',
-                     './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.xml',
-                 ],
-            }},
-        )
+
+def test_distribute_segments(pars):
+    pars.set('PARAMETER', 'TIMING', '64 4')
+    pars.set('PARAMETER', 'PSDLENGTH', '124')
+    segs = pars.distribute_segment(0, 1000, nperjob=4)
+    segs == [(0, 604), (600, 1000)]
+
+
+def test_output_files(pars):
+    pars.set('PARAMETER', 'TIMING', '64 4')
+    pars.set('DATA', 'CHANNELS', 'X1:TEST-CHANNEL')
+    assert pars.output_files(0, 100) == {
+        'X1:TEST-CHANNEL': {
+             'root': [
+                 './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.root',
+                 './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.root',
+             ],
+             'xml': [
+                 './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.xml',
+                 './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.xml',
+             ],
+        },
+    }

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) Duncan Macleod (2016)
+# Copyright (C) Duncan Macleod (2018)
 #
 # This file is part of PyOmicron.
 #
@@ -16,17 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with PyOmicron.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Python-version compatibility utils for Omicron tests
+"""Tests for PyOmicron
 """
 
-import sys
-
-if sys.version_info < (2, 7):
-    import unittest2 as unittest
-else:
-    import unittest
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+__author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
