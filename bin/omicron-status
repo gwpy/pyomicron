@@ -400,7 +400,7 @@ else:
 # load acknowledged gaps
 acksegfile = os.path.join(outdir, 'acknowledged-gaps-%s.txt' % tag)
 try:
-    acknowledged = SegmentList.read(acksegfile)
+    acknowledged = SegmentList.read(acksegfile, gpstype=float)
 except IOError:  # no file
     acknowledged = SegmentList()
 else:
