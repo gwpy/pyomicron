@@ -158,7 +158,7 @@ def cache_segments(cache):
 
 
 def segmentlist_from_tree(tree, coalesce=False):
-    """Read a `~glue.segments.segmentlist` from a 'segments' `ROOT.Tree`
+    """Read a `~ligo.segments.segmentlist` from a 'segments' `ROOT.Tree`
     """
     segs = SegmentList()
     for i in range(tree.GetEntries()):

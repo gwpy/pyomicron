@@ -31,7 +31,7 @@ try:  # python >= 3
 except ImportError:  # python 2.x
     import ConfigParser as configparser
 
-from gwpy.segments import (Segment, SegmentList)
+from ligo.segments import (segmentlist as SegmentList, segment as Segment)
 
 from collections import OrderedDict
 
@@ -407,7 +407,7 @@ class OmicronParameters(configparser.ConfigParser):
 
         Returns
         -------
-        jobsegs : :class:`~glue.segments.segmentlist`
+        jobsegs : :class:`~ligo.segments.segmentlist`
             a `segmentlist` of [start, stop) times over which to distribute
             a single segment under condor
         """

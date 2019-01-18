@@ -18,7 +18,7 @@ matrix:
 
 before_install:
   - python -m pip install ${PIP_FLAGS} --upgrade pip
-  - python -m pip install ${PIP_FLAGS} "pytest>=2.8" pytest-cov
+  - python -m pip install ${PIP_FLAGS} --upgrade "pytest>=2.8,<3.7" pytest-cov
   - python -m pip install ${PIP_FLAGS} -r requirements.txt
 
 install:
