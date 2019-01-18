@@ -36,7 +36,6 @@ extensions = [
     'sphinx.ext.autosummary',
     'numpydoc',
     'sphinxcontrib.programoutput',
-    'sphinxcontrib.epydoc',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -302,10 +301,4 @@ intersphinx_mapping = {
     'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
     'matplotlib': ('http://matplotlib.sourceforge.net/', None),
     'gwpy': ('http://gwpy.github.io/docs/latest/', None),
-}
-
-# -- Extensions -----------------------------------------------------------
-
-epydoc_mapping = {
-    'http://software.ligo.org/docs/glue/': [r'glue(\.|$)'],
 }

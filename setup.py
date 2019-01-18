@@ -68,16 +68,6 @@ if {'test'}.intersection(sys.argv):
         'pytest_runner',
     ])
 
-# extras
-extras_require = {
-    'doc': [
-        'sphinx',
-        'numpydoc',
-        'sphinxcontrib-programoutput',
-        'sphinxcontrib-epydoc',
-    ],
-}
-
 # -- content ----------------
 
 # Use the find_packages tool to locate all packages and modules
@@ -123,7 +113,6 @@ setup(
     setup_requires=setup_requires,
     install_requires=install_requires,
     tests_require=tests_require,
-    extras_require=extras_require,
     # content
     packages=packagenames,
     scripts=scripts,
