@@ -113,8 +113,13 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
     try:
         from LDAStools import frameCPP
     except ImportError:
+        pass
+    else:
+        io_kw['format'] = 'gwf.framecpp'
         if RAW_TYPE_REGEX.match(frametype):
-            io_kw.update({'type': 'adc', 'format': 'gwf.framecpp'})
+            io_kw['type'] = 'adc'
+        elif channel.endswith('GDS-CALIB_STATE_VECTOR'):
+            io_kw['type'] = 'proc'
 
     bits = map(str, bits)
     # FIXME: need to read from cache with single segment but doesn't match
