@@ -30,7 +30,7 @@ from tempfile import mkdtemp
 from functools import wraps
 
 from glue.lal import Cache
-from glue.segmentsUtils import fromsegwizard
+from ligo.segments.utils import fromsegwizard
 from ligo.segments import (segmentlist as SegmentList, segment as Segment)
 
 from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
