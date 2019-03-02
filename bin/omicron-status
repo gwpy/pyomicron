@@ -52,7 +52,8 @@ from glue import markup
 from gwpy.io.cache import sieve as sieve_cache
 from gwpy.time import to_gps
 from gwpy.segments import (Segment, SegmentList)
-from gwpy.plotter import (TimeSeriesPlot, SegmentAxes)
+from gwpy.plot import Plot
+from gwpy.plot.segments import SegmentRectangle
 
 from omicron import (condor, const, io, log, segments, __version__)
 from omicron.utils import get_omicron_version
@@ -311,9 +312,9 @@ if not args.skip_condor and schedd:
 
 if not args.skip_job_duration:
     # get job duration history
-    plot = TimeSeriesPlot(figsize=[12, 3])
+    plot = Plot(figsize=[12, 3])
     plot.subplots_adjust(bottom=.22, top=.87)
-    ax = plot.gca()
+    ax = plot.gca(xscale="auto-gps")
     times, jobdur = condor.get_job_duration_history_shell(
         'OmicronProcess', group, maxjobs=5000)
     logger.debug("Recovered duration history for %d omicron.exe jobs"
@@ -409,20 +410,27 @@ else:
 
 # build legend for segments
 leg = OrderedDict()
-leg['Analysable'] = SegmentAxes.build_segment([0, 1], 0, facecolor='lightgray',
-                                             edgecolor='gray')
-leg['Available'] = SegmentAxes.build_segment([0, 1], 0, facecolor='lightgreen',
-                                             edgecolor='green')
-leg['Missing'] = SegmentAxes.build_segment([0, 1], 0, facecolor='red',
-                                           edgecolor='darkred')
-leg['Unresolvable'] = SegmentAxes.build_segment([0, 1], 0, facecolor='magenta',
-                                                edgecolor='purple')
-leg['Overlapping'] = SegmentAxes.build_segment([0, 1], 0, facecolor='yellow',
-                                               edgecolor='orange')
-leg['Pending'] = SegmentAxes.build_segment([0, 1], 0, facecolor='lightskyblue',
-                                           edgecolor='blue')
-leg['Acknowledged'] = SegmentAxes.build_segment([0, 1], 0, facecolor='sandybrown',
-                                                edgecolor='brown')
+leg['Analysable'] = SegmentRectangle(
+    [0, 1], 0, facecolor='lightgray', edgecolor='gray',
+)
+leg['Available'] = SegmentRectangle(
+    [0, 1], 0, facecolor='lightgreen', edgecolor='green',
+)
+leg['Missing'] = SegmentRectangle(
+    [0, 1], 0, facecolor='red', edgecolor='darkred',
+)
+leg['Unresolvable'] = SegmentRectangle(
+    [0, 1], 0, facecolor='magenta', edgecolor='purple',
+)
+leg['Overlapping'] = SegmentRectangle(
+    [0, 1], 0, facecolor='yellow', edgecolor='orange',
+)
+leg['Pending'] = SegmentRectangle(
+    [0, 1], 0, facecolor='lightskyblue', edgecolor='blue',
+)
+leg['Acknowledged'] = SegmentRectangle(
+    [0, 1], 0, facecolor='sandybrown', edgecolor='brown',
+)
 
 logger.debug("Checking archive for each channel...")
 
@@ -440,8 +448,8 @@ for c in channels:
     pending[c] = {}
 
     # create figure
-    plot = TimeSeriesPlot(figsize=[12, 5])
-    lax = plot.add_subplot(grid[0, 0])
+    plot = Plot(figsize=[12, 5])
+    lax = plot.add_subplot(grid[0, 0], xscale="auto-gps")
     sax = plot.add_subplot(grid[1, 0], sharex=lax, projection='segments')
     colors = ['dodgerblue', 'black']
 
@@ -518,7 +526,8 @@ for c in channels:
                 linewidth=2, label='Warning', zorder=-1)
     lax.axhline(args.error/3600., color='red', linestyle='--',
                 linewidth=2, label='Critical', zorder=-1)
-    lax.set_title('Omicron status: %s' % c.replace('_', r'\_'))
+    title = c.replace('_', r'\_') if rcParams["text.usetex"] else c
+    lax.set_title('Omicron status: {}'.format(c))
     lax.set_ylim(0, args.error/1800.)
     lax.set_ylabel('Latency [hours]')
     lax.legend(loc='upper left', bbox_to_anchor=(1.01, 1), borderaxespad=0,

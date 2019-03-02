@@ -55,7 +55,7 @@ install_requires = [
     'htcondor',
     'lalsuite',
     'dqsegdb2',
-    'gwpy',
+    'gwpy >= 0.13.0',
     'python-ligo-lw >= 1.4.0',
     'h5py',
     'gwdatafind',
