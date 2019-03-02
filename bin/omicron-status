@@ -526,7 +526,8 @@ for c in channels:
                 linewidth=2, label='Warning', zorder=-1)
     lax.axhline(args.error/3600., color='red', linestyle='--',
                 linewidth=2, label='Critical', zorder=-1)
-    lax.set_title('Omicron status: %s' % c.replace('_', r'\_'))
+    title = c.replace('_', r'\_') if rcParams["text.usetex"] else c
+    lax.set_title('Omicron status: {}'.format(c))
     lax.set_ylim(0, args.error/1800.)
     lax.set_ylabel('Latency [hours]')
     lax.legend(loc='upper left', bbox_to_anchor=(1.01, 1), borderaxespad=0,
