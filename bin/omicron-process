@@ -525,7 +525,7 @@ minduration = 1 * chunkdur
 # validate span is long enough
 if dataduration < minduration and online:
     logger.info("Segment is too short (%d < %d), please try again later"
-                % (duration, chunkdur - padding * 2))
+                % (duration, minduration))
     clean_exit(0, tempfiles)
 elif dataduration < minduration:
     raise ValueError("Segment [%d, %d) is too short (%d < %d), please "
