@@ -45,7 +45,7 @@ def seglist():
 
 
 def test_read_write_segments(seglist):
-    with tempfile.NamedTemporaryFile() as tmp:
+    with tempfile.NamedTemporaryFile(mode="w") as tmp:
         segments.write_segments(seglist, tmp)
         tmp.seek(0)
         segs = segments.read_segments(tmp.name)
