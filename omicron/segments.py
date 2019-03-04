@@ -38,13 +38,13 @@ from dqsegdb2.http import request as dqsegdb2_request
 
 from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
 from gwpy.segments import DataQualityFlag
-from gwpy.timeseries import StateVector
+from gwpy.timeseries import (StateTimeSeries, StateVector, TimeSeriesDict)
 
 from . import (const, data, utils)
 
 STATE_CHANNEL = {
-    'H1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('H1:GRD-ISC_LOCK_OK', [0], 'H1_R'),
-    'L1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('L1:GRD-ISC_LOCK_OK', [0], 'L1_R'),
+    'H1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('H1:GRD-ISC_LOCK', "guardian", 'H1_R'),
+    'L1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('L1:GRD-ISC_LOCK', "guardian", 'L1_R'),
     'H1:DMT-UP:1': ('H1:GDS-CALIB_STATE_VECTOR', [2], 'H1_HOFT_C00'),
     'L1:DMT-UP:1': ('L1:GDS-CALIB_STATE_VECTOR', [2], 'L1_HOFT_C00'),
     'H1:DMT-CALIBRATED:1': ('H1:GDS-CALIB_STATE_VECTOR', [0], 'H1_HOFT_C00'),
@@ -155,6 +155,64 @@ def get_frame_segments(obs, frametype, start, end):
     cache = data.find_frames(obs, frametype, start, end)
     span = SegmentList([Segment(start, end)])
     return cache_segments(cache) & span
+
+
+@integer_segments
+def get_guardian_segments(node, frametype, start, end, nproc=1, pad=(0, 0),
+                          strict=False):
+    """Determine state segments for a given guardian node
+    """
+    ifo, node = node.split(':', 1)
+    if node.startswith('GRD-'):
+        node = node[4:]
+    pstart = start - pad[0]
+    pend = end + pad[1]
+
+    # find frame cache
+    cache = data.find_frames(ifo, frametype, pstart, pend)
+
+    # pre-format data segments
+    span = SegmentList([Segment(pstart, pend)])
+    segs = SegmentList()
+    csegs = cache_segments(cache)
+    if not csegs:
+        return csegs
+
+    # read data
+    stub = "{}:GRD-{}".format(ifo, node)
+    if strict:
+        channels = ["{}_OK".format(stub)]
+    else:
+        state = "{}_STATE_N".format(stub)
+        nominal = "{}_NOMINAL_N".format(stub)
+        active = "{}_ACTIVE".format(stub)
+        channels = [state, nominal, active]
+    for seg in csegs & span:
+        if strict:
+            sv = StateVector.read(
+                cache, channels[0], nproc=nproc, start=seg[0], end=seg[1],
+                bits=[0], gap='pad', pad=0,).astype('uint32')
+            segs += sv.to_dqflags().intersection().active
+        else:
+            gdata = TimeSeriesDict.read(
+                cache, channels, nproc=nproc, start=seg[0], end=seg[1],
+                gap='pad', pad=0)
+            ok = ((gdata[state].value == gdata[nominal].value) &
+                  (gdata[active].value == 1)).view(StateTimeSeries)
+            ok.t0 = gdata[state].t0
+            ok.dt = gdata[state].dt
+            segs += ok.to_dqflag().active
+
+    # truncate to integers, and apply padding
+    for i, seg in enumerate(segs):
+        segs[i] = type(seg)(int(ceil(seg[0])) + pad[0],
+                            int(floor(seg[1])) - pad[1])
+    segs.coalesce()
+
+    # clean up and return
+    if data.re_ll.match(frametype):
+        shutil.rmtree(tmpdir)
+    return segs.coalesce()
 
 
 @integer_segments
