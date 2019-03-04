@@ -94,10 +94,10 @@ def query_state_segments(flag, start, end, url=DEFAULT_SEGMENT_SERVER,
                          pad=(0, 0)):
     """Query a segment database for active segments associated with a flag
     """
-    segs = DataQualityFlag.query(flag, start-pad[0], end+pad[1], url=url).pad(
-        pad[0], -pad[1])  # DQF.pad pads forward in time at end
-    segs.coalesce()
-    return segs.active
+    # NOTE: DQF.pad pads forward in time at end
+    return DataQualityFlag.query(
+        flag, start-pad[0], end+pad[1], url=url,
+    ).coalesce().pad(pad[0], -pad[1]).active
 
 
 @integer_segments

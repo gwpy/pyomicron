@@ -20,10 +20,17 @@
 """
 
 import tempfile
+from copy import deepcopy
+try:
+    from unittest import mock
+    from io import StringIO
+except ImportError:  # python < 3
+    from StringIO import StringIO
+    import mock
 
 import pytest
 
-from gwpy.segments import (Segment, SegmentList)
+from gwpy.segments import (DataQualityFlag, Segment, SegmentList)
 
 from .. import segments
 
@@ -43,3 +50,37 @@ def test_read_write_segments(seglist):
         tmp.seek(0)
         segs = segments.read_segments(tmp.name)
         assert segs == seglist
+
+
+def test_get_last_run_segment(seglist):
+    tmp = StringIO()
+    segments.write_segments(seglist, tmp)
+    tmp.seek(0)
+    assert segments.get_last_run_segment(tmp) == seglist[-1]
+
+
+def test_query_state_segments(seglist):
+    with mock.patch(
+        "omicron.segments.DataQualityFlag.query",
+        return_value=DataQualityFlag(active=deepcopy(seglist),
+                                     known=[seglist.extent()]),
+    ):
+        coal = deepcopy(seglist).coalesce()
+        assert segments.query_state_segments('X', 0, 10) == coal
+        assert segments.query_state_segments(
+            'X', 0, 10,
+            pad=(1, 1),
+        ) == DataQualityFlag(active=coal, known=[coal.extent()]).pad(1, -1).active
+
+
+@mock.patch(
+    "omicron.data.find_frames",
+    return_value=["/path/to/A-B-0-10.gwf", "/path/to/C-D-20-10.gwf"],
+)
+def test_get_frame_segments(find):
+    assert segments.get_frame_segments("X", "X1_R", 0, 100) == SegmentList([
+        Segment(0, 10), Segment(20, 30),
+    ])
+    assert segments.get_frame_segments("X", "X1_R", 25, 100) == SegmentList([
+        Segment(25, 30),
+    ])
