@@ -30,14 +30,13 @@ from tempfile import mkdtemp
 from functools import wraps
 
 from glue.lal import Cache
-from ligo.segments.utils import fromsegwizard
 from ligo.segments import (segmentlist as SegmentList, segment as Segment)
 
 from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
 from dqsegdb2.http import request as dqsegdb2_request
 
 from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
-from gwpy.segments import DataQualityFlag
+from gwpy.segments import (DataQualityFlag, SegmentList)
 from gwpy.timeseries import (StateTimeSeries, StateVector, TimeSeriesDict)
 
 from . import (const, data, utils)
@@ -71,8 +70,11 @@ def integer_segments(f):
 
 
 def read_segments(filename, coltype=int):
-   with open(filename, 'r') as fp:
-        return fromsegwizard(fp, coltype=coltype)
+    return SegmentList.read(
+        filename,
+        gpstype=coltype,
+        format="segwizard",
+    )
 
 
 def get_last_run_segment(segfile):
@@ -80,9 +82,11 @@ def get_last_run_segment(segfile):
 
 
 def write_segments(segmentlist, outfile, coltype=int):
-    with open(outfile, 'w') as fp:
-       for seg in segmentlist:
-           print('%d %d' % seg, file=fp)
+    return SegmentList(segmentlist).write(
+        outfile,
+        coltype=coltype,
+        format="segwizard",
+    )
 
 
 @integer_segments
