@@ -525,7 +525,7 @@ minduration = 1 * chunkdur
 # validate span is long enough
 if dataduration < minduration and online:
     logger.info("Segment is too short (%d < %d), please try again later"
-                % (duration, chunkdur - padding * 2))
+                % (duration, minduration))
     clean_exit(0, tempfiles)
 elif dataduration < minduration:
     raise ValueError("Segment [%d, %d) is too short (%d < %d), please "
@@ -537,9 +537,23 @@ elif dataduration < minduration:
 if (online and statechannel) or (statechannel and not stateflag) or (
         statechannel and args.no_segdb):
     logger.info("Finding segments for relevant state...")
-    segs = segments.get_state_segments(statechannel, stateft,
-                                       datastart, dataend, bits=statebits,
-                                       pad=statepad)
+    if statebits == "guardian":  # use guardian
+        segs = segments.get_guardian_segments(
+            statechannel,
+            stateft,
+            datastart,
+            dataend,
+            pad=statepad,
+        )
+    else:
+        segs = segments.get_state_segments(
+            statechannel,
+            stateft,
+            datastart,
+            dataend,
+            bits=statebits,
+            pad=statepad,
+        )
 # get segments from segment database
 elif stateflag:
     logger.info("Querying segments for relevant state...")
@@ -610,7 +624,7 @@ elif args.use_dev_shm and len(segs):  # only cache if we have state segments
     cache = data.find_frames(ifo, frametype, datastart, dataend,
                              on_gaps='warn', tmpdir=cachedir)
     # remove cached files at end of process
-    tempfiles.extend(filter(lambda p: cachedir in p, cache.pfnlist()))
+    tempfiles.extend(filter(lambda p: cachedir in p, cache))
 # find frames using datafind
 else:
     cache = data.find_frames(ifo, frametype, datastart, dataend,
