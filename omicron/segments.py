@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import json
 import re
+import warnings
 from math import (floor, ceil)
 from functools import wraps
 
@@ -30,8 +31,10 @@ from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
 from dqsegdb2.http import request as dqsegdb2_request
 
 from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
+from gwpy.io.gwf import open_gwf
 from gwpy.segments import (DataQualityFlag, Segment, SegmentList)
 from gwpy.timeseries import (StateTimeSeries, StateVector, TimeSeriesDict)
+from gwpy.time import LIGOTimeGPS
 
 from . import data
 
@@ -158,8 +161,13 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
     # FIXME: need to read from cache with single segment but doesn't match
     # [start, end)
 
+    # Virgo drops the state vector regularly, so need to sieve the files
+    if channel == "V1:DQ_ANALYSIS_STATE_VECTOR":
+        span = data_segments(cache, channel)
+    else:
+        span = SegmentList([Segment(pstart, pend)])
+
     # read data segments
-    span = SegmentList([Segment(pstart, pend)])
     segs = SegmentList()
     try:
         csegs = cache_segments(cache)
@@ -293,3 +301,38 @@ def cache_overlaps(*caches):
             overlap.extend(ol)
         segments.append(seg)
     return overlap
+
+
+def data_segments(cache, channel):
+    segments = SegmentList()
+    for path in cache:
+        segments.extend(_gwf_channel_segments(path, channel))
+    return segments.coalesce()
+
+
+def _gwf_channel_segments(path, channel):
+    """Yields the segments containing data for ``channel`` in this GWF path
+    """
+    stream = open_gwf(path)
+    # get segments for frames
+    toc = stream.GetTOC()
+    secs = toc.GetGTimeS()
+    nano = toc.GetGTimeN()
+    dur = toc.GetDt()
+
+    readers = [getattr(stream, 'ReadFr{0}Data'.format(type_.title())) for
+               type_ in ("proc", "sim", "adc")]
+
+    # for each segment, try and read the data for this channel
+    for i, (s, ns, dt) in enumerate(zip(secs, nano, dur)):
+        for read in readers:
+            try:
+                read(i, channel)
+            except IndexError:
+                continue
+            readers = [read]  # use this one from now on
+            epoch = LIGOTimeGPS(s, ns)
+            yield Segment(epoch, epoch + dt)
+            break
+        else:  # none of the readers worked for this channel, warn
+            warnings.warn("{0!r} not found in {1}".format(channel, path))
