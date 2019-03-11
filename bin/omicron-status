@@ -160,7 +160,7 @@ proddir = args.production_directory.format(group=args.group)
 outdir = args.output_directory
 tag = args.latency_archive_tag.format(group=args.group)
 
-filetypes = ['xml.gz', 'root']
+filetypes = ['h5', 'xml.gz', 'root']
 
 if not os.path.isdir(outdir):
     os.makedirs(outdir)
@@ -451,7 +451,7 @@ for c in channels:
     plot = Plot(figsize=[12, 5])
     lax = plot.add_subplot(grid[0, 0], xscale="auto-gps")
     sax = plot.add_subplot(grid[1, 0], sharex=lax, projection='segments')
-    colors = ['dodgerblue', 'black']
+    colors = ['lightblue', 'dodgerblue', 'black']
 
     for y, ft in enumerate(filetypes):
         # find files
@@ -537,7 +537,7 @@ for c in channels:
         ax.set_xlim(args.gps_start_time, args.gps_end_time)
         ax.set_epoch(ax.get_xlim()[1])
     sax.xaxis.labelpad = 5
-    sax.set_ylim(-.5, 1.5)
+    sax.set_ylim(-.5, len(filetypes) - .5)
     sax.legend(leg.values(), leg.keys(), handlelength=1, fontsize=12.4,
                loc='lower left', bbox_to_anchor=(1.01, 0), borderaxespad=0)
     plots[c] = png = os.path.join(
@@ -561,7 +561,7 @@ logger.debug("Stored latency data as HDF in %s" % latencyfile)
 status = []
 for segset, tag in zip([gaps, overlap], ['gaps', 'overlap']):
     chans = [(c, segset[c]) for c in segset
-             if abs(operator.or_(*segset[c].values()))]
+             if abs(reduce(operator.or_, segset[c].values()))]
     jsonfp = os.path.join(outdir, 'nagios-%s-%s.json' % (tag, group))
     status.append((tag, jsonfp))
     if chans:
