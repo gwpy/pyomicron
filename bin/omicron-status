@@ -459,7 +459,8 @@ for c in channels:
         cpend = sieve_cache(io.find_pending_files(c, proddir, ext=ft),
                             segment=Segment(start, end))
         # get available segments
-        found = segments.cache_segments(cache) & segs
+        avail = segments.cache_segments(cache)
+        found = avail & segs
         pending[c][ft] = segments.cache_segments(cpend) & segs
         # remove gaps at the end that represent latency
         try:
@@ -505,6 +506,9 @@ for c in channels:
         sax.plot_segmentlist(pending[c][ft], y=y,
                              facecolor=leg['Pending'].get_facecolor(),
                              edgecolor=leg['Pending'].get_edgecolor())
+        sax.plot_segmentlist(avail, y=y, label=ft, alpha=.2, height=.1,
+                             facecolor=leg['Available'].get_facecolor(),
+                             edgecolor=leg['Available'].get_edgecolor())
         sax.plot_segmentlist(found, y=y, label=ft, alpha=.5,
                              facecolor=leg['Available'].get_facecolor(),
                              edgecolor=leg['Available'].get_edgecolor())
