@@ -32,8 +32,8 @@ cmdclass = versioneer.get_cmdclass()
 # -- metadata ---------------
 
 # set basic metadata
-PACKAGENAME = 'omicron'
-DISTNAME = 'omicron'
+PACKAGENAME = 'pyomicron'
+DISTNAME = 'pyomicron'
 AUTHOR = 'Duncan Macleod'
 AUTHOR_EMAIL = 'duncan.macleod@ligo.org'
 LICENSE = 'GPLv3'
