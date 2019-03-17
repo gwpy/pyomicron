@@ -48,17 +48,17 @@ setup_requires = [
     'setuptools',
 ]
 install_requires = [
-    'six',
-    'numpy',
-    'lscsoft-glue >= 1.60.0',
-    'ligo-segments',
-    'htcondor',
     'dqsegdb2',
-    'gwpy >= 0.14.0',
-    'python-ligo-lw >= 1.4.0',
-    'h5py',
     'gwdatafind',
+    'gwpy >= 0.14.0',
+    'h5py',
+    'htcondor',
+    'ligo-segments',
+    'lscsoft-glue >= 1.60.0',
     'MarkupPy',
+    'numpy',
+    'python-ligo-lw >= 1.4.0',
+    'six',
 ]
 tests_require = [
     'pytest',
