@@ -4,7 +4,7 @@ This package augments the core functionality of the Omicron ETG by providing uti
 
 All credit for the actual Omicron algorithm goes to [Florent Robinet](//github.com/FlorentRobinet/), see [here](http://virgo.in2p3.fr/GWOLLUM/v2r2/index.html?Main) for more details.
 
-## Installaation
+## Installation
 
 PyOmicron can be installed using `pip`:
 
