@@ -59,6 +59,7 @@ install_requires = [
     'python-ligo-lw >= 1.4.0',
     'h5py',
     'gwdatafind',
+    'MarkupPy',
 ]
 tests_require = [
     'pytest',

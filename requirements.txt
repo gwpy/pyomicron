@@ -12,3 +12,4 @@ htcondor
 h5py
 gwdatafind
 pytest
+MarkupPy

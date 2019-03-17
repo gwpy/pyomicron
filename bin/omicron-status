@@ -47,7 +47,7 @@ from matplotlib.gridspec import GridSpec
 
 import h5py
 
-from glue import markup
+from MarkupPy import markup
 
 from gwpy.io.cache import sieve as sieve_cache
 from gwpy.time import to_gps
