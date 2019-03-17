@@ -43,7 +43,7 @@ from gwpy.time import to_gps
 
 from .utils import (shell, which)
 
-re_dagman_cluster = re.compile('(?<=submitted\sto\scluster )[0-9]+')
+re_dagman_cluster = re.compile(r'(?<=submitted\sto\scluster )[0-9]+')
 
 JOB_STATUS = [
     'Unexpanded',
@@ -217,7 +217,7 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
                 try:
                     status[s] = int(shell(['condor_q', str(dagmanid),
                                            '-autoformat', c]))
-                except (ValueError, CalledProcessError) as e:
+                except (ValueError, CalledProcessError):
                     status[s] = '-'
     # DAG has exited
     except RuntimeError as e:

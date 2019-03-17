@@ -347,9 +347,9 @@ class OmicronParameters(configparser.ConfigParser):
         overlapp = overlap * sampling
         flow = 5 * sampling / exp(log((chunk - overlap)/4., 2))
         assert (chunkp - overlapp) >= 2 * psdsize, (
-            "Chunk duration not large enough to resolve lower-frequency bound, "
-            "Omicron needs at least %ds. Minimum lower-frequency bound for "
-            "this chunk duration is %.2gHz" % (2 * psdlen + overlap, flow))
+            "Chunk duration not large enough to resolve lower-frequency "
+            "bound, Omicron needs at least %ds. Minimum lower-frequency bound "
+            "for this chunk duration is %.2gHz" % (2 * psdlen + overlap, flow))
 
     @integer_segments
     def output_segments(self, start, end):
@@ -390,9 +390,9 @@ class OmicronParameters(configparser.ConfigParser):
         """Determine processing segments to parallelise an Omicron job
 
         This function is meant to return a `segmentlist` of job [start, stop)
-        times to pass to condor. Each segment will have duration `chunk * nperjob`
-        *OR* `chunk * nperjob + remainder` if the remainder until the `end` is
-        less than 1 chunk.
+        times to pass to condor. Each segment will have duration
+        `chunk * nperjob` *OR* `chunk * nperjob + remainder` if the remainder
+        until the `end` is less than 1 chunk.
 
         Parameters
         ----------

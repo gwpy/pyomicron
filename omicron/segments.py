@@ -21,44 +21,75 @@
 
 from __future__ import print_function
 
-import shutil
 import json
-import os
 import re
 from math import (floor, ceil)
-from tempfile import mkdtemp
 from functools import wraps
 
 from glue.lal import Cache
-from ligo.segments import (segmentlist as SegmentList, segment as Segment)
 
 from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
 from dqsegdb2.http import request as dqsegdb2_request
 
 from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
-from gwpy.segments import (DataQualityFlag, SegmentList)
+from gwpy.segments import (DataQualityFlag, Segment, SegmentList)
 from gwpy.timeseries import (StateTimeSeries, StateVector, TimeSeriesDict)
 
-from . import (const, data, utils)
+from . import data
 
 STATE_CHANNEL = {
-    'H1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('H1:GRD-ISC_LOCK', "guardian", 'H1_R'),
-    'L1:DMT-GRD_ISC_LOCK_NOMINAL:1': ('L1:GRD-ISC_LOCK', "guardian", 'L1_R'),
-    'H1:DMT-UP:1': ('H1:GDS-CALIB_STATE_VECTOR', [2], 'H1_HOFT_C00'),
-    'L1:DMT-UP:1': ('L1:GDS-CALIB_STATE_VECTOR', [2], 'L1_HOFT_C00'),
-    'H1:DMT-CALIBRATED:1': ('H1:GDS-CALIB_STATE_VECTOR', [0], 'H1_HOFT_C00'),
-    'L1:DMT-CALIBRATED:1': ('L1:GDS-CALIB_STATE_VECTOR', [0], 'L1_HOFT_C00'),
-    'H1:DMT-ANALYSIS_READY:1': ('H1:GDS-CALIB_STATE_VECTOR', [0, 1, 2],
-                                'H1_HOFT_C00'),
-    'L1:DMT-ANALYSIS_READY:1': ('L1:GDS-CALIB_STATE_VECTOR', [0, 1, 2],
-                                'L1_HOFT_C00'),
-    'V1:ITF_LOCKED:1': ('V1:DQ_ANALYSIS_STATE_VECTOR', [11], 'V1_llhoft'),
-    'V1:ITF_SCIENCE:1': ('V1:DQ_ANALYSIS_STATE_VECTOR', [0, 1, 2], 'V1_llhoft'),
+    "H1:DMT-GRD_ISC_LOCK_NOMINAL:1": (
+        "H1:GRD-ISC_LOCK",  # channel name or guardian node prefix
+        "guardian",  # state bits (or 'guardian')
+        "H1_R",  # state frametype
+    ),
+    "L1:DMT-GRD_ISC_LOCK_NOMINAL:1": (
+        "L1:GRD-ISC_LOCK",
+        "guardian",
+        "L1_R",
+    ),
+    "H1:DMT-UP:1": (
+        "H1:GDS-CALIB_STATE_VECTOR",
+        [2],
+        "H1_HOFT_C00",
+    ),
+    "L1:DMT-UP:1": (
+        "L1:GDS-CALIB_STATE_VECTOR",
+        [2],
+        "L1_HOFT_C00",
+    ),
+    "H1:DMT-CALIBRATED:1": (
+        "H1:GDS-CALIB_STATE_VECTOR",
+        [0],
+        "H1_HOFT_C00",
+    ),
+    "L1:DMT-CALIBRATED:1": (
+        "L1:GDS-CALIB_STATE_VECTOR",
+        [0],
+        "L1_HOFT_C00",
+    ),
+    "H1:DMT-ANALYSIS_READY:1": (
+        "H1:GDS-CALIB_STATE_VECTOR",
+        [0, 1, 2],
+        "H1_HOFT_C00",
+    ),
+    "L1:DMT-ANALYSIS_READY:1": (
+        "L1:GDS-CALIB_STATE_VECTOR",
+        [0, 1, 2],
+        "L1_HOFT_C00",
+    ),
+    "V1:ITF_LOCKED:1": (
+        "V1:DQ_ANALYSIS_STATE_VECTOR",
+        [11],
+        "V1_llhoft",
+    ),
+    "V1:ITF_SCIENCE:1": (
+        "V1:DQ_ANALYSIS_STATE_VECTOR",
+        [0, 1, 2],
+        "V1_llhoft",
+    ),
 }
 RAW_TYPE_REGEX = re.compile('[A-Z]1_R')
-
-DEFAULT_SEGMENT_SERVER = os.getenv('DEFAULT_SEGMENT_SERVER',
-                                   'https://segments.ligo.org')
 
 
 def integer_segments(f):
@@ -115,7 +146,7 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
     # optimise I/O based on type and library
     io_kw = {}
     try:
-        from LDAStools import frameCPP
+        from LDAStools import frameCPP  # noqa: F401
     except ImportError:
         pass
     else:
@@ -148,9 +179,6 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
                             int(floor(seg[1])) - pad[1])
     segs.coalesce()
 
-    # clean up and return
-    if data.re_ll.match(frametype):
-        shutil.rmtree(tmpdir)
     return segs.coalesce()
 
 
@@ -213,9 +241,6 @@ def get_guardian_segments(node, frametype, start, end, nproc=1, pad=(0, 0),
                             int(floor(seg[1])) - pad[1])
     segs.coalesce()
 
-    # clean up and return
-    if data.re_ll.match(frametype):
-        shutil.rmtree(tmpdir)
     return segs.coalesce()
 
 

@@ -33,10 +33,9 @@ import pytest
 # mock up condor modules for testing purposes
 # (so we don't need to have htcondor installed)
 from . import (mock_htcondor, mock_classad)
-sys.modules['htcondor'] = mock_htcondor
-sys.modules['classad'] = mock_classad
+sys.modules['htcondor'] = mock_htcondor  # noqa
+sys.modules['classad'] = mock_classad  # noqa
 
-from . import utils
 from .. import condor
 
 
@@ -115,7 +114,6 @@ def test_find_job():
 @mock.patch('htcondor.Schedd',
             mock_schedd_factory([{'ClusterId': 1, 'JobStatus': 4}]))
 def test_get_job_status():
-    status = condor.get_job_status(1)
     assert condor.get_job_status(1) == 4
 
 
