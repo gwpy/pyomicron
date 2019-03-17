@@ -200,7 +200,7 @@ def get_archive_filename(channel, start, duration, ext='xml.gz',
     >>> get_archive_filename('H1:GDS-CALIB_STRAIN', 1234567890, 100, archive='/triggers')
     '/triggers/H1/GDS_CALIB_STRAIN_OMICRON/12345/H1-GDS_CALIB_STRAIN_OMICRON-1234567890-100.xml.gz'
 
-    """
+    """  # noqa: E501
     ifo, description = _parse_channel_and_filetag(channel, filetag)
     filename = '%s-%s-%d-%d.%s' % (
         ifo, description, int(start), int(duration), ext)
@@ -256,7 +256,7 @@ def merge_hdf5_files(inputfiles, outputfile, **compression_kw):
                         "Cannot merge {0}/{1}, does not match dtype".format(
                             path, dset))
                     if chunk != datasets[dset][2]:
-                       chunk = True
+                        chunk = True
                 datasets[dset] = (shape, dtype, chunk)
 
                 # use default compression options from this file

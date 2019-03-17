@@ -20,12 +20,13 @@ class Schedd(object):
             else:
                 x[a] = eval(b)
         match = []
-        print(x)
+
         def match(job):
             for key in x:
                 if x[key] != job[key]:
                     return False
             return True
+
         return iter(filter(match, self._jobs))
 
     def history(self, *args, **kwargs):

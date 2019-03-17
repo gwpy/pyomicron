@@ -70,7 +70,8 @@ def test_query_state_segments(seglist):
         assert segments.query_state_segments(
             'X', 0, 10,
             pad=(1, 1),
-        ) == DataQualityFlag(active=coal, known=[coal.extent()]).pad(1, -1).active
+        ) == DataQualityFlag(active=coal,
+                             known=[coal.extent()]).pad(1, -1).active
 
 
 @mock.patch(
@@ -78,9 +79,15 @@ def test_query_state_segments(seglist):
     return_value=["/path/to/A-B-0-10.gwf", "/path/to/C-D-20-10.gwf"],
 )
 def test_get_frame_segments(find):
-    assert segments.get_frame_segments("X", "X1_R", 0, 100) == SegmentList([
-        Segment(0, 10), Segment(20, 30),
-    ])
-    assert segments.get_frame_segments("X", "X1_R", 25, 100) == SegmentList([
-        Segment(25, 30),
-    ])
+    assert segments.get_frame_segments(
+        "X",
+        "X1_R",
+        0,
+        100
+    ) == SegmentList([Segment(0, 10), Segment(20, 30)])
+    assert segments.get_frame_segments(
+        "X",
+        "X1_R",
+        25,
+        100,
+    ) == SegmentList([Segment(25, 30)])

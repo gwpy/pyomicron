@@ -36,8 +36,8 @@ from gwdatafind.utils import (filename_metadata, file_segment)
 
 from ligo.segments import (segment as Segment, segmentlist as SegmentList)
 
-re_ll = re.compile('_(llhoft|lldetchar)\Z')
-re_gwf_gps_epoch = re.compile('[-\/](?P<gpsepoch>\d+)$')
+re_ll = re.compile(r'_(llhoft|lldetchar)\Z')
+re_gwf_gps_epoch = re.compile(r'[-\/](?P<gpsepoch>\d+)$')
 
 
 # -- utilities ----------------------------------------------------------------

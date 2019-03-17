@@ -79,6 +79,7 @@ class Logger(logging.Logger):
     """
     FORMAT = ('[{bold}%(name)s{reset} %(gpstime)d] %(levelname)+19s: '
               '%(message)s'.format(bold=BOLD_SEQ, reset=RESET_SEQ))
+
     def __init__(self, name, level=logging.DEBUG):
         try:
             super(Logger, self).__init__(name, level=level)

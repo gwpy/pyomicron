@@ -23,7 +23,6 @@ from __future__ import print_function
 
 import re
 import os
-import sys
 from subprocess import Popen, PIPE, CalledProcessError
 from distutils.version import StrictVersion
 
@@ -90,7 +89,7 @@ class OmicronVersion(StrictVersion):
     version_re = re.compile(r'^v(\d+)r(\d+) (p(\d+))? ([ab](\d+))?$',
                             re.VERBOSE)
 
-    def parse (self, vstring):
+    def parse(self, vstring):
         match = self.version_re.match(vstring)
         if not match:
             raise ValueError("invalid version number '%s'" % vstring)
@@ -144,7 +143,7 @@ def get_omicron_version(executable=None):
     --------
     >>> get_omicron_version("/home/detchar/opt/virgosoft/Omicron/v2r1/Linux-x86_64/omicron.exe")
     'v2r1'
-    """
+    """  # noqa: E501
     if executable:
         executable = os.path.abspath(executable)
         distdir = os.path.dirname(executable)

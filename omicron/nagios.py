@@ -27,6 +27,9 @@ from getpass import getuser
 
 import htcondor
 
+from gwpy.io.cache import file_segment
+from gwpy.time import to_gps
+
 from . import (const, condor)
 from .io import find_latest_omicron_file
 from .data import get_latest_data_gps
@@ -126,7 +129,7 @@ def monitor_dag_status(group, user=getuser()):
     # find DAGMan process
     schedd = htcondor.Schedd()
     jobs = schedd.query('Owner == "%s" && OmicronDAGMan == "%s"'
-                       % (user, group))
+                        % (user, group))
     if not len(jobs) == 1:
         return (2, "Not exactly one jobs matching OmicronProcess "
                    "== %r found (%d found)" % (group, len(jobs)))
