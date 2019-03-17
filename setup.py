@@ -53,7 +53,6 @@ install_requires = [
     'lscsoft-glue >= 1.60.0',
     'ligo-segments',
     'htcondor',
-    'lalsuite',
     'dqsegdb2',
     'gwpy >= 0.14.0',
     'python-ligo-lw >= 1.4.0',

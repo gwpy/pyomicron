@@ -26,8 +26,6 @@ import re
 from math import (floor, ceil)
 from functools import wraps
 
-from glue.lal import Cache
-
 from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
 from dqsegdb2.http import request as dqsegdb2_request
 
@@ -284,7 +282,7 @@ def get_latest_known_gps(flag, url=DEFAULT_SEGMENT_SERVER):
 def cache_overlaps(*caches):
     """Find segments of overlap in the given cache sets
     """
-    cache = Cache(e for c in caches for e in c)
+    cache = [e for c in caches for e in c]
     cache.sort(key=lambda e: file_segment(e)[0])
     overlap = SegmentList()
     segments = SegmentList()
