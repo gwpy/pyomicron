@@ -26,17 +26,13 @@ import operator
 import sys
 from getpass import getuser
 
-import token
-from tokenize import generate_tokens
-from StringIO import StringIO
-
-import numpy
-
 from gwpy.table import EventTable
+from gwpy.table.filter import parse_column_filters
 from gwpy.table.filters import in_segmentlist
 from gwpy.time import to_gps
 
 from omicron import (io, const, __version__)
+from omicron.data import write_cache
 from omicron.segments import (Segment, SegmentList, cache_segments)
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
@@ -64,49 +60,6 @@ MATH_OPERATORS_NOT = {
 
 
 # -- parse command line -------------------------------------------------------
-
-def condition(value):
-    """Parse a `str` of the form 'column>50'
-
-    Returns
-    -------
-    column : `str`
-        the name of the column on which to operate
-    math : `list` of (`str`, `callable`) pairs
-        the list of thresholds and their associated math operators
-
-    Examples
-    --------
-    >>> condition("snr>10")
-    ('snr', [(10.0, <built-in function gt>)])
-    >>> condition("50 < peak_frequency < 100")
-    ('peak_frequency', [(50.0, <built-in function ge>), (100.0, <build-in function lt>)])
-    """
-    # parse condition
-    parts = list(generate_tokens(StringIO(value).readline))
-    # find paramname
-    names = filter(lambda t: t[0] == token.NAME, parts)
-    if len(names) != 1:
-        raise ValueError("Multiple column names parse from condition %r"
-                         % value)
-    name = names[0][1]
-    limits = zip(*filter(lambda t: t[0] == token.NUMBER, parts))[1]
-    operators = zip(*filter(lambda t: t[0] == token.OP, parts))[1]
-    if len(limits) != len(operators):
-        ValueError("Number of limits doesn't match number of operators "
-                   "in condition %r" % value)
-    math = []
-    for lim, op in zip(limits, operators):
-        try:
-            if value.find(lim) < value.find(op):
-                math.append((float(lim), MATH_OPERATORS_NOT[op]))
-            else:
-                math.append((float(lim), MATH_OPERATORS[op]))
-        except KeyError as e:
-            e.args = ('Unrecognised math operator %r' % op,)
-            raise
-    return (name, math)
-
 
 # -- build parser
 parser = argparse.ArgumentParser(
@@ -152,8 +105,8 @@ eparser.add_argument('-c', '--column', action='append', type=str, default=[],
                      help='name of column to print (give multiple times)')
 eparser.add_argument('-r', '--rank-by',
                      help='name of column by which to sort')
-eparser.add_argument('-x', '--condition', type=condition, action='append',
-                     default=[],
+eparser.add_argument('-x', '--condition', action='append', default=[],
+                     type=parse_column_filters,
                      help='mathematical condition on a column value, e.g. '
                           '"snr>5" or "100<peak_frequency<200"')
 eparser.add_argument('-d', '--delimiter', default=' ',
@@ -227,13 +180,21 @@ else:
     full = EventTable.read(cache, format='hdf5', path='triggers')
     events = full.filter(('time', in_segmentlist, segs))[args.column]
 
+# apply conditions
+if args.conditions:
+    events = events.filter(*(x for cond in args.condition for x in cond))
+
 # sort events
 if args.rank_by:
     events.sort(args.rank_by)
     if not args.reverse_rank:
         events = events[::-1]
 
+# limit events
+if args.max_events:
+    events = events[:args.max_events]
+
 # print events
 print("#%s" % args.delimiter.join(args.column))
-for e in events[:args.max_events]:
+for e in events:
     print(args.delimiter.join(map(str, (e[col] for col in args.column))))
