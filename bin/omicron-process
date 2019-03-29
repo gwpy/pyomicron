@@ -942,7 +942,7 @@ if args.archive:
         # write shell script to seed archive
         with open(archivejob.get_executable(), 'w') as f:
             print('#!/bin/bash -e\n', file=f)
-            for gpsdir, filelist in archivefiles.iteritems():
+            for gpsdir, filelist in archivefiles.items():
                 for fn in filelist:
                     archivenode._CondorDAGNode__input_files.append(fn)
                 # write 'mv' op to script
