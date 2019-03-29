@@ -39,6 +39,12 @@ from ligo.segments import (segment as Segment, segmentlist as SegmentList)
 re_ll = re.compile(r'_(llhoft|lldetchar)\Z')
 re_gwf_gps_epoch = re.compile(r'[-\/](?P<gpsepoch>\d+)$')
 
+AGGREGATED_HOFT = {  # map aggregated h(t) type to short h(t) type
+    'H1_HOFT_C00': 'H1_DMT_C00',
+    'L1_HOFT_C00': 'L1_DMT_C00',
+    'V1Online': 'V1_llhoft',
+}
+
 
 # -- utilities ----------------------------------------------------------------
 
@@ -210,8 +216,22 @@ def _find_frames_datafind(obs, frametype, start, end, **kwargs):
     try:
         latest = cache[-1]
     except IndexError:  # no frames, `cache` is list()
-        return cache
-    cache.extend(_find_more_files(latest))
+        latestgps = start
+    else:
+        cache.extend(_find_more_files(latest))
+        latestgps = file_segment(cache[-1])[1]
+
+    # if we're searching for aggregated h(t), find more files
+    # for the equivalent short h(t) type:
+    if frametype in AGGREGATED_HOFT and latestgps < end:
+        cache.extend(_find_frames_datafind(
+            obs,
+            AGGREGATED_HOFT[frametype],
+            latestgps,
+            end,
+            **kwargs
+        ))
+
     return cache
 
 
@@ -307,6 +327,10 @@ def _find_latest_file(obs, frametype):
     # find latest low-latency file using glob
     if re_ll.search(frametype):
         return _find_ll_frames(obs, frametype)[-1]
+
+    # find latest file for short h(t) type preferrably
+    if frametype in AGGREGATED_HOFT:
+        return _find_latest_file(obs, AGGREGATED_HOFT[frametype])
 
     # otherwise use gwdatafind to find the latest file it knows about
     latest = gwdatafind.find_latest(obs[0], frametype, urltype='file',
