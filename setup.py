@@ -50,7 +50,7 @@ setup_requires = [
 install_requires = [
     'dqsegdb2',
     'gwdatafind',
-    'gwpy >= 0.14.0',
+    'gwpy >= 0.14.1',
     'h5py',
     'htcondor',
     'ligo-segments',
