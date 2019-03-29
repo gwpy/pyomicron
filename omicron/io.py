@@ -33,7 +33,7 @@ from gwpy.time import tconvert
 from . import const
 from .segments import (Segment, segmentlist_from_tree)
 
-re_delim = re.compile('[:_-]')
+re_delim = re.compile(r'[:_-]')
 
 
 def merge_root_files(inputfiles, outputfile,
