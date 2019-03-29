@@ -105,7 +105,7 @@ class OmicronParameters(configparser.ConfigParser):
         return raw.split()
 
     def getfloats(self, section, option):
-        return map(float, self.getlist(section, option))
+        return list(map(float, self.getlist(section, option)))
 
     def optionxform(self, optionstr):
         return optionstr.upper()
