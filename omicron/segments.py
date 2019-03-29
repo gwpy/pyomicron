@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import json
 import re
+import warnings
 from math import (floor, ceil)
 from functools import wraps
 
@@ -30,8 +31,10 @@ from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
 from dqsegdb2.http import request as dqsegdb2_request
 
 from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
+from gwpy.io.gwf import data_segments as gwf_data_segments
 from gwpy.segments import (DataQualityFlag, Segment, SegmentList)
 from gwpy.timeseries import (StateTimeSeries, StateVector, TimeSeriesDict)
+from gwpy.time import LIGOTimeGPS
 
 from . import data
 
@@ -158,8 +161,13 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
     # FIXME: need to read from cache with single segment but doesn't match
     # [start, end)
 
+    # Virgo drops the state vector regularly, so need to sieve the files
+    if channel == "V1:DQ_ANALYSIS_STATE_VECTOR":
+        span = gwf_data_segments(cache, channel)
+    else:
+        span = SegmentList([Segment(pstart, pend)])
+
     # read data segments
-    span = SegmentList([Segment(pstart, pend)])
     segs = SegmentList()
     try:
         csegs = cache_segments(cache)
