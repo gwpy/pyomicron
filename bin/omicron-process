@@ -66,6 +66,7 @@ import os
 import sys
 import shutil
 import re
+from distutils.spawn import find_executable
 from time import sleep
 from glob import glob
 from getpass import getuser
@@ -179,7 +180,7 @@ mode.add_argument('--no-submit', action='store_true', default=False,
 condorg.add_argument('--universe', default='vanilla',
                      choices=['vanilla', 'local'],
                      help='condor universe, default: %(default)s')
-condorg.add_argument('--executable', default=utils.which('omicron.exe'),
+condorg.add_argument('--executable', default=find_executable('omicron.exe'),
                      help='omicron executable, default: %(default)s')
 condorg.add_argument('--condor-retry', type=int, default=2,
                      help='number of times to retry each job if failed, '
@@ -729,22 +730,22 @@ ojob.add_condor_cmd('+OmicronProcess', '"%s"' % group)
 nperjob = args.max_chunks_per_job
 
 # create post-processing job
-ppjob = condor.OmicronProcessJob(args.universe, utils.which('bash'),
+ppjob = condor.OmicronProcessJob(args.universe, find_executable('bash'),
                                  subdir=condir, logdir=logdir,
                                  tag='post-processing', **condorcmds)
 ppjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 ppjob.add_short_opt('e', '')
 ppnodes = []
-rootmerge = utils.which('omicron-root-merge')
-hdf5merge = utils.which('omicron-hdf5-merge')
-ligolw_add = utils.which('ligolw_add')
-gzip = utils.which('gzip')
+rootmerge = find_executable('omicron-root-merge')
+hdf5merge = find_executable('omicron-hdf5-merge')
+ligolw_add = find_executable('ligolw_add')
+gzip = find_executable('gzip')
 
 # create node to remove files
 rmjob = condor.OmicronProcessJob(
     args.universe, os.path.join(condir, 'post-process-rm.sh'),
     subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
-rm = utils.which('rm')
+rm = find_executable('rm')
 rmfiles = []
 rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 

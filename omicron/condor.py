@@ -26,6 +26,7 @@ import re
 import time
 import warnings
 from datetime import datetime
+from distutils.spawn import find_executable
 from time import sleep
 from os import stat
 from glob import glob
@@ -41,7 +42,7 @@ from glue import pipeline
 
 from gwpy.time import to_gps
 
-from .utils import (shell, which)
+from .utils import shell
 
 re_dagman_cluster = re.compile(r'(?<=submitted\sto\scluster )[0-9]+')
 
@@ -98,7 +99,7 @@ def submit_dag(dagfile, *arguments, **options):
     subprocess.CalledProcessError
         if the call to `condor_submit_dag` fails for some reason
     """
-    cmd = [which('condor_submit_dag')] + list(arguments)
+    cmd = [find_executable('condor_submit_dag')] + list(arguments)
     for opt, val in options.items():
         cmd.extend([opt, val])
     cmd.append(dagfile)
