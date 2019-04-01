@@ -19,18 +19,17 @@
 """Condor interaction utilities
 """
 
-from __future__ import print_function
-
 import os.path
 import re
 import time
 import warnings
 from datetime import datetime
-from time import sleep
-from os import stat
+from distutils.spawn import find_executable
 from glob import glob
 from getpass import getuser
-from subprocess import CalledProcessError
+from pathlib import Path
+from subprocess import (check_output, CalledProcessError)
+from time import sleep
 
 import htcondor
 from classad import ClassAd
@@ -40,8 +39,6 @@ import numpy
 from glue import pipeline
 
 from gwpy.time import to_gps
-
-from .utils import (shell, which)
 
 re_dagman_cluster = re.compile(r'(?<=submitted\sto\scluster )[0-9]+')
 
@@ -98,12 +95,12 @@ def submit_dag(dagfile, *arguments, **options):
     subprocess.CalledProcessError
         if the call to `condor_submit_dag` fails for some reason
     """
-    cmd = [which('condor_submit_dag')] + list(arguments)
+    cmd = [find_executable('condor_submit_dag')] + list(arguments)
     for opt, val in options.items():
         cmd.extend([opt, val])
     cmd.append(dagfile)
     print("$ %s" % ' '.join(cmd))
-    out = shell(cmd)
+    out = check_output(cmd).decode('utf-8')
     print(out)
     try:
         return int(re_dagman_cluster.search(out).group())
@@ -111,23 +108,6 @@ def submit_dag(dagfile, *arguments, **options):
         e.args = ('Failed to extract DAG cluster ID from '
                   'condor_submit_dag output [%s]' % str(e),)
         raise
-
-
-def monitor_dag(dagfile, interval=5):
-    """Monitor the status of a DAG by watching the .lock file
-    """
-    lock = '%s.lock' % dagfile
-    stat(lock)
-    while True:
-        sleep(interval)
-        try:
-            stat(lock)
-        except OSError:
-            break
-    try:
-        find_rescue_dag(dagfile)
-    except IndexError:
-        return
 
 
 def find_rescue_dag(dagfile):
@@ -148,29 +128,6 @@ def find_rescue_dag(dagfile):
     except IndexError as e:
         e.args = ('No rescue DAG files found',)
         raise
-
-
-def iterate_dag_status(clusterid, interval=2):
-    """Monitor a DAG by querying condor for status information periodically
-    """
-    schedd = htcondor.Schedd()
-    while True:
-        try:
-            status = get_dag_status(clusterid, schedd=schedd, detailed=True)
-        except (IOError, KeyError) as e:
-            # reconnect, and try again
-            sleep(1)
-            del schedd
-            schedd = htcondor.Schedd()
-            try:
-                status = get_dag_status(clusterid, schedd=schedd,
-                                        detailed=True)
-            except IOError:
-                raise e
-        yield status
-        if 'exitcode' in status:
-            break
-        sleep(interval)
 
 
 def get_dag_status(dagmanid, schedd=None, detailed=True):
@@ -215,8 +172,10 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
                 status[s] = job[c]
             except KeyError:  # htcondor.py failure (unknown cause)
                 try:
-                    status[s] = int(shell(['condor_q', str(dagmanid),
-                                           '-autoformat', c]))
+                    status[s] = int(check_output([
+                        'condor_q', str(dagmanid),
+                        '-autoformat', c,
+                    ]))
                 except (ValueError, CalledProcessError):
                     status[s] = '-'
     # DAG has exited
@@ -296,7 +255,7 @@ def get_job_duration_history_shell(classad, value, user=getuser(),
            '-autof', 'JobStartDate']
     if maxjobs is not None:
         cmd.extend(['-match', str(maxjobs)])
-    history = shell(' '.join(cmd), shell=True)
+    history = check_output(' '.join(cmd), shell=True).decode("utf-8")
     lines = history.rstrip('\n').split('\n')
     times = numpy.zeros(len(lines))
     jobdur = numpy.zeros(times.size)
@@ -378,7 +337,7 @@ def get_condor_history_shell(constraint, classads, maxjobs=None):
         cmd.extend(['-autof', ad_])
     if maxjobs:
         cmd.extend(['-match', str(maxjobs)])
-    history = shell(' '.join(cmd), shell=True)
+    history = check_output(' '.join(cmd), shell=True).decode("utf-8")
     lines = history.rstrip('\n').split('\n')
     jobs = []
     for line in lines:
@@ -492,18 +451,16 @@ def dag_is_running(dagfile, schedd=None):
         if multiple matching condor processes are found, or the matching
         single process is not in a good state
     """
-    if os.path.isfile('%s.lock' % dagfile):
+    if Path("{}.lock".format(dagfile)).is_file():
         return True
-    userlog = '%s.dagman.log' % dagfile
+    userlog = "{}.dagman.log".format(dagfile)
     try:
         find_job(UserLog=userlog, schedd=schedd)
     except RuntimeError as e:
         if str(e).startswith('No jobs found'):
             return False
         raise
-    else:
-        return True
-    return False
+    return True
 
 
 def get_job_status(job, schedd=None):

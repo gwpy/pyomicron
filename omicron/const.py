@@ -20,6 +20,7 @@
 """
 
 import os
+from pathlib import Path
 
 from ligo.segments import segment as Segment
 
@@ -46,13 +47,13 @@ SITE = os.getenv('SITE')
 site = os.getenv('site', SITE and SITE.lower() or None)
 
 # -- omicron directories
-HOME = os.path.expanduser('~')
+HOME = Path.home()
 # where Omicron runs
-OMICRON_BASE = os.path.join(HOME, 'omicron')
+OMICRON_BASE = HOME / "omicron"
 # where Omicron triggers are produced
-OMICRON_PROD = os.path.join(OMICRON_BASE, 'online')
+OMICRON_PROD = OMICRON_BASE / "online"
 # archive storage directory
-OMICRON_ARCHIVE = os.path.join(HOME, 'triggers')
+OMICRON_ARCHIVE = HOME / "triggers"
 # tag Omicron itself places on XML files
 OMICRON_FILETAG = 'Omicron'
 
@@ -61,8 +62,8 @@ OMICRON_VERSION = 'v2r1'
 
 # omicron channel files
 if ifo is not None:
-    OMICRON_GROUP_FILE = os.path.join(OMICRON_PROD, '%s-groups.txt' % ifo)
-    OMICRON_CHANNELS_FILE = os.path.join(OMICRON_PROD, '%s-channels.txt' % ifo)
+    OMICRON_GROUP_FILE = OMICRON_PROD / "{}-groups.txt".format(ifo)
+    OMICRON_CHANNELS_FILE = OMICRON_PROD, "{}-channels.txt".format(ifo)
 else:
     OMICRON_GROUP_FILE = None
     OMICRON_CHANNELS_FILE = None

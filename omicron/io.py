@@ -87,7 +87,7 @@ def merge_root_files(inputfiles, outputfile,
 
     # write new file (use 'recreate' to overwrite old file)
     out = ROOT.TFile(outputfile, 'recreate')
-    for i, (name, chain) in enumerate(chains.iteritems()):
+    for i, (name, chain) in enumerate(chains.items()):
         if i:
             out = ROOT.TFile(outputfile, 'update')  # reopen file
         chain.Merge(out, 0)

@@ -19,17 +19,13 @@
 """Data utilities for Omicron
 """
 
-from __future__ import print_function
-
 import os
 import glob
 import re
 import shutil
 import warnings
-try:
-    from urllib.parse import urlparse
-except ImportError:  # python < 3
-    from urlparse import urlparse
+from pathlib import Path
+from urllib.parse import urlparse
 
 import gwdatafind
 from gwdatafind.utils import (filename_metadata, file_segment)
@@ -139,7 +135,7 @@ def check_data_availability(obs, frametype, start, end):
 
 
 def write_cache(cache, outfile):
-    if isinstance(outfile, str):
+    if isinstance(outfile, (str, Path)):
         with open(outfile, 'w') as fp:
             return write_cache(cache, fp).name
 

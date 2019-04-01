@@ -1,10 +1,10 @@
 language: python
 
+dist: xenial
+
 python:
-  - '2.7'
-  - '3.4'
-  - '3.5'
   - '3.6'
+  - '3.7'
 
 env:
   matrix:
@@ -18,7 +18,7 @@ matrix:
 
 before_install:
   - python -m pip install ${PIP_FLAGS} --upgrade pip
-  - python -m pip install ${PIP_FLAGS} --upgrade "pytest>=2.8,<3.7" pytest-cov
+  - python -m pip install ${PIP_FLAGS} --upgrade pytest pytest-cov
   - python -m pip install ${PIP_FLAGS} -r requirements.txt
 
 install:
@@ -32,8 +32,8 @@ script:
   - python -m coverage run -a $(which omicron-hdf5-merge) --help
 
 after_success:
-  - python -m pip install coveralls
-  - coveralls
+  - python -m pip install codecov
+  - codecov
 
 cache:
   pip: true
