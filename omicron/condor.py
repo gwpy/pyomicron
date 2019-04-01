@@ -27,7 +27,6 @@ from datetime import datetime
 from distutils.spawn import find_executable
 from glob import glob
 from getpass import getuser
-from os import stat
 from pathlib import Path
 from subprocess import (check_output, CalledProcessError)
 from time import sleep
@@ -109,23 +108,6 @@ def submit_dag(dagfile, *arguments, **options):
         e.args = ('Failed to extract DAG cluster ID from '
                   'condor_submit_dag output [%s]' % str(e),)
         raise
-
-
-def monitor_dag(dagfile, interval=5):
-    """Monitor the status of a DAG by watching the .lock file
-    """
-    lock = '%s.lock' % dagfile
-    stat(lock)
-    while True:
-        sleep(interval)
-        try:
-            stat(lock)
-        except OSError:
-            break
-    try:
-        find_rescue_dag(dagfile)
-    except IndexError:
-        return
 
 
 def find_rescue_dag(dagfile):
