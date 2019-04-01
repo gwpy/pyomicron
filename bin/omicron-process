@@ -63,14 +63,14 @@ from __future__ import print_function
 
 import argparse
 import os
+import re
 import sys
 import shutil
-import re
 from distutils.spawn import find_executable
-from time import sleep
-from glob import glob
 from getpass import getuser
+from pathlib import Path
 from tempfile import gettempdir
+from time import sleep
 
 # python 3
 try:
@@ -101,13 +101,12 @@ def clean_exit(exitcode, tempfiles=[]):
 
 
 def clean_tempfiles(tempfiles):
-    for f in tempfiles:
-        if os.path.isdir(f):
+    for f in map(Path, tempfiles):
+        if f.is_dir():
             shutil.rmtree(f)
-            logger.debug('Deleted directory %r' % f)
         else:
-            os.remove(f)
-            logger.debug('Deleted file %r' % f)
+            f.unlink()
+        logger.debug("Deleted path '{}'".format(f))
 
 
 # -- parse command line
@@ -143,7 +142,7 @@ parser.add_argument('-v', '--verbose', action='count', default=2,
 
 # options for file writing
 outg = parser.add_argument_group('Output options')
-outg.add_argument('-o', '--output-dir', default=os.curdir,
+outg.add_argument('-o', '--output-dir', default=Path.cwd(), type=Path,
                   help='path to output directory, default: %(default)s')
 outg.add_argument('-a', '--archive', action='store_true', default=False,
                   help='archive created files under %s, default: %%(default)s'
@@ -209,7 +208,7 @@ condorg.add_argument('-d', '--dagman-option', action='append', type=str,
 # input data options
 datag = parser.add_argument_group('Data options')
 dataexc = datag.add_mutually_exclusive_group()
-dataexc.add_argument('--cache-file', type=os.path.abspath, metavar='FILE',
+dataexc.add_argument('--cache-file', type=Path, metavar='FILE',
                      help='use frame locations from FILE')
 dataexc.add_argument('--use-dev-shm', action='store_true', default=False,
                      help='use low-latency frame buffer in /dev/shm, '
@@ -425,8 +424,7 @@ if statechannel or stateflag:
             statepad = (p, p)
     logger.debug("State padding: %s" % str(statepad))
 
-rundir = utils.get_output_directory(args)
-cachedir = os.path.join(rundir, 'cache')
+rundir = utils.get_output_path(args)
 
 # convert to omicron parameters format
 oconfig = parameters.OmicronParameters.from_channel_list_config(
@@ -436,25 +434,23 @@ oconfig.validate()
 
 # -- set directories ----------------------------------------------------------
 
-if not os.path.isdir(rundir):
-    os.makedirs(rundir)
+rundir.mkdir(exist_ok=True, parents=True)
 logger.info("Using run directory\n%s" % rundir)
 
-condir = os.path.join(rundir, 'condor')
-trigdir = os.path.join(rundir, 'triggers')
-pardir = os.path.join(rundir, 'parameters')
-logdir = os.path.join(rundir, 'logs')
+cachedir = rundir / "cache"
+condir = rundir / "condor"
+logdir = rundir / "logs"
+pardir = rundir / "parameters"
+trigdir = rundir / "triggers"
+for d in [cachedir, condir, logdir, pardir, trigdir]:
+    d.mkdir(exist_ok=True)
 
-for d in [condir, trigdir, pardir, logdir]:
-    if not os.path.isdir(d):
-        os.makedirs(d)
-
-oconfig.set('OUTPUT', 'DIRECTORY', trigdir)
+oconfig.set('OUTPUT', 'DIRECTORY', str(trigdir))
 
 # -- check for an existing process --------------------------------------------
 
 # check dagman lock file
-running = condor.dag_is_running(os.path.join(condir, 'omicron.dag'))
+running = condor.dag_is_running(condir / "omicron.dag")
 if running and args.reattach:
      logger.info('Detected omicron.dag already running %s, will reattach'
                  % rundir)
@@ -465,14 +461,13 @@ else:
      args.reattach = False
 
 # check dagman rescue files
-nrescue = any(map(os.path.isfile, glob(
-    os.path.join(condir, 'omicron.dag.rescue[0-9][0-9][0-9]'))))
+nrescue = len(list(condir.glob("omicron.dag.rescue[0-9][0-9][0-9]")))
 if args.rescue and nrescue == 0:
     raise RuntimeError("--rescue given but no rescue DAG files found in %s"
                        % condir)
 elif not args.rescue and nrescue > 1:
     raise RuntimeError("rescue DAG found in %s, will not continue" % condir)
-elif args.rescue and not os.path.isfile(os.path.join(condir, 'omicron.dag')):
+elif args.rescue and not (condir / "omicron.dag").is_file():
     raise RuntimeError("--rescue given by omicron.dag file not found in %s"
                        % condir)
 
@@ -480,7 +475,7 @@ newdag = not args.rescue and not args.reattach
 
 # -- find run segment ---------------------------------------------------------
 
-segfile = os.path.join(rundir, 'segments.txt')
+segfile = str(rundir / "segments.txt")
 keepfiles.append(segfile)
 
 if newdag and online:
@@ -504,8 +499,6 @@ elif online:
     start, end = segments.get_last_run_segment(segfile)
 else:
     start, end = args.gps
-
-rundir = os.path.abspath(rundir)
 
 duration = end - start
 datastart = start - padding
@@ -620,12 +613,12 @@ dataspan = type(segs)([segments.Segment(datastart, dataend)])
 # -- find the frames
 # find frames under /dev/shm (which creates a cache of temporary files)
 if args.cache_file:
-    cache = read_cache(args.cache_file)
+    cache = read_cache(str(args.cache_file))
 elif args.use_dev_shm and len(segs):  # only cache if we have state segments
     cache = data.find_frames(ifo, frametype, datastart, dataend,
                              on_gaps='warn', tmpdir=cachedir)
     # remove cached files at end of process
-    tempfiles.extend(filter(lambda p: cachedir in p, cache))
+    tempfiles.extend(filter(lambda p: str(cachedir) in p, cache))
 # find frames using datafind
 else:
     cache = data.find_frames(ifo, frametype, datastart, dataend,
@@ -648,13 +641,11 @@ else:
         alldata = False
 
 # write cache of frames (only if creating a new DAG)
-if not os.path.isdir(cachedir):
-    os.makedirs(cachedir)
-cachefile = os.path.join(cachedir, 'frames.lcf')
+cachefile = cachedir / "frames.lcf"
 keepfiles.append(cachefile)
 if newdag:
     data.write_cache(cache, cachefile)
-oconfig.set('DATA', 'FFL', cachefile)
+oconfig.set('DATA', 'FFL', str(cachefile))
 logger.info("Cache of %d frames written to\n%s" % (len(cache), cachefile))
 
 # restrict analysis to available data (and warn about missing data)
@@ -711,8 +702,8 @@ if newdag:
     keepfiles.append(parfile)
 
 # create dag
-dag = pipeline.CondorDAG(os.path.join(logdir, 'omicron.log'))
-dag.set_dag_file(os.path.join(condir, 'omicron'))
+dag = pipeline.CondorDAG(str(logdir / "omicron.log"))
+dag.set_dag_file(str(condir / "omicron"))
 
 # set up condor commands for all jobs
 condorcmds = {'accounting_group': args.condor_accounting_group,
@@ -743,7 +734,7 @@ gzip = find_executable('gzip')
 
 # create node to remove files
 rmjob = condor.OmicronProcessJob(
-    args.universe, os.path.join(condir, 'post-process-rm.sh'),
+    args.universe, str(condir / "post-process-rm.sh"),
     subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
 rm = find_executable('rm')
 rmfiles = []
@@ -751,7 +742,7 @@ rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 
 if args.archive:
     archivejob = condor.OmicronProcessJob(
-        args.universe, os.path.join(condir, 'archive.sh'),
+        args.universe, str(condir / "archive.sh"),
         subdir=condir, logdir=logdir, tag='archive', **condorcmds)
     archivejob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
     archivefiles = {}
@@ -804,20 +795,21 @@ for s, e in segs:
 
         # post-process (one post-processing job per channel per data segment)
         if not args.skip_postprocessing:
-            script = os.path.join(
-                condir, 'post-process-%d-%d-%d.sh' % (i, s, e))
+            script = condir / "post-process-{}-{}-{}.sh".format(i, s, e)
             ppnode = pipeline.CondorDAGNode(ppjob)
-            ppnode.add_var_arg(script)
+            ppnode.add_var_arg(str(script))
             operations = []
 
             # build post-processing nodes for each channel
             for c in chanlist:
                 operations.append('\n# %s' % c)
-                chandir = os.path.join(trigdir, c)
+                chandir = trigdir / c
                 # work out filenames for coalesced files
-                target, filename = os.path.split(
-                    io.get_archive_filename(
-                        c, ts, td, filetag=afiletag, ext='root'))
+                archpath = Path(io.get_archive_filename(
+                    c, ts, td, filetag=afiletag, ext='root',
+                ))
+                mergepath = chandir / archpath.name
+                target = str(archpath.parent)
 
                 # add ROOT operations
                 if 'root' in fileformats:
@@ -828,7 +820,7 @@ for s, e in segs:
                             len(omicronfiles[c]['root']) == 1):
                         root = rootfiles
                     else:
-                        root = os.path.join(chandir, filename)
+                        root = str(mergepath)
                         operations.append('%s %s %s --strict'
                                           % (rootmerge, rootfiles, root))
                         rmfiles.append(rootfiles)
@@ -849,8 +841,7 @@ for s, e in segs:
                             len(omicronfiles[c]['hdf5']) == 1):
                         hdf5 = hdf5files
                     else:
-                        hdf5 = os.path.join(
-                            chandir, filename.replace('root', 'h5'))
+                        hdf5 = str(mergepath.with_suffix(".h5"))
                         operations.append('{cmd} {infiles} {outfile}'.format(
                             cmd=hdf5merge, infiles=hdf5files, outfile=hdf5))
                         rmfiles.append(hdf5files)
@@ -870,8 +861,7 @@ for s, e in segs:
                     if args.skip_ligolw_add or len(omicronfiles[c]['xml']) == 1:
                         xml = xmlfiles
                     else:
-                        xml = os.path.join(chandir,
-                                           filename.replace('root', 'xml'))
+                        xml = str(mergepath.with_suffix(".xml"))
                         operations.append('%s %s --ilwdchar-compat --output %s'
                                           % (ligolw_add, xmlfiles, xml))
                         rmfiles.append(xmlfiles)
@@ -881,7 +871,7 @@ for s, e in segs:
                         operations.append('%s --force --stdout %s > %s.gz'
                                           % (gzip, xml, xml))
                         rmfiles.append(xml)
-                        xml = '%s.gz' % xml
+                        xml = str(mergepath.with_suffix(".xml.gz"))
                         ppnode._CondorDAGNode__output_files.append(xml)
 
                     if args.archive:
@@ -914,7 +904,7 @@ for s, e in segs:
 
             # write post-processing file
             if not args.rescue:
-                with open(script, 'w') as f:
+                with script.open("w") as f:
                     # add header
                     print('#!/bin/bash -e\n#', file=f)
                     print("# omicron-process post-processing", file=f)
@@ -928,7 +918,7 @@ for s, e in segs:
                     # add post-processing operations
                     print('\n'.join(operations), file=f)
                 if newdag:
-                    os.chmod(script, 0o755)
+                    script.chmod(0o755)
 
 # set 'strict' option for newer versions of Omicron
 # this is done after the nodes are written so that 'strict' is last in the call
@@ -950,8 +940,8 @@ if args.archive:
                 print("mkdir -p %s" % gpsdir, file=f)
                 print("cp %s %s" % (' '.join(filelist), gpsdir), file=f)
                 # record archived files in caches
-                filenames = [os.path.join(gpsdir, os.path.basename(x)) for
-                             x in filelist]
+                filenames = [str(Path(gpsdir) / x.name) for
+                             x in map(Path, filelist)]
                 for fn in filenames:
                     archivenode._CondorDAGNode__output_files.append(fn)
                 for fmt, extensions in {
@@ -968,7 +958,7 @@ if args.archive:
         os.chmod(archivejob.get_executable(), 0o755)
         # write caches to disk
         for fmt, fcache in acache.items():
-            cachefile = os.path.join(cachedir, 'omicron-{0}.lcf'.format(fmt))
+            cachefile = cachedir / "omicron-{0}.lcf".format(fmt)
             data.write_cache(fcache, cachefile)
             logger.debug("{0} cache written to {1}".format(fmt, cachefile))
     # add node to DAG
@@ -1007,7 +997,7 @@ else:  # or just after post-processing if not archiving
 dag.add_node(rmnode)
 
 # print DAG to file
-dagfile = dag.get_dag_file()
+dagfile = Path(dag.get_dag_file()).resolve(strict=False)
 if args.rescue:
     logger.info("In --rescue mode, this DAG has been reproduced in memory "
                 "for safety, but will not be written to disk, the file is:")
@@ -1016,9 +1006,9 @@ elif newdag:
     dag.write_dag()
     dag.write_script()
     with open(dagfile, 'a') as f:
-        print('DOT %s.dot' % os.path.splitext(dagfile)[0], file=f)
+        print("DOT", dagfile.with_suffix(".dot"), file=f)
     logger.info("Dag with %d nodes written to" % len(dag.get_nodes()))
-    print(os.path.abspath(dagfile))
+    print(dagfile)
 
 if args.no_submit:
     if newdag:
@@ -1055,7 +1045,7 @@ for i in range(args.submit_rescue_dag + 1):
                 dagmanargs.add(x)
             else:
                 dagmanopts[key] = val
-        dagid = condor.submit_dag(dagfile, *list(dagmanargs), **dagmanopts)
+        dagid = condor.submit_dag(str(dagfile), *list(dagmanargs), **dagmanopts)
         logger.info("Condor ID = %d" % dagid)
         # write segments now -- this means that online processing will
         # _always_ move on even if the workflow fails
@@ -1130,7 +1120,7 @@ for i in range(args.submit_rescue_dag + 1):
                            % (args.submit_rescue_dag + 1))
     else:
         sleep(2)
-        rescue = condor.find_rescue_dag(dagfile)
+        rescue = condor.find_rescue_dag(str(dagfile))
         logger.warning("Rescue DAG %s was generated" % rescue)
 
 # mark output and error files of condor nodes that passed to be deleted
@@ -1142,17 +1132,16 @@ except RuntimeError:
 
 # archive files
 stub = '%d-%d' % (start, end)
-for f in ['%s.dagman.out' % dagfile] + keepfiles:
-    base, ext = os.path.splitext(os.path.basename(f))
-    archive = os.path.join(logdir, '%s-%s%s' % (base, stub, ext))
-    if 'dagman.out' in f:
-        os.rename(f, archive)
+for f in map(Path, ["%s.dagman.out".format(dagfile)] + keepfiles):
+    archive = logdir / f.with_suffix("{}{}".format(stub, f.suffix)).name
+    if "dagman.out" in f.name:
+        f.rename(archive)
     else:
         shutil.copyfile(f, archive)
-    logger.debug("Archived file\n%s --> %s" % (f, archive))
+    logger.debug("Archived file\n{} --> {}".format(f, archive))
 
 # clean up temporary files
-tempfiles.extend(glob(os.path.join(rundir, 'triggers', 'ffconvert.*.ffl')))
+tempfiles.extend(trigdir.glob("ffconvert.*.ffl"))
 clean_tempfiles(tempfiles)
 
 # and exit

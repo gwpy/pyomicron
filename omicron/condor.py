@@ -27,11 +27,12 @@ import time
 import warnings
 from datetime import datetime
 from distutils.spawn import find_executable
-from time import sleep
-from os import stat
 from glob import glob
 from getpass import getuser
-from subprocess import CalledProcessError
+from os import stat
+from pathlib import Path
+from subprocess import (check_output, CalledProcessError)
+from time import sleep
 
 import htcondor
 from classad import ClassAd
@@ -41,8 +42,6 @@ import numpy
 from glue import pipeline
 
 from gwpy.time import to_gps
-
-from .utils import shell
 
 re_dagman_cluster = re.compile(r'(?<=submitted\sto\scluster )[0-9]+')
 
@@ -104,7 +103,7 @@ def submit_dag(dagfile, *arguments, **options):
         cmd.extend([opt, val])
     cmd.append(dagfile)
     print("$ %s" % ' '.join(cmd))
-    out = shell(cmd)
+    out = check_output(cmd).decode('utf-8')
     print(out)
     try:
         return int(re_dagman_cluster.search(out).group())
@@ -216,8 +215,10 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
                 status[s] = job[c]
             except KeyError:  # htcondor.py failure (unknown cause)
                 try:
-                    status[s] = int(shell(['condor_q', str(dagmanid),
-                                           '-autoformat', c]))
+                    status[s] = int(check_output([
+                        'condor_q', str(dagmanid),
+                        '-autoformat', c,
+                    ]))
                 except (ValueError, CalledProcessError):
                     status[s] = '-'
     # DAG has exited
@@ -297,7 +298,7 @@ def get_job_duration_history_shell(classad, value, user=getuser(),
            '-autof', 'JobStartDate']
     if maxjobs is not None:
         cmd.extend(['-match', str(maxjobs)])
-    history = shell(' '.join(cmd), shell=True)
+    history = check_output(' '.join(cmd), shell=True).decode("utf-8")
     lines = history.rstrip('\n').split('\n')
     times = numpy.zeros(len(lines))
     jobdur = numpy.zeros(times.size)
@@ -379,7 +380,7 @@ def get_condor_history_shell(constraint, classads, maxjobs=None):
         cmd.extend(['-autof', ad_])
     if maxjobs:
         cmd.extend(['-match', str(maxjobs)])
-    history = shell(' '.join(cmd), shell=True)
+    history = check_output(' '.join(cmd), shell=True).decode("utf-8")
     lines = history.rstrip('\n').split('\n')
     jobs = []
     for line in lines:
@@ -493,18 +494,16 @@ def dag_is_running(dagfile, schedd=None):
         if multiple matching condor processes are found, or the matching
         single process is not in a good state
     """
-    if os.path.isfile('%s.lock' % dagfile):
+    if Path("{}.lock".format(dagfile)).is_file():
         return True
-    userlog = '%s.dagman.log' % dagfile
+    userlog = "{}.dagman.log".format(dagfile)
     try:
         find_job(UserLog=userlog, schedd=schedd)
     except RuntimeError as e:
         if str(e).startswith('No jobs found'):
             return False
         raise
-    else:
-        return True
-    return False
+    return True
 
 
 def get_job_status(job, schedd=None):

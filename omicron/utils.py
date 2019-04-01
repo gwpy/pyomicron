@@ -19,52 +19,33 @@
 """Miscellaneous utilities
 """
 
-from __future__ import print_function
-
 import re
 import os
-from subprocess import Popen, PIPE, CalledProcessError
 from distutils.version import StrictVersion
+from pathlib import Path
+from subprocess import Popen, PIPE, CalledProcessError
 
 from six import PY2
 
 from . import const
 
 
-def shell(cmd, stdout=PIPE, **kwargs):
-    """Execute a commdand in a `subprocess`
-
-    Returns
-    -------
-    stdout : `str`
-        the output (`stdout`) of the command
-
-    Raises
-    ------
-    subprocess.CalledProcessError
-        if the command returns a non-zero exit code
-    """
-    if isinstance(cmd, (list, tuple)):
-        cmdstr = ' '.join(cmd)
-    else:
-        cmdstr = cmd
-    proc = Popen(cmd, stdout=stdout, **kwargs)
-    out, err = proc.communicate()
-    if proc.returncode:
-        raise CalledProcessError(proc.returncode, cmdstr)
-    return out
-
-
 def get_output_directory(args):
     """Return the output directory as parsed from the command-line args
     """
-    if args.gps is None and not args.output_dir:
-        args.output_dir = os.path.join(const.OMICRON_PROD, args.group)
-    elif not args.output_dir:
-        start, end = args.gps
-        args.output_dir = os.path.join(
-            const.OMICRON_PROD, '%s-%d-%d' % (args.group, start, end))
-    return os.path.abspath(args.output_dir)
+    return str(get_output_path(args))
+
+
+def get_output_path(args):
+    """Return the output path as parsed from the command-line args
+    """
+    if args.output_dir is None:
+        if args.gps is None:
+            dirname = args.group
+        else:
+            dirname = "{0}-{1[0]}-{1[1]}".format(args.group, args.gps)
+        return (const.OMICRON_PROD / dirname).resolve(strict=False)
+    return args.output_dir.resolve(strict=False)
 
 
 # -- version comparison utilities
@@ -129,15 +110,13 @@ def get_omicron_version(executable=None):
     'v2r1'
     """  # noqa: E501
     if executable:
-        executable = os.path.abspath(executable)
-        distdir = os.path.dirname(executable)
-        versiondir = os.path.dirname(distdir)
-        vstr = os.path.basename(versiondir)
+        executable = Path(executable).resolve()
+        vstr = executable.parent.parent.name
     elif os.getenv('OMICRON_VERSION'):
         vstr = os.environ['OMICRON_VERSION']
     else:
         try:
-            vstr = os.path.basename(os.environ['OMICRONROOT'])
+            vstr = Path(os.environ['OMICRONROOT']).name
         except KeyError as e:
             e.args = ('Cannot parse Omicron version from environment, '
                       'please specify the executable path',)

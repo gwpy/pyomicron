@@ -101,9 +101,9 @@ def integer_segments(f):
     return decorated_method
 
 
-def read_segments(filename, coltype=int):
+def read_segments(source, coltype=int):
     return SegmentList.read(
-        filename,
+        source,
         gpstype=coltype,
         format="segwizard",
     )
