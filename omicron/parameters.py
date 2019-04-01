@@ -19,21 +19,15 @@
 """Read/write/modify Omicron-format parameters files
 """
 
-from __future__ import (division, print_function)
-
+import configparser
 import os.path
 import re
-from math import (ceil, exp, floor, log)
-from getpass import getuser
+from collections import OrderedDict
 from datetime import datetime
-try:  # python >= 3
-    import configparser
-except ImportError:  # python 2.x
-    import ConfigParser as configparser
+from getpass import getuser
+from math import (ceil, exp, floor, log)
 
 from ligo.segments import (segmentlist as SegmentList, segment as Segment)
-
-from collections import OrderedDict
 
 from . import (const, utils)
 from .segments import integer_segments

@@ -22,10 +22,7 @@
 import logging
 import sys
 
-try:
-    from lal import GPSTimeNow as gps_time_now
-except ImportError:
-    from gwpy.time import tconvert as gps_time_now
+from gwpy.time import tconvert as gps_time_now
 
 COLORS = dict((c, 30 + i) for i, c in enumerate(
     ['black', 'red', 'green', 'yellow',

@@ -62,6 +62,7 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 from __future__ import print_function
 
 import argparse
+import configparser
 import os
 import re
 import sys
@@ -69,15 +70,9 @@ import shutil
 from distutils.spawn import find_executable
 from getpass import getuser
 from pathlib import Path
+from subprocess import check_call
 from tempfile import gettempdir
 from time import sleep
-
-# python 3
-try:
-    import configparser
-# python 2
-except ImportError:
-    import ConfigParser as configparser
 
 import htcondor
 
@@ -1020,11 +1015,11 @@ if args.no_submit:
 
 # submit DAG
 if args.rescue:
-    logger.info("--- Submitting rescue DAG to condor -------")
+    logger.info("--- Submitting rescue DAG to condor ----")
 elif args.reattach:
-    logger.info("--- Reattaching to existing DAG -------")
+    logger.info("--- Reattaching to existing DAG --------")
 else:
-    logger.info("--- Submitting DAG to condor -------")
+    logger.info("--- Submitting DAG to condor -----------")
 
 for i in range(args.submit_rescue_dag + 1):
     if args.reattach:  # find ID of existing DAG
@@ -1055,71 +1050,33 @@ for i in range(args.submit_rescue_dag + 1):
         if 'force' in args.dagman_option:
             args.dagman_option.pop(args.dagman_option.index('force'))
 
-    # wait for DAG to be in running state
-    schedd = htcondor.Schedd()
-    stat = condor.get_job_status(dagid, schedd)
-    if stat != condor.JOB_STATUS_MAP['running']:
-        logger.debug('Waiting for DAG to enter R state...')
-    while stat != condor.JOB_STATUS_MAP['running']:
-        dagmansleep = True
-        if stat > condor.JOB_STATUS_MAP['running']:
-            raise RuntimeError("DAGMan process %s is not in a good state"
-                               % dagid)
-        sleep(2)
-        try:
-            stat = condor.get_job_status(dagid, schedd)
-        except IOError:  # failed to connect to DAG, not critical
-            logger.warning("Caught %s: %s" % (type(e).__name__, e))
-            logger.info("Non-critical exception caught, workflow has been "
-                        "submitted and will continue on its own. You can "
-                        "manually track status via `tail -f %s.dagman.out`"
-                        % dagfile)
-            clean_exit(0)
-    else:
-        dagmansleep = False
-    # DAG was not running, wait for it to initialise
-    if not args.reattach or dagmansleep:
-        logger.debug("Sleep for 15 seconds while DAGMan starts up")
-        sleep(15)
-    # find lock file and monitor
-    states = ['unready', 'ready', 'idle', 'running', 'held', 'failed', 'done']
-    colors = ['white', 'magenta', 'white', 'blue', 'yellow', 'red', 'green']
-    old = dict((k, -1) for k in states)
-    if not args.reattach:
-        logger.info("Monitoring DAG via ID...")
-        logger.debug("Dag Status (%d nodes total):" % (len(dag.get_nodes())))
-    logger.debug('-' * 68)
-    logger.debug('{0} |   {1} |    {2} | {3} |    {4} |  {5} |'
-                 '    {6}'.format(
-             *[log.color_text(s, c) for s, c in zip(states, colors)]))
-    logger.debug('-' * 68)
-    try:
-        for job in condor.iterate_dag_status(dagid):
-            for state in states:
-                if job[state] != old[state]:
-                    logger.debug(' | '.join(['%7s' % job[s] for s in states]))
-                    break
-            old = job
-    # failed to connect to DAG for progress, not critical
-    except (IOError, RuntimeError) as e:
-        logger.warning("Caught %s: %s" % (type(e).__name__, e))
-        logger.info("Non-critical exception caught, workflow has been "
-                    "submitted and will continue on its own. You can manually "
-                    "track status via `tail -f %s.dagman.out`" % dagfile)
-        clean_exit(0)
-    logger.debug('-' * 68)
+    # monitor the dag
+    logger.debug("----------------------------------------")
+    logger.info("Monitoring DAG:")
+    check_call([
+        "pycondor",
+        "monitor",
+        "--time", "5",
+        "--length", "36",
+        str(dagfile),
+    ])
+    print()
+    logger.debug("----------------------------------------")
+    sleep(5)
+    stat = condor.get_dag_status(dagid)
+
     # log exitcode
-    if job['exitcode']:
-        logger.critical("DAG has exited with status %d" % job['exitcode'])
+    if stat.get('exitcode'):
+        logger.critical("DAG has exited with status %d" % stat['exitcode'])
     else:
-        logger.info("DAG has exited with status %d" % job['exitcode'])
+        logger.info("DAG has exited with status %d" % stat['exitcode'])
         break
+
     # handle failure
     if i == args.submit_rescue_dag:
         raise RuntimeError("DAG has failed to complete %d times"
                            % (args.submit_rescue_dag + 1))
     else:
-        sleep(2)
         rescue = condor.find_rescue_dag(str(dagfile))
         logger.warning("Rescue DAG %s was generated" % rescue)
 
@@ -1132,17 +1089,17 @@ except RuntimeError:
 
 # archive files
 stub = '%d-%d' % (start, end)
-for f in map(Path, ["%s.dagman.out".format(dagfile)] + keepfiles):
-    archive = logdir / f.with_suffix("{}{}".format(stub, f.suffix)).name
-    if "dagman.out" in f.name:
-        f.rename(archive)
-    else:
+for f in map(Path, ["{}.dagman.out".format(dagfile)] + keepfiles):
+    archive = logdir / "{0[0]}.{1}.{0[1]}".format(f.name.split(".", 1), stub)
+    if f == segfile:
         shutil.copyfile(f, archive)
-    logger.debug("Archived file\n{} --> {}".format(f, archive))
+    else:
+        f.rename(archive)
+    logger.debug("Archived path\n{} --> {}".format(f, archive))
 
 # clean up temporary files
 tempfiles.extend(trigdir.glob("ffconvert.*.ffl"))
 clean_tempfiles(tempfiles)
 
 # and exit
-logger.info("---- Processing complete -----------")
+logger.info("--- Processing complete ----------------")

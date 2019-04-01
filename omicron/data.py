@@ -19,18 +19,13 @@
 """Data utilities for Omicron
 """
 
-from __future__ import print_function
-
 import os
 import glob
 import re
 import shutil
 import warnings
 from pathlib import Path
-try:
-    from urllib.parse import urlparse
-except ImportError:  # python < 3
-    from urlparse import urlparse
+from urllib.parse import urlparse
 
 import gwdatafind
 from gwdatafind.utils import (filename_metadata, file_segment)

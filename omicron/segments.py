@@ -19,13 +19,11 @@
 """Segment utilities for Omicron
 """
 
-from __future__ import print_function
-
 import json
 import re
 import warnings
-from math import (floor, ceil)
 from functools import wraps
+from math import (floor, ceil)
 
 from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
 from dqsegdb2.http import request as dqsegdb2_request

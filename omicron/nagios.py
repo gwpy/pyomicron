@@ -19,8 +19,6 @@
 """Nagios utilities for PyOmicron
 """
 
-from __future__ import (print_function, division)
-
 import json as jsonlib
 import sys
 from getpass import getuser

@@ -17,27 +17,19 @@
 """Check the status of Omicron trigger generation
 """
 
-from __future__ import print_function
-
-import os
 import argparse
+import configparser
 import json
 import operator
 import sys
 import warnings
-import htcondor
-from time import sleep
+from collections import OrderedDict
+from functools import reduce
 from getpass import getuser
+from pathlib import Path
+from time import sleep
 
-try:
-    import configparser
-except ImportError:  # python 2.x
-    import ConfigParser as configparser
-
-try:
-    from collections import OrderedDict
-except ImportError:  # python 2.6
-    from ordereddict import OrderedDict
+import htcondor
 
 import numpy
 
@@ -110,7 +102,8 @@ parser.add_argument('-a', '--archive-directory',
                     default=const.OMICRON_ARCHIVE,
                     help='path of archive, default: %(default)s')
 parser.add_argument('-d', '--production-directory',
-                    default=os.path.join(const.OMICRON_PROD, '{group}'),
+                    default=const.OMICRON_PROD / "{group}",
+                    type=Path,
                     help='path of production directory, default: %(default)s')
 parser.add_argument('-A', '--skip-condor', action='store_true',
                     default=False,
@@ -126,7 +119,7 @@ pout = parser.add_argument_group('Output options')
 pout.add_argument('--json', const=True, nargs='?', default=False,
                   help='print output in dashboard.ligo.org nagios JSON '
                        'format, default: %(default)s')
-pout.add_argument('-o', '--output-directory', default=os.curdir,
+pout.add_argument('-o', '--output-directory', default=Path.cwd(), type=Path,
                   help='path to write output, default: %(default)s')
 pout.add_argument('-l', '--latency-archive-tag', default='{group}',
                   help='file tag for latency archive, default: %(default)s')
@@ -156,14 +149,14 @@ group = args.group
 logger.info("Checking status for %r group" % group)
 
 archive = args.archive_directory
-proddir = args.production_directory.format(group=args.group)
+proddir = args.production_directory.with_name(
+    args.production_directory.name.format(group=args.group),
+)
 outdir = args.output_directory
+outdir.mkdir(exist_ok=True, parents=True)
 tag = args.latency_archive_tag.format(group=args.group)
 
 filetypes = ['h5', 'xml.gz', 'root']
-
-if not os.path.isdir(outdir):
-    os.makedirs(outdir)
 
 logger.debug("Set output directory to %s" % outdir)
 logger.debug("Will process the following filetypes: %s" % ", ".join(filetypes))
@@ -267,7 +260,7 @@ if not args.skip_condor and schedd:
     logger.info("-- Checking condor status --")
 
     # get DAG status
-    jsonfp = os.path.join(outdir, 'nagios-condor-%s.json' % group)
+    jsonfp = outdir / "nagios-condor-{}.json".format(group)
     okstates = ['Running', 'Idle', 'Completed']
     try:
         # check manager status
@@ -278,7 +271,7 @@ if not args.skip_condor and schedd:
             warnings.warn("Caught IOError: %s [retrying...]" % str(e))
             sleep(2)
             jobs = schedd.query(qstr, ['JobStatus'])
-        logger.debug("Found %d manager jobs" % len(jobs))
+        logger.debug("Found {} jobs for query {!r}".format(len(jobs), qstr))
         if len(jobs) > 1:
             raise RuntimeError("Multiple OmicronManager jobs found for %r"
                                % group)
@@ -292,7 +285,7 @@ if not args.skip_condor and schedd:
         # check node status
         jobs = schedd.query('OmicronProcess == "%s" && Owner == "%s"'
                             % (group, args.user), ['JobStatus', 'ClusterId'])
-        logger.debug("Found %d nodes running" % len(jobs))
+        logger.debug("Found {} jobs for query {!r}".format(len(jobs), qstr))
         for job in jobs:
             status = condor.JOB_STATUS[job['JobStatus']]
             if status not in okstates:
@@ -335,7 +328,7 @@ if not args.skip_job_duration:
     ax.set_title('Omicron job durations for %r' % group)
     ax.set_ylabel('Job duration [seconds]')
     ax.xaxis.labelpad = 5
-    png = os.path.join(outdir, 'nagios-condor-%s.png' % group)
+    png = str(outdir / "nagios-condor-{}.png".format(group))
     plot.save(png)
     plot.close()
     logger.debug("Saved condor plot to %s" % png)
@@ -378,10 +371,10 @@ except ValueError:
     ends = []
 
 # load archive latency
-latencyfile = os.path.join(outdir, 'nagios-latency-%s.h5' % tag)
+latencyfile = outdir / "nagios-latency-{}.h5".format(tag)
 times = dict((c, dict((ft, {}) for ft in filetypes)) for c in channels)
 ldata = dict((c, dict((ft, {}) for ft in filetypes)) for c in channels)
-if os.path.isfile(latencyfile):
+if latencyfile.is_file():
     with h5py.File(latencyfile, 'r') as h5file:
         for c in channels:
             for ft in filetypes:
@@ -399,9 +392,10 @@ else:
             ldata[c][ft] = numpy.ndarray((0,))
 
 # load acknowledged gaps
-acksegfile = os.path.join(outdir, 'acknowledged-gaps-%s.txt' % tag)
+acksegfile = str(outdir  / "acknowledged-gaps-{}.txt".format(tag))
 try:
-    acknowledged = SegmentList.read(acksegfile, gpstype=float)
+    acknowledged = SegmentList.read(acksegfile, gpstype=float,
+                                    format="segwizard")
 except IOError:  # no file
     acknowledged = SegmentList()
 else:
@@ -544,8 +538,9 @@ for c in channels:
     sax.set_ylim(-.5, len(filetypes) - .5)
     sax.legend(leg.values(), leg.keys(), handlelength=1, fontsize=12.4,
                loc='lower left', bbox_to_anchor=(1.01, 0), borderaxespad=0)
-    plots[c] = png = os.path.join(
-        outdir, 'nagios-latency-%s.png' % c.replace(':', '-'))
+    plots[c] = png = outdir / "nagios-latency-{}.png".format(
+        c.replace(':', '-'),
+    )
     plot.save(png)
     plot.close()
     logger.debug("    %s" % c)
@@ -566,7 +561,7 @@ status = []
 for segset, tag in zip([gaps, overlap], ['gaps', 'overlap']):
     chans = [(c, segset[c]) for c in segset
              if abs(reduce(operator.or_, segset[c].values()))]
-    jsonfp = os.path.join(outdir, 'nagios-%s-%s.json' % (tag, group))
+    jsonfp = outdir / "nagios-{}-{}.json".format(tag, group)
     status.append((tag, jsonfp))
     if chans:
         gapstr = '\n'.join('%s: %s' % c for c in chans)
@@ -579,7 +574,7 @@ for segset, tag in zip([gaps, overlap], ['gaps', 'overlap']):
     print_nagios_json(code, message, jsonfp, tag=tag, **{tag: dict(chans)})
 
 # write group JSON
-jsonfp = os.path.join(outdir, 'nagios-latency-%s.json' % group)
+jsonfp = outdir / "nagios-latency-{}.json".format(group)
 status.append(('latency', jsonfp))
 code = 0
 message = 'No channels have high latency for group %r' % group
@@ -598,8 +593,8 @@ print_nagios_json(code, message, jsonfp, tag='latency', latency=ldict)
 for tag, name in zip(
        ['condor', 'omicron-online'],
        ['condor', 'processing']):
-    f = os.path.join(outdir, 'nagios-%s-%s.json' % (tag, group))
-    if os.path.isfile(f):
+    f = outdir / "nagios-{}-{}.json".format(tag, group)
+    if f.is_file():
         status.insert(0, (name, f))
 
 # write HTML summary
@@ -624,7 +619,7 @@ if args.html:
     page.div(id_='json')
     page.h2("Processing status")
     for tag, f in status:
-        jf = os.path.basename(f)
+        jf = f.name
         page.a("%s status" % tag.title(), href=jf, role='button',
                target="_blank", id_="nagios-%s" % tag,
                class_='btn btn-default json-status')
@@ -637,7 +632,7 @@ if args.html:
     page.h2("Channel details")
     page.div(class_='row')
     for channel in sorted(channels):
-        png = os.path.basename(plots[channel])
+        png = plots[channel].name
         page.div(class_="col-sm-6 col-md-4")
         page.div(class_="panel panel-default")
         page.div(class_='panel-heading')
@@ -688,6 +683,6 @@ if args.html:
 
         $(".fancybox").fancybox({nextEffect: 'none', prevEffect: 'none'});
     });""", type="text/javascript")
-    with open(os.path.join(outdir, 'index.html'), 'w') as f:
+    with (outdir / "index.html").open("w") as f:
         f.write(str(page))
     logger.debug("HTML summary written to %s" % f.name)

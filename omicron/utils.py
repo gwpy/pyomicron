@@ -23,9 +23,6 @@ import re
 import os
 from distutils.version import StrictVersion
 from pathlib import Path
-from subprocess import Popen, PIPE, CalledProcessError
-
-from six import PY2
 
 from . import const
 
@@ -79,16 +76,10 @@ class OmicronVersion(StrictVersion):
             return 'v%sr%sp%s' % (self.version[0], self.version[1],
                                   self.version[2])
 
-    if PY2:
-        def __cmp__(self, other):
-            if isinstance(other, str):
-                other = OmicronVersion(other)
-            return StrictVersion.__cmp__(self, other)
-    else:
-        def _cmp(self, other):
-            if isinstance(other, str):
-                other = OmicronVersion(other)
-            return StrictVersion._cmp(self, other)
+    def _cmp(self, other):
+        if isinstance(other, str):
+            other = OmicronVersion(other)
+        return StrictVersion._cmp(self, other)
 
 
 def get_omicron_version(executable=None):
