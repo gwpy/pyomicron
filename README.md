@@ -18,10 +18,17 @@ or conda:
 conda install -c conda-forge pyomicron
 ```
 
-## Project Status
+## Project status
+
+[![PyPI](https://badge.fury.io/py/pyomicron.svg)](http://badge.fury.io/py/pyomicron)
+[![DOI](https://zenodo.org/badge/53675102.svg)](https://zenodo.org/badge/latestdoi/53675102)
+[![License](https://img.shields.io/pypi/l/pyomicron.svg)](https://choosealicense.com/licenses/gpl-3.0/)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/pyomicron.svg)](https://pypi.org/project/pyomicron/)
+
+## Development status
 
 [![Build Status](https://travis-ci.org/gwpy/pyomicron.svg?branch=master)](https://travis-ci.org/gwpy/pyomicron)
-[![Coverage Status](https://coveralls.io/repos/github/gwpy/pyomicron/badge.svg?branch=master)](https://coveralls.io/github/gwpy/pyomicron?branch=master)
+[![codecov](https://codecov.io/gh/gwpy/pyomicron/branch/master/graph/badge.svg)](https://codecov.io/gh/gwpy/pyomicron)
 
 ## License
 
