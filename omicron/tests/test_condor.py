@@ -41,12 +41,6 @@ from .. import condor
 
 # -- mock utilities -----------------------------------------------------------
 
-def mock_shell_factory(output):
-    def shell(*args, **kwargs):
-        return output
-    return shell
-
-
 def mock_schedd_factory(jobs):
     class Schedd(mock_htcondor.Schedd):
         _jobs = jobs
@@ -55,25 +49,25 @@ def mock_schedd_factory(jobs):
 
 # -- tests --------------------------------------------------------------------
 
-@mock.patch('omicron.condor.which', return_value=sys.executable)
-@mock.patch('omicron.condor.shell',
-            return_value='1 job(s) submitted to cluster 12345')
+@mock.patch('distutils.spawn.find_executable', return_value=sys.executable)
+@mock.patch('omicron.condor.check_output',
+            return_value=b'1 job(s) submitted to cluster 12345')
 def test_submit_dag(shell, which):
     dagid = condor.submit_dag('test.dag')
     assert dagid == 12345
 
 
-@mock.patch('omicron.condor.which', return_value=sys.executable)
-@mock.patch('omicron.condor.shell',
-            return_value='1 job(s) submitted to cluster 12345')
+@mock.patch('distutils.spawn.find_executable', return_value=sys.executable)
+@mock.patch('omicron.condor.check_output',
+            return_value=b'1 job(s) submitted to cluster 12345')
 def test_submit_dag_append(shell, which):
     condor.submit_dag('test.dag', '-append', '+OmicronDAGMan="GW"')
     assert shell.called_with([sys.executable, '-append',
                               '+OmicronDAGMan="GW"', 'test.dag'])
 
 
-@mock.patch('omicron.condor.which', return_value=sys.executable)
-@mock.patch('omicron.condor.shell', return_value='Something else')
+@mock.patch('distutils.spawn.find_executable', return_value=sys.executable)
+@mock.patch('omicron.condor.check_output', return_value=b'Something else')
 def test_submit_dag_error(shell, which):
     with pytest.raises(AttributeError) as exc:
         condor.submit_dag('test.dag')
@@ -117,7 +111,7 @@ def test_get_job_status():
     assert condor.get_job_status(1) == 4
 
 
-@mock.patch('os.path.isfile')
+@mock.patch('pathlib.Path.is_file')
 def test_dag_is_running(isfile):
     isfile.return_value = False
     assert not condor.dag_is_running('test.dag')
