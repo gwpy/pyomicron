@@ -32,8 +32,8 @@ script:
   - python -m coverage run -a $(which omicron-hdf5-merge) --help
 
 after_success:
-  - python -m pip install coveralls
-  - coveralls
+  - python -m pip install codecov
+  - codecov
 
 cache:
   pip: true
