@@ -38,7 +38,7 @@ from collections import OrderedDict
 from . import (const, utils)
 from .segments import integer_segments
 
-CHANNEL_DELIM_REGEX = re.compile('[:_-]')
+CHANNEL_DELIM_REGEX = re.compile(r'[:_-]')
 UNUSED_PARAMS = ['state-flag', 'frametype', 'state-channel', 'state-frametype']
 OMICRON_PARAM_MAP = {
     'sample-frequency': ('DATA', 'SAMPLEFREQUENCY')
@@ -105,7 +105,7 @@ class OmicronParameters(configparser.ConfigParser):
         return raw.split()
 
     def getfloats(self, section, option):
-        return map(float, self.getlist(section, option))
+        return list(map(float, self.getlist(section, option)))
 
     def optionxform(self, optionstr):
         return optionstr.upper()

@@ -90,7 +90,7 @@ STATE_CHANNEL = {
         "V1_llhoft",
     ),
 }
-RAW_TYPE_REGEX = re.compile('[A-Z]1_R')
+RAW_TYPE_REGEX = re.compile(r'[A-Z]1_R')
 
 
 def integer_segments(f):

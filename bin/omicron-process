@@ -275,7 +275,7 @@ online = args.gps is None
 # format file-tag as underscore-delimited upper-case string
 filetag = args.file_tag
 if filetag:
-    filetag = re.sub('[:_\s-]', '_', filetag).rstrip('_').strip('_')
+    filetag = re.sub(r'[:_\s-]', '_', filetag).rstrip('_').strip('_')
     if const.OMICRON_FILETAG.lower() in filetag.lower():
         afiletag = filetag
     else:
