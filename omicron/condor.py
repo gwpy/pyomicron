@@ -148,29 +148,6 @@ def find_rescue_dag(dagfile):
         raise
 
 
-def iterate_dag_status(clusterid, interval=2):
-    """Monitor a DAG by querying condor for status information periodically
-    """
-    schedd = htcondor.Schedd()
-    while True:
-        try:
-            status = get_dag_status(clusterid, schedd=schedd, detailed=True)
-        except (IOError, KeyError) as e:
-            # reconnect, and try again
-            sleep(1)
-            del schedd
-            schedd = htcondor.Schedd()
-            try:
-                status = get_dag_status(clusterid, schedd=schedd,
-                                        detailed=True)
-            except IOError:
-                raise e
-        yield status
-        if 'exitcode' in status:
-            break
-        sleep(interval)
-
-
 def get_dag_status(dagmanid, schedd=None, detailed=True):
     """Return the status of a given DAG
 
