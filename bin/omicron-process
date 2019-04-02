@@ -342,7 +342,7 @@ logger.debug("overlap = %s" % overlap)
 padding = int(overlap / 2)
 logger.debug("padding = %s" % padding)
 try:
-    frange = map(float, cp.get(group, 'frequency-range').split())
+    frange = tuple(map(float, cp.get(group, 'frequency-range').split()))
 except configparser.NoOptionError as e:
     try:
         flow = cp.getfloat(group, 'flow')
@@ -372,7 +372,7 @@ except configparser.NoOptionError:
     statechannel = None
 else:
     try:
-        statebits = map(float, cp.get(group, 'state-bits').split(','))
+        statebits = list(map(float, cp.get(group, 'state-bits').split(',')))
     except configparser.NoOptionError:
         statebits = [0]
     try:
@@ -414,7 +414,7 @@ if statechannel or stateflag:
         try:
             p = int(statepad)
         except ValueError:
-            statepad = map(float, statepad.split(',', 1))
+            statepad = tuple(map(float, statepad.split(',', 1)))
         else:
             statepad = (p, p)
     logger.debug("State padding: %s" % str(statepad))
