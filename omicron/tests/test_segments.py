@@ -21,12 +21,8 @@
 
 import tempfile
 from copy import deepcopy
-try:
-    from unittest import mock
-    from io import StringIO
-except ImportError:  # python < 3
-    from StringIO import StringIO
-    import mock
+from io import StringIO
+from unittest import mock
 
 import pytest
 

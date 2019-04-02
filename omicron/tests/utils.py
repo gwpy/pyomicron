@@ -20,8 +20,8 @@
 """
 
 import sys
-from six.moves import StringIO
 from contextlib import contextmanager
+from io import StringIO
 
 
 @contextmanager
