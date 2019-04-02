@@ -193,7 +193,7 @@ if end == NOW:
 
 if args.state_flag:
     stateflag = args.state_flag
-    statepad = map(float, args.state_pad.split(','))
+    statepad = tuple(map(float, args.state_pad.split(',')))
 else:
     try:
         stateflag = cp.get(group, 'state-flag')
@@ -201,7 +201,7 @@ else:
         stateflag = None
     else:
         try:
-            statepad = map(float, cp.get(group, 'state-padding').split(','))
+            statepad = tuple(map(float, cp.get(group, 'state-padding').split(',')))
         except configparser.NoOptionError:
             statepad = (0, 0)
 if stateflag:

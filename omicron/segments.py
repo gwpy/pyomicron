@@ -155,7 +155,7 @@ def get_state_segments(channel, frametype, start, end, bits=[0], nproc=1,
         elif channel.endswith('GDS-CALIB_STATE_VECTOR'):
             io_kw['type'] = 'proc'
 
-    bits = map(str, bits)
+    bits = list(map(str, bits))
     # FIXME: need to read from cache with single segment but doesn't match
     # [start, end)
 
