@@ -21,10 +21,7 @@
 
 import os
 import tempfile
-try:
-    from configparser import ConfigParser
-except ImportError:  # python < 3
-    from ConfigParser import ConfigParser
+from configparser import ConfigParser
 
 import pytest
 

@@ -20,9 +20,19 @@
 """
 
 import os
+import re
 from pathlib import Path
 
 from ligo.segments import segment as Segment
+
+IFO_FQDN_REGEX = {
+    "G1": re.compile(r"\.uni-hannover"),
+    "H1": re.compile(r"\.ligo-wa"),
+    "K1": re.compile(r"\.kagra"),
+    "L1": re.compile(r"\.ligo-la"),
+    "V1": re.compile(r"\.(virgo|ego-gw)"),
+}
+
 
 # -- generic parameters
 try:
@@ -30,17 +40,13 @@ try:
 except KeyError:
     from socket import getfqdn
     fqdn = getfqdn()
-    if '.uni-hannover.' in fqdn:
-        IFO = 'G1'
-    elif '.ligo-wa.' in fqdn:
-        IFO = 'H1'
-    elif '.ligo-la.' in fqdn:
-        IFO = 'L1'
-    elif '.virgo.' in fqdn or '.ego-gw.' in fqdn:
-        IFO = 'V1'
+    for _key, _regex in IFO_FQDN_REGEX.items():
+        if _regex.search(fqdn):
+            IFO = _key.upper()
+            break
     else:
         IFO = None
-    ifo = os.getenv('ifo')
+    ifo = os.getenv('ifo', IFO.lower() if IFO else None)
 else:
     ifo = os.getenv('ifo', IFO.lower())
 SITE = os.getenv('SITE')

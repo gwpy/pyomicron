@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) Duncan Macleod (2017)
+# Copyright (C) Duncan Macleod (2019)
 #
 # This file is part of PyOmicron.
 #
@@ -16,20 +16,33 @@
 # You should have received a copy of the GNU General Public License
 # along with PyOmicron.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Python-version compatibility utils for Omicron tests
+"""Tests for omicron.const
 """
 
-import sys
-from contextlib import contextmanager
-from io import StringIO
+import os
+from importlib import reload
+from unittest import mock
+
+import pytest
+
+from .. import const
 
 
-@contextmanager
-def capture(command, *args, **kwargs):
-    out, sys.stdout = sys.stdout, StringIO()
-    try:
-        command(*args, **kwargs)
-        sys.stdout.seek(0)
-        yield sys.stdout.read()
-    finally:
-        sys.stdout = out
+@pytest.mark.parametrize("fqdn, ifo", [
+    ("ldas-grid.ligo-wa.caltech.edu", "H1"),
+    ("k1sum0.kagra", "K1"),
+    ("test.localhost", None)
+])
+@mock.patch("socket.getfqdn")
+def test_ifo(getfqdn, fqdn, ifo):
+    getfqdn.return_value = fqdn
+    reload(const)
+    assert const.IFO == ifo
+    assert const.ifo == (ifo.lower() if ifo else None)
+
+
+def test_omicron_vars():
+    assert str(const.OMICRON_BASE) == os.path.join(
+        os.environ["HOME"],
+        "omicron",
+    )
