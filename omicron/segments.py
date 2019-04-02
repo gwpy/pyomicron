@@ -80,12 +80,12 @@ STATE_CHANNEL = {
     "V1:ITF_LOCKED:1": (
         "V1:DQ_ANALYSIS_STATE_VECTOR",
         [11],
-        "V1_llhoft",
+        "V1Online",
     ),
     "V1:ITF_SCIENCE:1": (
         "V1:DQ_ANALYSIS_STATE_VECTOR",
         [0, 1, 2],
-        "V1_llhoft",
+        "V1Online",
     ),
 }
 RAW_TYPE_REGEX = re.compile(r'[A-Z]1_R')
