@@ -1091,7 +1091,7 @@ except RuntimeError:
 stub = '%d-%d' % (start, end)
 for f in map(Path, ["{}.dagman.out".format(dagfile)] + keepfiles):
     archive = logdir / "{0[0]}.{1}.{0[1]}".format(f.name.split(".", 1), stub)
-    if f == segfile:
+    if str(f) == str(segfile):
         shutil.copyfile(f, archive)
     else:
         f.rename(archive)
