@@ -1063,14 +1063,22 @@ for i in range(args.submit_rescue_dag + 1):
     print()
     logger.debug("----------------------------------------")
     sleep(5)
-    stat = condor.get_dag_status(dagid)
+    try:
+        stat = condor.get_dag_status(dagid)
+    except OSError as exc:  # query failed
+        logger.warning(str(exc))
+        stat = {}
 
     # log exitcode
-    if stat.get('exitcode'):
-        logger.critical("DAG has exited with status %d" % stat['exitcode'])
-    else:
-        logger.info("DAG has exited with status %d" % stat['exitcode'])
+    if "exitcode" not in stat:
+        logger.warning("DAG has exited, status unknown")
         break
+    if not stat["exitcode"]:
+        logger.info("DAG has exited with status {}".format(
+            stat.get("exitcode", "unknown"),
+        ))
+        break
+    logger.critical("DAG has exited with status {}".format(stat['exitcode']))
 
     # handle failure
     if i == args.submit_rescue_dag:
