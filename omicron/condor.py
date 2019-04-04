@@ -451,16 +451,7 @@ def dag_is_running(dagfile, schedd=None):
         if multiple matching condor processes are found, or the matching
         single process is not in a good state
     """
-    if Path("{}.lock".format(dagfile)).is_file():
-        return True
-    userlog = "{}.dagman.log".format(dagfile)
-    try:
-        find_job(UserLog=userlog, schedd=schedd)
-    except RuntimeError as e:
-        if str(e).startswith('No jobs found'):
-            return False
-        raise
-    return True
+    return Path(dagfile).with_suffix(".dag.lock").is_file()
 
 
 def get_job_status(job, schedd=None):

@@ -107,20 +107,10 @@ def test_get_job_status():
     assert condor.get_job_status(1) == 4
 
 
-@mock.patch('pathlib.Path.is_file')
+@mock.patch('pathlib.Path.is_file', side_effect=(False, True))
 def test_dag_is_running(isfile):
-    isfile.return_value = False
     assert not condor.dag_is_running('test.dag')
-
-    isfile.return_value = True
     assert condor.dag_is_running('test.dag')
-
-    isfile.return_value = False
-    schedd_ = mock_schedd_factory(
-        [{'UserLog': 'test.dag.dagman.log'}])
-    with mock.patch('htcondor.Schedd', schedd_):
-        assert condor.dag_is_running('test.dag')
-        assert not condor.dag_is_running('test2.dag')
 
 
 def test_find_rescue_dag():
