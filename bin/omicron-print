@@ -19,8 +19,6 @@
 """Print Omicron events or file locations
 """
 
-from __future__ import print_function
-
 import argparse
 import operator
 import sys
