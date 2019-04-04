@@ -87,6 +87,8 @@ __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
 logger = log.Logger('omicron-process')
 
+DAG_TAG = "omicron"
+
 
 # -- tempfile utilities
 
@@ -444,27 +446,36 @@ oconfig.set('OUTPUT', 'DIRECTORY', str(trigdir))
 
 # -- check for an existing process --------------------------------------------
 
+dagpath = condir / "{}.dag".format(DAG_TAG)
+
 # check dagman lock file
-running = condor.dag_is_running(condir / "omicron.dag")
-if running and args.reattach:
-     logger.info('Detected omicron.dag already running %s, will reattach'
-                 % rundir)
-elif running:
-    raise RuntimeError("Detected omicron.dag in %s is already running"
-                       % rundir)
+running = condor.dag_is_running(dagpath)
+if running:
+    msg = "Detected {} already running in {}".format(
+        dagpath,
+        rundir,
+    )
+    if not args.reattach:
+        raise RuntimeError(msg)
+    logger.info("{}, will reattach".format(msg))
 else:
      args.reattach = False
 
 # check dagman rescue files
-nrescue = len(list(condir.glob("omicron.dag.rescue[0-9][0-9][0-9]")))
-if args.rescue and nrescue == 0:
-    raise RuntimeError("--rescue given but no rescue DAG files found in %s"
-                       % condir)
-elif not args.rescue and nrescue > 1:
-    raise RuntimeError("rescue DAG found in %s, will not continue" % condir)
-elif args.rescue and not (condir / "omicron.dag").is_file():
-    raise RuntimeError("--rescue given by omicron.dag file not found in %s"
-                       % condir)
+nrescue = len(list(condir.glob("{}.rescue[0-9][0-9][0-9]".format(dagpath.name))))
+if args.rescue and not nrescue:
+    raise RuntimeError(
+        "--rescue given but no rescue DAG files found for {}".format(
+            dagpath,
+        ),
+    )
+if nrescue and not args.rescue and not "force" in args.dagman_option:
+    raise RuntimeError(
+        "rescue DAGs found for {} but `--rescue` not given and "
+        "`--dagman-option force` not given, cannot continue".format(
+            dagpath,
+        ),
+    )
 
 newdag = not args.rescue and not args.reattach
 
@@ -697,8 +708,8 @@ if newdag:
     keepfiles.append(parfile)
 
 # create dag
-dag = pipeline.CondorDAG(str(logdir / "omicron.log"))
-dag.set_dag_file(str(condir / "omicron"))
+dag = pipeline.CondorDAG(str(logdir / "{}.log".format(DAG_TAG)))
+dag.set_dag_file(str(dagpath.with_suffix("")))
 
 # set up condor commands for all jobs
 condorcmds = {'accounting_group': args.condor_accounting_group,
