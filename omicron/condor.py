@@ -19,6 +19,7 @@
 """Condor interaction utilities
 """
 
+import os
 import os.path
 import re
 import time
@@ -100,7 +101,7 @@ def submit_dag(dagfile, *arguments, **options):
         cmd.extend([opt, val])
     cmd.append(dagfile)
     print("$ %s" % ' '.join(cmd))
-    out = check_output(cmd).decode('utf-8')
+    out = check_output(cmd, env=os.environ).decode('utf-8')
     print(out)
     try:
         return int(re_dagman_cluster.search(out).group())

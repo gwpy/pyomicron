@@ -61,7 +61,7 @@ install_requires = [
     'six',
 ]
 tests_require = [
-    'pytest',
+    'pytest >= 3.9',
 ]
 if {'test'}.intersection(sys.argv):
     setup_requires.extend([

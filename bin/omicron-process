@@ -692,6 +692,10 @@ for seg in trigsegs:
     logger.info("    %d %d " % seg + "[%d]" % abs(seg))
 logger.info("Duration = %d seconds" % abs(trigsegs))
 
+# -- config omicron config directory ------------------------------------------
+
+tempfiles.append(utils.astropy_config_path(rundir))
+
 # -- make parameters files then generate the DAG ------------------------------
 
 fileformats = oconfig.output_formats()
