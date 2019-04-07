@@ -19,8 +19,8 @@
 """Miscellaneous utilities
 """
 
-import re
 import os
+import re
 from distutils.version import StrictVersion
 from pathlib import Path
 
@@ -113,3 +113,15 @@ def get_omicron_version(executable=None):
                       'please specify the executable path',)
             raise
     return OmicronVersion(vstr)
+
+
+def astropy_config_path(parent, update_environ=True):
+    """Create and return a directory for a temporary astropy config path
+    """
+    parent = Path(parent)
+    astropath = parent / ".config" / "astropy"
+    astropath.mkdir(exist_ok=True, parents=True)
+    confpath = astropath.parent
+    if update_environ:
+        os.environ["XDG_CONFIG_HOME"] = str(confpath)
+    return confpath

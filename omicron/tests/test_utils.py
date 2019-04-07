@@ -20,6 +20,7 @@
 """
 
 import os
+from unittest import mock
 
 from .. import utils
 
@@ -41,3 +42,17 @@ def test_get_omicron_version():
     assert utils.get_omicron_version() == testv
     assert utils.get_omicron_version() > 'v1r2'
     assert utils.get_omicron_version() < 'v2r2'
+
+
+@mock.patch.dict(os.environ, clear=True)
+def test_astropy_config_path(tmp_path):
+    confpath = utils.astropy_config_path(tmp_path, update_environ=True)
+    assert confpath == tmp_path / ".config"
+    assert os.environ["XDG_CONFIG_HOME"] == str(confpath)
+    assert (confpath / "astropy").is_dir()
+
+
+@mock.patch.dict(os.environ, clear=True)
+def test_astropy_config_path_no_environ(tmp_path):
+    confpath = utils.astropy_config_path(tmp_path, update_environ=False)
+    assert "XDG_CONFIG_HOME" not in os.environ
