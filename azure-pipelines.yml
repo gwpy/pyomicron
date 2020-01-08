@@ -19,10 +19,10 @@ jobs:
 
   - task: Cache@2
     inputs:
-      key: 'conda | "$(Agent.OS)" | "$(python.version)"'
+      key: 'conda | $(Agent.OS) | python$(python.version)'
       path: $(CONDA_PKGS_DIRS)
       restoreKeys: |
-        conda | "$(Agent.OS)"
+        conda | $(Agent.OS)
     displayName: Cache Conda packages
 
   - script: |
