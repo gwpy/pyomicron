@@ -2,6 +2,7 @@ name: pyomicron
 channels:
   - conda-forge
 dependencies:
+  - coverage
   - dqsegdb2
   - gwdatafind
   - gwpy >=1.0.0
@@ -14,6 +15,7 @@ dependencies:
   - omicron >=2.3.12
   - pip
   - pytest >=3.9
+  - pytest-cov
   - python
   - python-ligo-lw >=1.4.0
   - root_base 6.18.04
