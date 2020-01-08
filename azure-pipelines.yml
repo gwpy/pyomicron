@@ -1,40 +1,39 @@
-trigger:
-- master
+jobs:
+- job: Linux
+  pool:
+    vmImage: 'ubuntu-latest'
+  strategy:
+    matrix:
+      python3.6:
+        python.version: '3.6'
+      python3.7:
+        python.version: '3.7'
 
-pool:
-  vmImage: 'ubuntu-latest'
-strategy:
-  matrix:
-    Python36:
-      python.version: '3.6'
-    Python37:
-      python.version: '3.7'
+  steps:
+  - bash: echo "##vso[task.prependpath]$CONDA/bin"
+    displayName: Add conda to PATH
 
-steps:
-- bash: echo "##vso[task.prependpath]$CONDA/bin"
-  displayName: Add conda to PATH
+  - script: |
+      conda create --yes --quiet --name pyomicron python=${PYTHON_VERSION}
+      conda env update --name pyomicron --file=environment.yml
+      conda install --name pyomicron pytest-azurepipelines
+    displayName: Create conda environment
 
-- script: |
-    conda create --yes --quiet --name pyomicron python=${PYTHON_VERSION}
-    conda env update --name pyomicron --file=environment.yml
-    conda update --name pyomicron pip setuptools pytest-azurepipelines
-  displayName: Create conda environment
+  - script: |
+      conda activate pyomicron
+      python -m pip install --editable .
+    displayName: 'Install pyomicron'
 
-- script: |
-    conda activate pyomicron
-    python -m pip install --editable .
-  displayName: 'Install pyomicron'
+  - script: |
+      conda activate pyomicron
+      python -m coverage run -m pytest --pyargs omicron
+      python -m coverage run -a $(which omicron-hdf5-merge) --help
+      python -m coverage run -a $(which omicron-print) --help
+      python -m coverage run -a $(which omicron-process) --help
+      python -m coverage run -a $(which omicron-root-merge) --help
+      python -m coverage run -a $(which omicron-status) --help
+    displayName: 'Run automated tests'
 
-- script: |
-    conda activate pyomicron
-    python -m coverage run -m pytest --pyargs omicron
-    python -m coverage run -a $(which omicron-hdf5-merge) --help
-    python -m coverage run -a $(which omicron-print) --help
-    python -m coverage run -a $(which omicron-process) --help
-    python -m coverage run -a $(which omicron-root-merge) --help
-    python -m coverage run -a $(which omicron-status) --help
-  displayName: 'Run automated tests'
-
-- script: |
-    bash <(curl -s https://codecov.io/bash)
-  displayName: 'Upload to codecov.io'
+  - script: |
+      bash <(curl -s https://codecov.io/bash)
+    displayName: 'Upload to codecov.io'
