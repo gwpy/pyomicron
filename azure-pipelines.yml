@@ -34,6 +34,7 @@ jobs:
       python -m coverage run -a $(which omicron-status) --help
     displayName: 'Run automated tests'
 
-  - script: |
-      bash <(curl -s https://codecov.io/bash)
+  - bash: |
+      python -m pip install codecov
+      python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
     displayName: 'Upload to codecov.io'
