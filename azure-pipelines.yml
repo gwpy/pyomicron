@@ -15,6 +15,7 @@ jobs:
 
   steps:
   - bash: |
+      set -ex
       echo "##vso[task.prependpath]$CONDA/condabin"
       conda config --set always_yes yes
       conda config --prepend channels conda-forge
@@ -28,18 +29,21 @@ jobs:
         conda | "$(Agent.OS)"
     displayName: Cache Conda packages
 
-  - script: |
+  - bash: |
+      set -ex
       conda create --yes --name pyomicron python=${PYTHON_VERSION}
       conda env update --name pyomicron --file=environment.yml
       conda install --yes --name pyomicron pytest-azurepipelines
     displayName: Create conda environment
 
-  - script: |
+  - bash: |
+      set -ex
       conda activate pyomicron
       python -m pip install --editable .
     displayName: 'Install pyomicron'
 
-  - script: |
+  - bash: |
+      set -ex
       conda activate pyomicron
       python -m coverage run -m pytest --pyargs omicron
       python -m coverage run -a $(which omicron-hdf5-merge) --help
@@ -50,6 +54,7 @@ jobs:
     displayName: 'Run automated tests'
 
   - bash: |
+      set -ex
       conda install --yes codecov
       python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
     displayName: 'Upload to codecov.io'
