@@ -17,6 +17,14 @@ jobs:
   - bash: echo "##vso[task.prependpath]$CONDA/bin"
     displayName: Add conda to PATH
 
+  - task: Cache@2
+    inputs:
+      key: 'conda | "$(Agent.OS)" | "$(python.version)"'
+      path: $(CONDA_PKGS_DIRS)
+      restoreKeys: |
+        conda | "$(Agent.OS)"
+    displayName: Cache Conda packages
+
   - script: |
       conda create --yes --quiet --name pyomicron python=${PYTHON_VERSION}
       conda env update --name pyomicron --file=environment.yml
@@ -42,11 +50,3 @@ jobs:
       conda install codecov
       python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
     displayName: 'Upload to codecov.io'
-
-  - task: Cache@2
-    inputs:
-      key: 'conda | "$(Agent.OS)" | "$(python.version)"'
-      path: $(CONDA_PKGS_DIRS)
-      restoreKeys: |
-        conda | "$(Agent.OS)"
-    displayName: Cache Conda packages
