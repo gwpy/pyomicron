@@ -17,6 +17,7 @@ jobs:
   - bash: |
       set -ex
       echo "##vso[task.prependpath]$CONDA/condabin"
+      source "${CONDA}/etc/profile.d/conda.sh"
       conda config --set always_yes yes
       conda config --prepend channels conda-forge
     displayName: Configure Conda
