@@ -25,16 +25,16 @@ jobs:
 
   - bash: |
       set -ex
-      echo "##vso[task.prependpath]$CONDA/condabin"
+      echo "##vso[task.prependpath]$CONDA/bin"
       conda config --set always_yes yes
       conda config --prepend channels conda-forge
     displayName: Configure Conda
 
   - bash: |
       set -ex
-      conda create --yes --name ${CONDA_ENV_NAME} python=${PYTHON_VERSION}
-      conda env update --name ${CONDA_ENV_NAME} --file=environment.yml
-      conda install --yes --name ${CONDA_ENV_NAME} pytest-azurepipelines
+      conda create --yes --quiet --name ${CONDA_ENV_NAME} python=${PYTHON_VERSION}
+      conda env update --quiet --name ${CONDA_ENV_NAME} --file=environment.yml
+      conda install --yes --quiet --name ${CONDA_ENV_NAME} pytest-azurepipelines
     displayName: Create conda environment
 
   - bash: |
@@ -63,6 +63,6 @@ jobs:
   - bash: |
       source activate pyomicron
       set -ex
-      conda install --yes --name ${CONDA_ENV_NAME} codecov
+      conda install --yes --quiet --name ${CONDA_ENV_NAME} codecov
       python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
     displayName: 'Upload coverage to codecov.io'
