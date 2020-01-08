@@ -15,13 +15,6 @@ jobs:
     CONDA_PKGS_DIRS: $(Pipeline.Workspace)/.conda/pkgs
 
   steps:
-  - bash: |
-      set -ex
-      echo "##vso[task.prependpath]$CONDA/condabin"
-      conda config --set always_yes yes
-      conda config --prepend channels conda-forge
-    displayName: Configure Conda
-
   - task: Cache@2
     inputs:
       key: 'conda | "$(Agent.OS)" | "python$(python.version)"'
@@ -32,21 +25,28 @@ jobs:
 
   - bash: |
       set -ex
+      echo "##vso[task.prependpath]$CONDA/condabin"
+      conda config --set always_yes yes
+      conda config --prepend channels conda-forge
+    displayName: Configure Conda
+
+  - bash: |
+      set -ex
       conda create --yes --name ${CONDA_ENV_NAME} python=${PYTHON_VERSION}
       conda env update --name ${CONDA_ENV_NAME} --file=environment.yml
       conda install --yes --name ${CONDA_ENV_NAME} pytest-azurepipelines
     displayName: Create conda environment
 
   - bash: |
-      set -ex
       source activate pyomicron
+      set -ex
       python -m pip install --editable .
     displayName: 'Install pyomicron'
 
   - bash: |
       source activate pyomicron
       set -ex
-      python -m coverage run -m pytest --pyargs omicron
+      python -m coverage run -m pytest --pyargs omicron --junit-xml=junit-results.xml
       python -m coverage run -a $(which omicron-hdf5-merge) --help
       python -m coverage run -a $(which omicron-print) --help
       python -m coverage run -a $(which omicron-process) --help
@@ -54,9 +54,15 @@ jobs:
       python -m coverage run -a $(which omicron-status) --help
     displayName: 'Run automated tests'
 
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: 'junit*.xml'
+    condition: succeededOrFailed()
+    displayName: 'Upload test results'
+
   - bash: |
       source activate pyomicron
       set -ex
       conda install --yes --name ${CONDA_ENV_NAME} codecov
       python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
-    displayName: 'Upload to codecov.io'
+    displayName: 'Upload coverage to codecov.io'
