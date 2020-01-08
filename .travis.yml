@@ -23,7 +23,7 @@ before_install:
 
 install:
   # note: need --editable for coverage with `which ...` to work
-  - python -m pip install --editable .
+  - python -m pip install --upgrade --editable .
 
 script:
   - python -m coverage run -m pytest omicron/
