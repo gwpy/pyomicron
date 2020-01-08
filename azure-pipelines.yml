@@ -11,7 +11,6 @@ jobs:
         python.version: '3.7'
 
   variables:
-    CONDA_ENV_NAME: "pyomicron"
     CONDA_PKGS_DIRS: $(Pipeline.Workspace)/.conda/pkgs
 
   steps:
@@ -34,9 +33,10 @@ jobs:
 
   - bash: |
       set -ex
-      conda create --yes --quiet --name ${CONDA_ENV_NAME} python=${PYTHON_VERSION}
-      conda env update --quiet --name ${CONDA_ENV_NAME} --file=environment.yml
-      conda install --yes --quiet --name ${CONDA_ENV_NAME} pytest-azurepipelines
+      source activate base
+      conda create --yes --quiet --name pyomicron python=${PYTHON_VERSION}
+      conda env update --quiet --name pyomicron --file=environment.yml
+      conda install --yes --quiet --name pyomicron pytest-azurepipelines
     displayName: Create conda environment
 
   - bash: |
@@ -65,6 +65,6 @@ jobs:
   - bash: |
       set -ex
       source activate pyomicron
-      conda install --yes --quiet --name ${CONDA_ENV_NAME} codecov
+      conda install --yes --quiet --name pyomicron codecov
       python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
     displayName: 'Upload coverage to codecov.io'
