@@ -1,5 +1,6 @@
 jobs:
-- job: Linux
+- job: linux
+  displayName: Linux
   pool:
     vmImage: 'ubuntu-latest'
   strategy:
@@ -8,6 +9,9 @@ jobs:
         python.version: '3.6'
       python3.7:
         python.version: '3.7'
+
+  variables:
+    CONDA_PKGS_DIRS: $(Pipeline.Workspace)/.conda/pkgs
 
   steps:
   - bash: echo "##vso[task.prependpath]$CONDA/bin"
@@ -35,6 +39,14 @@ jobs:
     displayName: 'Run automated tests'
 
   - bash: |
-      python -m pip install codecov
+      conda install codecov
       python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
     displayName: 'Upload to codecov.io'
+
+  - task: Cache@2
+    inputs:
+      key: 'conda | "$(Agent.OS)" | "$(python.version)"'
+      path: $(CONDA_PKGS_DIRS)
+      restoreKeys: |
+        conda | "$(Agent.OS)"
+    displayName: Cache Conda packages
