@@ -14,8 +14,11 @@ jobs:
     CONDA_PKGS_DIRS: $(Pipeline.Workspace)/.conda/pkgs
 
   steps:
-  - bash: echo "##vso[task.prependpath]$CONDA/bin"
-    displayName: Add conda to PATH
+  - bash: |
+      echo "##vso[task.prependpath]$CONDA/condabin"
+      conda config --set always_yes yes
+      conda config --prepend channels conda-forge
+    displayName: Configure Conda
 
   - task: Cache@2
     inputs:
@@ -26,9 +29,9 @@ jobs:
     displayName: Cache Conda packages
 
   - script: |
-      conda create --yes --quiet --name pyomicron python=${PYTHON_VERSION}
+      conda create --yes --name pyomicron python=${PYTHON_VERSION}
       conda env update --name pyomicron --file=environment.yml
-      conda install --name pyomicron pytest-azurepipelines
+      conda install --yes --name pyomicron pytest-azurepipelines
     displayName: Create conda environment
 
   - script: |
@@ -47,6 +50,6 @@ jobs:
     displayName: 'Run automated tests'
 
   - bash: |
-      conda install codecov
+      conda install --yes codecov
       python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
     displayName: 'Upload to codecov.io'
