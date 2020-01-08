@@ -11,13 +11,13 @@ jobs:
         python.version: '3.7'
 
   variables:
+    CONDA_ENV_NAME: "pyomicron"
     CONDA_PKGS_DIRS: $(Pipeline.Workspace)/.conda/pkgs
 
   steps:
   - bash: |
       set -ex
       echo "##vso[task.prependpath]$CONDA/condabin"
-      source "${CONDA}/etc/profile.d/conda.sh"
       conda config --set always_yes yes
       conda config --prepend channels conda-forge
     displayName: Configure Conda
@@ -32,20 +32,20 @@ jobs:
 
   - bash: |
       set -ex
-      conda create --yes --name pyomicron python=${PYTHON_VERSION}
-      conda env update --name pyomicron --file=environment.yml
-      conda install --yes --name pyomicron pytest-azurepipelines
+      conda create --yes --name ${CONDA_ENV_NAME} python=${PYTHON_VERSION}
+      conda env update --name ${CONDA_ENV_NAME} --file=environment.yml
+      conda install --yes --name ${CONDA_ENV_NAME} pytest-azurepipelines
     displayName: Create conda environment
 
   - bash: |
       set -ex
-      conda activate pyomicron
+      source activate pyomicron
       python -m pip install --editable .
     displayName: 'Install pyomicron'
 
   - bash: |
+      source activate pyomicron
       set -ex
-      conda activate pyomicron
       python -m coverage run -m pytest --pyargs omicron
       python -m coverage run -a $(which omicron-hdf5-merge) --help
       python -m coverage run -a $(which omicron-print) --help
@@ -55,7 +55,8 @@ jobs:
     displayName: 'Run automated tests'
 
   - bash: |
+      source activate pyomicron
       set -ex
-      conda install --yes codecov
+      conda install --yes --name ${CONDA_ENV_NAME} codecov
       python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
     displayName: 'Upload to codecov.io'
