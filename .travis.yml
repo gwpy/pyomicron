@@ -1,9 +1,5 @@
 language: generic
 
-env:
-  global:
-    - CONDA_PKGS_DIRS="${HOME}/.cache/conda/pkgs"
-
 matrix:
   fast_finish: true
 
@@ -58,9 +54,6 @@ after_success:
   - python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
 
 before_cache:
-  - conda clean --quiet --yes --all
   - rm -f $HOME/.cache/pip/log/debug.log
 cache:
   pip: true
-  directories:
-    - ${HOME}/.cache/conda/pkgs
