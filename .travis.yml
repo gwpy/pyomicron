@@ -38,6 +38,7 @@ install:
   # install testing dependencies with conda
   - travis_retry conda install --quiet --yes --update-deps --name pyomicron
         flake8
+        flake8-colors
         pip
         pytest-cov
         setuptools
@@ -59,7 +60,7 @@ install:
   - python -m pip install --editable .
 
 script:
-  #- python -m flake8 . bin/* <-- will be enabled later
+  - python -m flake8 . bin/*
   - python -m pytest --verbose --cov --pyargs omicron
   - python -m coverage run -a $(which omicron-process) --help
   - python -m coverage run -a $(which omicron-status) --help
