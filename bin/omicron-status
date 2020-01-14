@@ -372,9 +372,9 @@ except ValueError:
 
 # load archive latency
 latencyfile = outdir / "nagios-latency-{}.h5".format(tag)
-times = dict((c, dict((ft, {}) for ft in filetypes)) for c in channels)
-ldata = dict((c, dict((ft, {}) for ft in filetypes)) for c in channels)
-if latencyfile.is_file():
+times = dict((c, dict((ft, None) for ft in filetypes)) for c in channels)
+ldata = dict((c, dict((ft, None) for ft in filetypes)) for c in channels)
+try:
     with h5py.File(latencyfile, 'r') as h5file:
         for c in channels:
             for ft in filetypes:
@@ -384,12 +384,18 @@ if latencyfile.is_file():
                 except KeyError:
                     times[c][ft] = numpy.ndarray((0,))
                     ldata[c][ft] = numpy.ndarray((0,))
-    logger.debug("Parsed latency data from %s" % latencyfile)
-else:
+except OSError as exc:  # file not found, or is corrupt
+    warnings.warn("failed to load latency data from {}: {}".format(
+        latencyfile,
+        str(exc),
+    ))
     for c in channels:
         for ft in filetypes:
-            times[c][ft] = numpy.ndarray((0,))
-            ldata[c][ft] = numpy.ndarray((0,))
+            if not times[c].get(ft):
+                times[c][ft] = numpy.ndarray((0,))
+                ldata[c][ft] = numpy.ndarray((0,))
+else:
+    logger.debug("Parsed latency data from %s" % latencyfile)
 
 # load acknowledged gaps
 acksegfile = str(outdir  / "acknowledged-gaps-{}.txt".format(tag))
