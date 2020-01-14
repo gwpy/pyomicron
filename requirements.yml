@@ -15,6 +15,7 @@ dependencies:
   - markuppy
   - numpy
   - omicron >=2.3.12
+  - pycondor
   - python
   - python-ldas-tools-framecpp
   - python-ligo-lw >=1.4.0

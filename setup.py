@@ -57,6 +57,7 @@ install_requires = [
     'lscsoft-glue >= 1.60.0',
     'MarkupPy',
     'numpy',
+    'pycondor',
     'python-ligo-lw >= 1.4.0',
     'six',
 ]
