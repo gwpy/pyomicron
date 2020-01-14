@@ -35,7 +35,7 @@ from omicron.segments import (Segment, SegmentList, cache_segments)
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
-BASEPATH = const.OMICRON_ARCHIVE.replace(getuser(), 'detchar')
+BASEPATH = str(const.OMICRON_ARCHIVE).replace(getuser(), 'detchar')
 
 MATH_OPERATORS = {
     '<': operator.lt,
