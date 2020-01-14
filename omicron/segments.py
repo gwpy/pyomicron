@@ -21,7 +21,6 @@
 
 import json
 import re
-import warnings
 from functools import wraps
 from math import (floor, ceil)
 
@@ -32,7 +31,6 @@ from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
 from gwpy.io.gwf import data_segments as gwf_data_segments
 from gwpy.segments import (DataQualityFlag, Segment, SegmentList)
 from gwpy.timeseries import (StateTimeSeries, StateVector, TimeSeriesDict)
-from gwpy.time import LIGOTimeGPS
 
 from . import data
 

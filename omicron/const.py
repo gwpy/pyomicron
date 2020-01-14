@@ -23,8 +23,6 @@ import os
 import re
 from pathlib import Path
 
-from ligo.segments import segment as Segment
-
 IFO_FQDN_REGEX = {
     "G1": re.compile(r"\.uni-hannover"),
     "H1": re.compile(r"\.ligo-wa"),

@@ -32,34 +32,21 @@ before_install:
   - conda info --all
 
 install:
-  # create a conda environment
+  # create a conda environment including our requirements
   - travis_retry conda env create --quiet --name pyomicron --file requirements.yml
   - travis_retry conda activate pyomicron
   # install testing dependencies with conda
   - travis_retry conda install --quiet --yes --update-deps --name pyomicron
         flake8
+        flake8-colors
         pip
         pytest-cov
         setuptools
-  # install a bunch of the larger/compiled runtime dependencies with conda
-  - travis_retry conda install --quiet --yes --update-deps --name pyomicron
-        astropy
-        gwpy
-        jsmin
-        lalsuite
-        libsass
-        lscsoft-glue
-        lxml
-        matplotlib
-        numpy
-        pandas
-        pytz
-        scipy
   # install this version
   - python -m pip install --editable .
 
 script:
-  #- python -m flake8 . bin/* <-- will be enabled later
+  - "python -m flake8 --format='${cyan}%(path)s${reset}:${yellow_bold}%(row)d${reset}:${green_bold}%(col)d${reset}: ${red_bold}%(code)s${reset} %(text)s' .  bin/*"
   - python -m pytest --verbose --cov --pyargs omicron
   - python -m coverage run -a $(which omicron-process) --help
   - python -m coverage run -a $(which omicron-status) --help
