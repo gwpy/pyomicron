@@ -1,39 +1,79 @@
-language: python
-
-dist: xenial
-
-python:
-  - '3.6'
-  - '3.7'
+language: generic
 
 env:
-  matrix:
-    - PIP_FLAGS="--quiet"
-    - PIP_FLAGS="--quiet --pre"
+  global:
+    - CONDA_PKGS_DIRS="${HOME}/.cache/conda/pkgs"
 
 matrix:
-  allow_failures:
-    - env: PIP_FLAGS="--quiet --pre"
   fast_finish: true
 
+  include:
+    - os: linux
+      env: PYTHON_VERSION="3.6"
+    - os: linux
+      env: PYTHON_VERSION="3.7"
+    # -- disabled until we can install htcondor on osx
+    #- os: osx
+    #  env: PYTHON_VERSION="3.6"
+    #- os: osx
+    #  env: PYTHON_VERSION="3.7"
+
 before_install:
-  - python -m pip install ${PIP_FLAGS} --upgrade pip
-  - python -m pip install ${PIP_FLAGS} --upgrade pytest pytest-cov
-  - python -m pip install ${PIP_FLAGS} -r requirements.txt
+  - if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+        curl -o miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh;
+    else
+        curl -o miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh;
+    fi
+  - bash miniconda.sh -b -p ${HOME}/miniconda
+  - source "${HOME}/miniconda/etc/profile.d/conda.sh"
+  - conda config --set always_yes yes --set changeps1 no
+  - conda config --add channels conda-forge
+  - travis_retry conda update --quiet --yes conda
+  - conda info --all
 
 install:
-  # note: need --editable for coverage with `which ...` to work
-  - python -m pip install --upgrade --editable .
+  # create a conda environment
+  - travis_retry conda env create --quiet --name pyomicron --file requirements.yml
+  - travis_retry conda activate pyomicron
+  # install testing dependencies with conda
+  - travis_retry conda install --quiet --yes --update-deps --name pyomicron
+        flake8
+        pip
+        pytest-cov
+        setuptools
+  # install a bunch of the larger/compiled runtime dependencies with conda
+  - travis_retry conda install --quiet --yes --update-deps --name pyomicron
+        astropy
+        gwpy
+        jsmin
+        lalsuite
+        libsass
+        lscsoft-glue
+        lxml
+        matplotlib
+        numpy
+        pandas
+        pytz
+        scipy
+  # install this version
+  - python -m pip install --editable .
 
 script:
-  - python -m coverage run -m pytest omicron/
+  #- python -m flake8 . bin/* <-- will be enabled later
+  - python -m pytest --verbose --cov --pyargs omicron
   - python -m coverage run -a $(which omicron-process) --help
   - python -m coverage run -a $(which omicron-status) --help
   - python -m coverage run -a $(which omicron-hdf5-merge) --help
 
 after_success:
-  - python -m pip install codecov
-  - codecov
+  - travis_retry conda install --quiet --yes --name pyomicron codecov
+  - python -m coverage report
+  - python -m codecov --flags $(uname) python${PYTHON_VERSION/./}
 
+before_cache:
+  - conda clean --quiet --yes --all
+  - rm -f $HOME/.cache/pip/log/debug.log
 cache:
   pip: true
+  directories:
+    - ${HOME}/.cache/conda/pkgs
