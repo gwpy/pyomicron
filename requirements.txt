@@ -1,3 +1,6 @@
+# pypi dependencies for pyomicron
+# please try and keep this synchronised with requirements.yml
+
 dqsegdb2
 gwdatafind
 gwpy >=0.14.1
