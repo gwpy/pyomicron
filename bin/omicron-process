@@ -194,8 +194,8 @@ condorg.add_argument('--submit-rescue-dag', type=int, default=0,
                           'rescue DAG, default: %(default)s')
 condorg.add_argument('-c', '--condor-command', action='append', type=str,
                      default=[], metavar="\"key=value\"",
-                     help="Extra condor submit commands to add to "
-                          "gw_summary submit file. Can be given "
+                     help="Extra commands to add to the "
+                          "HTCondor submit files, can be given "
                           "multiple times")
 condorg.add_argument('-d', '--dagman-option', action='append', type=str,
                      default=['force'], metavar="\"opt | opt=value\"",
