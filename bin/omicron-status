@@ -34,7 +34,6 @@ import htcondor
 import numpy
 
 from matplotlib import (rcParams, use)
-use('agg')
 from matplotlib.gridspec import GridSpec
 
 import h5py
@@ -50,6 +49,7 @@ from gwpy.plot.segments import SegmentRectangle
 from omicron import (condor, const, io, log, segments, __version__)
 from omicron.utils import get_omicron_version
 
+use('agg')
 rcParams.update({
     'figure.subplot.bottom': 0.15,
     'figure.subplot.left': 0.1,
@@ -201,13 +201,17 @@ else:
         stateflag = None
     else:
         try:
-            statepad = tuple(map(float, cp.get(group, 'state-padding').split(',')))
+            statepad = tuple(map(
+                float,
+                cp.get(group, 'state-padding').split(','),
+            ))
         except configparser.NoOptionError:
             statepad = (0, 0)
 if stateflag:
     logger.debug("Parsed state flag: %r" % stateflag)
     logger.debug("Parsed state padding: %s" % repr(statepad))
 logger.info("Processing %d-%d" % (start, end))
+
 
 # -- define nagios JSON printer -----------------------------------------------
 
@@ -312,14 +316,14 @@ if not args.skip_job_duration:
         'OmicronProcess', group, maxjobs=5000)
     logger.debug("Recovered duration history for %d omicron.exe jobs"
                  % len(times))
-    l = ax.plot([0], [1], label='Omicron.exe')[0]
-    ax.plot(times, jobdur, linestyle=' ', marker='.', color=l.get_color())
+    line = ax.plot([0], [1], label='Omicron.exe')[0]
+    ax.plot(times, jobdur, linestyle=' ', marker='.', color=line.get_color())
     times, jobdur = condor.get_job_duration_history_shell(
         'OmicronPostProcess', group, maxjobs=5000)
     logger.debug("Recovered duration history for %d post-processing jobs"
                  % len(times))
-    l = ax.plot([0], [1], label='Post-processing')[0]
-    ax.plot(times, jobdur, linestyle=' ', marker='.', color=l.get_color())
+    line = ax.plot([0], [1], label='Post-processing')[0]
+    ax.plot(times, jobdur, linestyle=' ', marker='.', color=line.get_color())
     ax.legend(loc='upper left', borderaxespad=0, bbox_to_anchor=(1.01, 1),
               handlelength=1)
     ax.set_xlim(args.gps_start_time, args.gps_end_time)
@@ -398,7 +402,7 @@ else:
     logger.debug("Parsed latency data from %s" % latencyfile)
 
 # load acknowledged gaps
-acksegfile = str(outdir  / "acknowledged-gaps-{}.txt".format(tag))
+acksegfile = str(outdir / "acknowledged-gaps-{}.txt".format(tag))
 try:
     acknowledged = SegmentList.read(acksegfile, gpstype=float,
                                     format="segwizard")
@@ -497,9 +501,14 @@ for c in channels:
                                           [latency[c][ft]]))
 
         # plot
-        l = lax.plot(times[c][ft], ldata[c][ft], label=ft, color=colors[y])[0]
+        line = lax.plot(
+            times[c][ft],
+            ldata[c][ft],
+            label=ft,
+            color=colors[y],
+        )[0]
         lax.plot(times[c][ft], ldata[c][ft], marker='.', linestyle=' ',
-                 color=l.get_color())
+                 color=line.get_color())
         sax.plot_segmentlist(segs, y=y, label=ft, alpha=.5,
                              facecolor=leg['Analysable'].get_facecolor(),
                              edgecolor=leg['Analysable'].get_edgecolor())
@@ -606,16 +615,20 @@ for tag, name in zip(
 # write HTML summary
 if args.html:
     page = markup.page()
-    page.init(title="%s Omicron Online status" % group,
-              css=['//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/'
-                       'bootstrap.min.css',
-                   '//cdnjs.cloudflare.com/ajax/libs/fancybox/2.1.5/'
-                       'jquery.fancybox.min.css'],
-              script=['//code.jquery.com/jquery-1.11.2.min.js',
-                      '//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/'
-                          'bootstrap.min.js',
-                      '//cdnjs.cloudflare.com/ajax/libs/fancybox/2.1.5/'
-                          'jquery.fancybox.min.js'])
+    page.init(
+        title="%s Omicron Online status" % group,
+        css=[
+            '//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css',
+            ('//cdnjs.cloudflare.com/ajax/libs/fancybox/2.1.5/'
+             'jquery.fancybox.min.css'),
+        ],
+        script=[
+            '//code.jquery.com/jquery-1.11.2.min.js',
+            '//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js',
+            ('//cdnjs.cloudflare.com/ajax/libs/fancybox/2.1.5/'
+             'jquery.fancybox.min.js'),
+        ],
+    )
     page.div(class_='container')
     # write header
     page.div(class_='page-header')

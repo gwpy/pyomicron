@@ -76,7 +76,6 @@ packagenames = find_packages()
 # glob for all scripts
 scripts = glob.glob(os.path.join('bin', '*'))
 
-
 # -- run setup --------------
 
 setup(

@@ -54,5 +54,5 @@ def test_astropy_config_path(tmp_path):
 
 @mock.patch.dict(os.environ, clear=True)
 def test_astropy_config_path_no_environ(tmp_path):
-    confpath = utils.astropy_config_path(tmp_path, update_environ=False)
+    utils.astropy_config_path(tmp_path, update_environ=False)
     assert "XDG_CONFIG_HOME" not in os.environ

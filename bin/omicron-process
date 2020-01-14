@@ -72,8 +72,6 @@ from subprocess import check_call
 from tempfile import gettempdir
 from time import sleep
 
-import htcondor
-
 from glue import pipeline
 
 from gwpy.io.cache import read_cache
@@ -324,7 +322,7 @@ except ValueError:
 else:
     crates = set(crates)
 logger.debug("%d channels read" % len(channels))
-for i in range(len(channels) -1, -1, -1):  # remove excluded channels
+for i in range(len(channels)-1, -1, -1):  # remove excluded channels
     c = channels[i]
     if c in args.exclude_channel:
         channels.pop(i)
@@ -391,7 +389,9 @@ else:
     logger.debug("State flag = %s" % stateflag)
     if not statechannel:  # map state flag to state channel
         try:
-            statechannel, statebits, stateft = segments.STATE_CHANNEL[stateflag]
+            statechannel, statebits, stateft = (
+                segments.STATE_CHANNEL[stateflag]
+            )
         except KeyError as e:
             if online or args.no_segdb:  # only raise if channel is required
                 e.args = ('Cannot map state flag %r to channel' % stateflag,)
@@ -457,17 +457,19 @@ if running:
         raise RuntimeError(msg)
     logger.info("{}, will reattach".format(msg))
 else:
-     args.reattach = False
+    args.reattach = False
 
 # check dagman rescue files
-nrescue = len(list(condir.glob("{}.rescue[0-9][0-9][0-9]".format(dagpath.name))))
+nrescue = len(list(condir.glob(
+    "{}.rescue[0-9][0-9][0-9]".format(dagpath.name),
+)))
 if args.rescue and not nrescue:
     raise RuntimeError(
         "--rescue given but no rescue DAG files found for {}".format(
             dagpath,
         ),
     )
-if nrescue and not args.rescue and not "force" in args.dagman_option:
+if nrescue and not args.rescue and "force" not in args.dagman_option:
     raise RuntimeError(
         "rescue DAGs found for {} but `--rescue` not given and "
         "`--dagman-option force` not given, cannot continue".format(
@@ -866,7 +868,10 @@ for s, e in segs:
                     xmlfiles = ' '.join(omicronfiles[c]['xml'])
                     for f in omicronfiles[c]['xml']:
                         ppnode._CondorDAGNode__input_files.append(f)
-                    if args.skip_ligolw_add or len(omicronfiles[c]['xml']) == 1:
+                    if (
+                        args.skip_ligolw_add or
+                        len(omicronfiles[c]['xml']) == 1
+                    ):
                         xml = xmlfiles
                     else:
                         xml = str(mergepath.with_suffix(".xml"))
@@ -1053,7 +1058,11 @@ for i in range(args.submit_rescue_dag + 1):
                 dagmanargs.add(x)
             else:
                 dagmanopts[key] = val
-        dagid = condor.submit_dag(str(dagfile), *list(dagmanargs), **dagmanopts)
+        dagid = condor.submit_dag(
+            str(dagfile),
+            *list(dagmanargs),
+            **dagmanopts,
+        )
         logger.info("Condor ID = %d" % dagid)
         # write segments now -- this means that online processing will
         # _always_ move on even if the workflow fails

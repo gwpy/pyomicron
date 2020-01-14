@@ -19,7 +19,7 @@
 """Test logging for Omicron
 """
 
-from .. import nagios
+from .. import nagios  # noqa: F401
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
