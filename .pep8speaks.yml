@@ -1,0 +1,3 @@
+scanner:
+  linter: flake8
+  diff_only: True
