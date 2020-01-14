@@ -59,10 +59,7 @@ OMICRON_PROD = OMICRON_BASE / "online"
 # archive storage directory
 OMICRON_ARCHIVE = HOME / "triggers"
 # tag Omicron itself places on XML files
-OMICRON_FILETAG = 'Omicron'
-
-# omicron production version
-OMICRON_VERSION = 'v2r1'
+OMICRON_FILETAG = 'OMICRON'
 
 # omicron channel files
 if ifo is not None:
