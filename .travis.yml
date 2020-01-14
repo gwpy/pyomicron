@@ -60,7 +60,10 @@ install:
   - python -m pip install --editable .
 
 script:
-  - python -m flake8 . bin/*
+  - python -m flake8
+        --format='${cyan}%(path)s${reset}:${yellow_bold}%(row)d${reset}:${green_bold}%(col)d${reset}: ${red_bold}%(code)s${reset} %(text)s'
+        .
+        bin/*
   - python -m pytest --verbose --cov --pyargs omicron
   - python -m coverage run -a $(which omicron-process) --help
   - python -m coverage run -a $(which omicron-status) --help
