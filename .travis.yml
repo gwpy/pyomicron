@@ -32,7 +32,7 @@ before_install:
   - conda info --all
 
 install:
-  # create a conda environment
+  # create a conda environment including our requirements
   - travis_retry conda env create --quiet --name pyomicron --file requirements.yml
   - travis_retry conda activate pyomicron
   # install testing dependencies with conda
@@ -42,20 +42,6 @@ install:
         pip
         pytest-cov
         setuptools
-  # install a bunch of the larger/compiled runtime dependencies with conda
-  - travis_retry conda install --quiet --yes --update-deps --name pyomicron
-        astropy
-        gwpy
-        jsmin
-        lalsuite
-        libsass
-        lscsoft-glue
-        lxml
-        matplotlib
-        numpy
-        pandas
-        pytz
-        scipy
   # install this version
   - python -m pip install --editable .
 
