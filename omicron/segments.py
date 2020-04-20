@@ -35,11 +35,22 @@ from gwpy.timeseries import (StateTimeSeries, StateVector, TimeSeriesDict)
 from . import data
 
 STATE_CHANNEL = {
+    # each value of this dict is a 3-tuple:
+    #     channel name or guardian node prefix
+    #     state bits (or 'guardian')
+    #     state frametype
+
+    # KAGRA
+    "K1:GRD-LSC_LOCK_STATE_N_EQ_1000:1": (
+        "K1:DET-DQ_STATE_VECTOR",
+        [1],
+        "K1_llhoft",
+    ),
     # LIGO-Hanford
     "H1:DMT-GRD_ISC_LOCK_NOMINAL:1": (
-        "H1:GRD-ISC_LOCK",  # channel name or guardian node prefix
-        "guardian",  # state bits (or 'guardian')
-        "H1_R",  # state frametype
+        "H1:GRD-ISC_LOCK",
+        "guardian",
+        "H1_R",
     ),
     "H1:DMT-UP:1": (
         "H1:GDS-CALIB_STATE_VECTOR",
