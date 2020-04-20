@@ -35,46 +35,49 @@ from gwpy.timeseries import (StateTimeSeries, StateVector, TimeSeriesDict)
 from . import data
 
 STATE_CHANNEL = {
+    # LIGO-Hanford
     "H1:DMT-GRD_ISC_LOCK_NOMINAL:1": (
         "H1:GRD-ISC_LOCK",  # channel name or guardian node prefix
         "guardian",  # state bits (or 'guardian')
         "H1_R",  # state frametype
-    ),
-    "L1:DMT-GRD_ISC_LOCK_NOMINAL:1": (
-        "L1:GRD-ISC_LOCK",
-        "guardian",
-        "L1_R",
     ),
     "H1:DMT-UP:1": (
         "H1:GDS-CALIB_STATE_VECTOR",
         [2],
         "H1_HOFT_C00",
     ),
-    "L1:DMT-UP:1": (
-        "L1:GDS-CALIB_STATE_VECTOR",
-        [2],
-        "L1_HOFT_C00",
-    ),
     "H1:DMT-CALIBRATED:1": (
         "H1:GDS-CALIB_STATE_VECTOR",
         [0],
         "H1_HOFT_C00",
-    ),
-    "L1:DMT-CALIBRATED:1": (
-        "L1:GDS-CALIB_STATE_VECTOR",
-        [0],
-        "L1_HOFT_C00",
     ),
     "H1:DMT-ANALYSIS_READY:1": (
         "H1:GDS-CALIB_STATE_VECTOR",
         [0, 1, 2],
         "H1_HOFT_C00",
     ),
+    # LIGO-Livingston
+    "L1:DMT-GRD_ISC_LOCK_NOMINAL:1": (
+        "L1:GRD-ISC_LOCK",
+        "guardian",
+        "L1_R",
+    ),
+    "L1:DMT-UP:1": (
+        "L1:GDS-CALIB_STATE_VECTOR",
+        [2],
+        "L1_HOFT_C00",
+    ),
+    "L1:DMT-CALIBRATED:1": (
+        "L1:GDS-CALIB_STATE_VECTOR",
+        [0],
+        "L1_HOFT_C00",
+    ),
     "L1:DMT-ANALYSIS_READY:1": (
         "L1:GDS-CALIB_STATE_VECTOR",
         [0, 1, 2],
         "L1_HOFT_C00",
     ),
+    # Virgo
     "V1:ITF_LOCKED:1": (
         "V1:DQ_ANALYSIS_STATE_VECTOR",
         [11],
