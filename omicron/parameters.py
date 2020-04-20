@@ -341,7 +341,6 @@ class OmicronParameters(configparser.ConfigParser):
         # get parameters
         segment, overlap = self.getfloats('PARAMETER', 'TIMING')
         fileduration = segment - overlap
-        filesegment = segment - overlap
         padding = overlap / 2.
 
         # build list of file segments
