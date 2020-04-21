@@ -40,6 +40,17 @@ STATE_CHANNEL = {
     #     state bits (or 'guardian')
     #     state frametype
 
+    # GEO600
+    "G1:GEO-UP:1": (
+        "G1:DER_DATA_QUALITY",
+        [0],
+        "G1_RDS_C01_L3",
+    ),
+    "G1:GEO-SCIENCE:1": (
+        "G1:DER_DATA_QUALITY",
+        [0, 1, 2, 3],
+        "G1_RDS_C01_L3",
+    ),
     # KAGRA
     "K1:GRD-LSC_LOCK_STATE_N_EQ_1000:1": (
         "K1:DET-DQ_STATE_VECTOR",
