@@ -16,6 +16,7 @@ dependencies:
   - numpy
   - omicron >=2.3.12
   - python
+  - python-ldas-tools-framecpp
   - python-ligo-lw >=1.4.0
   - root_base 6.18.04
   - six
