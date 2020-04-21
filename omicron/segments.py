@@ -89,7 +89,7 @@ STATE_CHANNEL = {
         "L1_HOFT_C00",
     ),
     # Virgo
-    "V1:ITF_LOCKED:1": (
+    "V1:ITF_NOMINAL_LOCK:1": (
         "V1:DQ_ANALYSIS_STATE_VECTOR",
         [11],
         "V1Online",
