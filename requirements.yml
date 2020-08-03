@@ -19,4 +19,3 @@ dependencies:
   - python-ldas-tools-framecpp
   - python-ligo-lw >=1.4.0
   - root_base 6.18.04
-  - six

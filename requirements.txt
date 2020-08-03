@@ -3,7 +3,7 @@
 
 dqsegdb2
 gwdatafind
-gwpy >=0.14.1
+gwpy >= 1.0.0
 h5py
 htcondor
 ligo-segments
@@ -12,5 +12,4 @@ MarkupPy
 numpy
 pycondor
 python-ligo-lw >= 1.4.0
-six
 pytest
