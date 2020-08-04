@@ -34,9 +34,9 @@ cmdclass = versioneer.get_cmdclass()
 # set basic metadata
 PACKAGENAME = 'pyomicron'
 DISTNAME = 'pyomicron'
-AUTHOR = 'Duncan Macleod'
-AUTHOR_EMAIL = 'duncan.macleod@ligo.org'
-LICENSE = 'GPLv3'
+AUTHOR = 'Alex Urban, Duncan Macleod'
+AUTHOR_EMAIL = 'alexander.urban@ligo.org'
+LICENSE = 'GPL-3.0-or-later'
 
 # read description
 with open('README.md', 'rb') as f:
