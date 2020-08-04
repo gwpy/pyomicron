@@ -20,7 +20,9 @@
 """
 
 import os
-import re
+import subprocess
+import sys
+from distutils.spawn import find_executable
 from distutils.version import StrictVersion
 from pathlib import Path
 
@@ -45,41 +47,33 @@ def get_output_path(args):
     return args.output_dir.resolve(strict=False)
 
 
-# -- version comparison utilities
+def find_omicron():
+    """Find the omicron executable in the environment
 
-class OmicronVersion(StrictVersion):
-    version_re = re.compile(r'^v(\d+)r(\d+) (p(\d+))? ([ab](\d+))?$',
-                            re.VERBOSE)
+    Either via `PATH` or relative to the current python interpreter
 
-    def parse(self, vstring):
-        match = self.version_re.match(vstring)
-        if not match:
-            raise ValueError("invalid version number '%s'" % vstring)
+    Returns
+    -------
+    path : `pathlib.Path`
+        the path of the omicron executable
 
-        (major, minor, patch, prerelease, prerelease_num) = \
-            match.group(1, 2, 4, 5, 6)
-
-        if patch:
-            self.version = tuple(map(int, [major, minor, patch]))
-        else:
-            self.version = tuple(map(int, [major, minor])) + (None,)
-
-        if prerelease:
-            self.prerelease = (prerelease[0], int(prerelease_num))
-        else:
-            self.prerelease = None
-
-    def __str__(self):
-        if self.version[2] is None:
-            return 'v%sr%s' % (self.version[0], self.version[1])
-        else:
-            return 'v%sr%sp%s' % (self.version[0], self.version[1],
-                                  self.version[2])
-
-    def _cmp(self, other):
-        if isinstance(other, str):
-            other = OmicronVersion(other)
-        return StrictVersion._cmp(self, other)
+    Raises
+    ------
+    RuntimeError
+        if omicron cannot be found, or is not executable
+    """
+    exe = find_executable(
+        "omicron",
+        path=os.pathsep.join((
+            os.getenv("PATH", ""),
+            str(Path(sys.executable).parent),
+        )),
+    )
+    if not exe or not os.access(exe, os.X_OK):
+        raise RuntimeError(
+            "cannot locate omicron in environment or is not executable"
+        )
+    return Path(exe).resolve()
 
 
 def get_omicron_version(executable=None):
@@ -97,22 +91,21 @@ def get_omicron_version(executable=None):
 
     Examples
     --------
-    >>> get_omicron_version("/home/detchar/opt/virgosoft/Omicron/v2r1/Linux-x86_64/omicron.exe")
-    'v2r1'
+    >>> get_omicron_version()
+    '2.1.0'
     """  # noqa: E501
-    if executable:
-        executable = Path(executable).resolve()
-        vstr = executable.parent.parent.name
-    elif os.getenv('OMICRON_VERSION'):
-        vstr = os.environ['OMICRON_VERSION']
-    else:
-        try:
-            vstr = Path(os.environ['OMICRONROOT']).name
-        except KeyError as e:
-            e.args = ('Cannot parse Omicron version from environment, '
-                      'please specify the executable path',)
-            raise
-    return OmicronVersion(vstr)
+    executable = executable or find_omicron()
+    try:
+        return StrictVersion(
+            subprocess.check_output([
+                executable,
+                "version",
+            ]).decode("utf-8").rsplit(maxsplit=1)[-1],
+        )
+    except subprocess.CalledProcessError:
+        raise RuntimeError(
+            "failed to determine omicron version from executable"
+        )
 
 
 def astropy_config_path(parent, update_environ=True):

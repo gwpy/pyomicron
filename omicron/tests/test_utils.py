@@ -20,28 +20,50 @@
 """
 
 import os
+import subprocess
+import sys
+from pathlib import Path
 from unittest import mock
+
+import pytest
 
 from .. import utils
 
 
-def test_get_omicron_version():
-    testv = 'v2r1'
-    v = utils.get_omicron_version(
-        "/home/detchar/opt/virgosoft/Omicron/%s/Linux-x86_64/omicron.exe"
-        % testv
-    )
-    assert v == testv
+@mock.patch("os.path.isfile", side_effect=(False, True))
+@mock.patch("os.access", return_value=True)
+@mock.patch.dict("os.environ")
+def test_find_omicron_path(*mocks):
+    os.environ["PATH"] = "/test/path"
+    assert str(utils.find_omicron()) == "/test/path/omicron"
 
-    os.environ['OMICRON_VERSION'] = testv
-    assert utils.get_omicron_version() == testv
 
-    os.environ.pop('OMICRON_VERSION')
-    os.environ['OMICRONROOT'] = (
-        "/home/detchar/opt/virgosoft/Omicron/%s" % testv)
-    assert utils.get_omicron_version() == testv
-    assert utils.get_omicron_version() > 'v1r2'
-    assert utils.get_omicron_version() < 'v2r2'
+@mock.patch("os.access", return_value=True)
+@mock.patch.dict("os.environ")
+def test_find_omicron_relative(_):
+    os.environ.pop('PATH')
+    assert utils.find_omicron() == Path(sys.executable).parent / "omicron"
+
+
+@mock.patch("os.access", return_value=False)
+def test_find_omicron_error(_):
+    with pytest.raises(RuntimeError):
+        utils.find_omicron()
+
+
+@mock.patch("subprocess.check_output", return_value=b"Omicron 1.2.3")
+def test_get_omicron_version(mocker):
+    v = utils.get_omicron_version("omicron")
+    assert v == "1.2.3"
+
+
+@mock.patch(
+    "subprocess.check_output",
+    side_effect=subprocess.CalledProcessError(1, "test"),
+)
+def test_get_omicron_version_subprocess_error(mocker):
+    with pytest.raises(RuntimeError):
+        utils.get_omicron_version("omicron")
 
 
 @mock.patch.dict(os.environ, clear=True)

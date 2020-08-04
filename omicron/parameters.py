@@ -46,23 +46,18 @@ class OmicronParameters(configparser.ConfigParser):
     OMICRON_DEFAULTS[None] = {
         'PARAMETER': {
             'CLUSTERING': 'TIME',
+            'FFTPLAN': 'FFTW_ESTIMATE',
             'TRIGGERRATEMAX': 100000,
         },
         'OUTPUT': {
             'DIRECTORY': os.path.curdir,
             'PRODUCTS': 'triggers',
             'VERBOSITY': 1,
-            'FORMAT': 'rootxml',
+            'FORMAT': 'root xml hdf5',
             'NTRIGGERMAX': 1e7,
         },
         'DATA': {
         },
-    }
-    OMICRON_DEFAULTS['v2r2'] = {
-        'PARAMETER': {'FFTPLAN': 'FFTW_ESTIMATE'},
-    }
-    OMICRON_DEFAULTS['v2r3'] = {
-        'OUTPUT': {'FORMAT': 'root xml hdf5'},
     }
 
     def __init__(self, version=None, defaults=dict(), **kwargs):
@@ -254,26 +249,25 @@ class OmicronParameters(configparser.ConfigParser):
                 else:
                     new.set(group, omikey, val)
 
-        # get parameters
-        if new.version >= 'v2r2':
-            # rename 'CHUNKDURATION' -> 'PSDLENGTH'
-            try:
-                psdlength = new.get('PARAMETER', 'CHUNKDURATION')
-            except configparser.NoOptionError:
-                pass
-            else:
-                new.remove_option('PARAMETER', 'CHUNKDURATION')
-                new.set('PARAMETER', 'PSDLENGTH', psdlength)
-            # combine 'SEGMENTDURATION' and 'OVERLAPDURATION' into 'TIMING'
-            try:
-                timing = (new.get('PARAMETER', 'SEGMENTDURATION'),
-                          new.get('PARAMETER', 'OVERLAPDURATION'))
-            except configparser.NoOptionError:
-                pass
-            else:
-                new.remove_option('PARAMETER', 'SEGMENTDURATION')
-                new.remove_option('PARAMETER', 'OVERLAPDURATION')
-                new.set('PARAMETER', 'TIMING', '%s %s' % timing)
+        # -- get parameters
+        # rename 'CHUNKDURATION' -> 'PSDLENGTH'
+        try:
+            psdlength = new.get('PARAMETER', 'CHUNKDURATION')
+        except configparser.NoOptionError:
+            pass
+        else:
+            new.remove_option('PARAMETER', 'CHUNKDURATION')
+            new.set('PARAMETER', 'PSDLENGTH', psdlength)
+        # combine 'SEGMENTDURATION' and 'OVERLAPDURATION' into 'TIMING'
+        try:
+            timing = (new.get('PARAMETER', 'SEGMENTDURATION'),
+                      new.get('PARAMETER', 'OVERLAPDURATION'))
+        except configparser.NoOptionError:
+            pass
+        else:
+            new.remove_option('PARAMETER', 'SEGMENTDURATION')
+            new.remove_option('PARAMETER', 'OVERLAPDURATION')
+            new.set('PARAMETER', 'TIMING', '%s %s' % timing)
 
         return new
 
@@ -307,13 +301,8 @@ class OmicronParameters(configparser.ConfigParser):
             frange = self.getfloats('PARAMETER', 'FREQUENCYRANGE')
         except configparser.NoOptionError:
             frange = None
-        if self.version >= 'v2r2':
-            chunk = self.getfloat('PARAMETER', 'PSDLENGTH')
-            segment, overlap = self.getfloats('PARAMETER', 'TIMING')
-        else:
-            chunk = self.getfloat('PARAMETER', 'CHUNKDURATION')
-            segment = self.getfloat('PARAMETER', 'SEGMENTDURATION')
-            overlap = self.getfloat('PARAMETER', 'OVERLAPDURATION')
+        chunk = self.getfloat('PARAMETER', 'PSDLENGTH')
+        segment, overlap = self.getfloats('PARAMETER', 'TIMING')
 
         # check parameters are valid
         assert segment <= chunk, (
@@ -350,15 +339,8 @@ class OmicronParameters(configparser.ConfigParser):
         """Prints the list of processing segments for a given data segment
         """
         # get parameters
-        if self.version >= 'v2r2':
-            segment, overlap = self.getfloats('PARAMETER', 'TIMING')
-            fileduration = segment - overlap
-        else:
-            chunk = self.getfloat('PARAMETER', 'CHUNKDURATION')
-            segment = self.getfloat('PARAMETER', 'SEGMENTDURATION')
-            overlap = self.getfloat('PARAMETER', 'OVERLAPDURATION')
-            fileduration = chunk - overlap
-        filesegment = segment - overlap
+        segment, overlap = self.getfloats('PARAMETER', 'TIMING')
+        fileduration = segment - overlap
         padding = overlap / 2.
 
         # build list of file segments
@@ -367,15 +349,7 @@ class OmicronParameters(configparser.ConfigParser):
         segments = SegmentList()
         while t < stop:
             e = min(t + fileduration, stop)
-            seg = Segment(t, e)
-            if filesegment < abs(seg) < fileduration:
-                remaining = abs(seg)
-                nseg = remaining // filesegment * filesegment
-                segments.append(Segment(t, t+nseg))
-                if nseg != remaining:
-                    segments.append(Segment(t+nseg, t+remaining))
-            else:
-                segments.append(seg)
+            segments.append(Segment(t, e))
             t = e
         return segments
 
@@ -406,12 +380,8 @@ class OmicronParameters(configparser.ConfigParser):
             a single segment under condor
         """
         # get parameters
-        if self.version >= 'v2r2':
-            chunk = self.getfloat('PARAMETER', 'PSDLENGTH')
-            _, overlap = self.getfloats('PARAMETER', 'TIMING')
-        else:
-            chunk = self.getfloat('PARAMETER', 'CHUNKDURATION')
-            overlap = self.getfloat('PARAMETER', 'OVERLAPDURATION')
+        chunk = self.getfloat('PARAMETER', 'PSDLENGTH')
+        overlap = self.getfloats('PARAMETER', 'TIMING')[1]
 
         # single small segment
         if end - start <= chunk * 2:

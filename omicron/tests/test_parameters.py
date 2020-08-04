@@ -42,7 +42,7 @@ def create(*args, **kwargs):
 
 @pytest.fixture
 def pars():
-    return create(version='v2r2')
+    return create(version='2.3.12')
 
 
 def test_validate_parameters(pars):
@@ -189,6 +189,7 @@ def test_distribute_segments(pars):
 
 def test_output_files(pars):
     pars.set('PARAMETER', 'TIMING', '64 4')
+    pars.set('OUTPUT', 'FORMAT', 'root xml')
     pars.set('DATA', 'CHANNELS', 'X1:TEST-CHANNEL')
     assert pars.output_files(0, 100) == {
         'X1:TEST-CHANNEL': {

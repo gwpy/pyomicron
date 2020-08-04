@@ -83,6 +83,11 @@ __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
 logger = log.Logger('omicron-process')
 
+try:
+    OMICRON_PATH = str(utils.find_omicron())
+except RuntimeError:
+    OMICRON_PATH = None
+
 DAG_TAG = "omicron"
 
 
@@ -172,7 +177,7 @@ mode.add_argument('--no-submit', action='store_true', default=False,
 condorg.add_argument('--universe', default='vanilla',
                      choices=['vanilla', 'local'],
                      help='condor universe, default: %(default)s')
-condorg.add_argument('--executable', default=find_executable('omicron.exe'),
+condorg.add_argument('--executable', default=OMICRON_PATH,
                      help='omicron executable, default: %(default)s')
 condorg.add_argument('--condor-retry', type=int, default=2,
                      help='number of times to retry each job if failed, '
@@ -189,8 +194,8 @@ condorg.add_argument('--submit-rescue-dag', type=int, default=0,
                           'rescue DAG, default: %(default)s')
 condorg.add_argument('-c', '--condor-command', action='append', type=str,
                      default=[], metavar="\"key=value\"",
-                     help="Extra condor submit commands to add to "
-                          "gw_summary submit file. Can be given "
+                     help="Extra commands to add to the "
+                          "HTCondor submit files, can be given "
                           "multiple times")
 condorg.add_argument('-d', '--dagman-option', action='append', type=str,
                      default=['force'], metavar="\"opt | opt=value\"",
@@ -241,7 +246,7 @@ if args.ifo is None:
     parser.error("Cannot determine IFO prefix from sytem, "
                  "please pass --ifo on the command line")
 if args.executable is None:
-    parser.error("Cannot find omicron.exe on path, please pass "
+    parser.error("Cannot find omicron on path, please pass "
                  "--executable on the command line")
 
 # validate processing options
@@ -297,12 +302,6 @@ omicronv = utils.get_omicron_version(args.executable)
 const.OMICRON_VERSION = str(omicronv)
 os.environ.setdefault('OMICRON_VERSION', str(omicronv))
 logger.debug('Omicron version: %s' % omicronv)
-
-# XXX reset const variables for Omicron v2r2 XXX
-# this can be removed when v2r2 is the stable release
-if omicronv >= 'v2r2':
-    const.OMICRON_FILETAG = 'OMICRON'
-
 
 # -- parse configuration file and get parameters ------------------------------
 
@@ -933,10 +932,9 @@ for s, e in segs:
                 if newdag:
                     script.chmod(0o755)
 
-# set 'strict' option for newer versions of Omicron
+# set 'strict' option for Omicron
 # this is done after the nodes are written so that 'strict' is last in the call
-if omicronv >= 'v2r2':
-    ojob.add_arg('strict')
+ojob.add_arg('strict')
 
 # do all archiving last, once all post-processing has completed
 if args.archive:
