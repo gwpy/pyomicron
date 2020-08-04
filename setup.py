@@ -50,7 +50,7 @@ setup_requires = [
 install_requires = [
     'dqsegdb2',
     'gwdatafind',
-    'gwpy >= 0.14.1',
+    'gwpy >= 1.0.0',
     'h5py',
     'htcondor',
     'ligo-segments',
@@ -59,7 +59,6 @@ install_requires = [
     'numpy',
     'pycondor',
     'python-ligo-lw >= 1.4.0',
-    'six',
 ]
 tests_require = [
     'pytest >= 3.9',
@@ -96,9 +95,12 @@ setup(
         'Intended Audience :: Science/Research',
         'Intended Audience :: End Users/Desktop',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+        ('License :: OSI Approved :: GNU General Public '
+         'License v3 or later (GPLv3+)'),
         'Natural Language :: English',
-        'Operating System :: Linux',
+        'Operating System :: POSIX',
+        'Operating System :: Unix',
+        'Operating System :: MacOS',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
@@ -108,7 +110,6 @@ setup(
         'Topic :: Scientific/Engineering :: Physics',
     ],
     # dependencies
-    python_requires="~=3.6",
     setup_requires=setup_requires,
     install_requires=install_requires,
     tests_require=tests_require,
