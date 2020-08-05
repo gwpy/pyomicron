@@ -77,7 +77,7 @@ def create_parser():
         dest='mode',
         title='run modes',
         description='What kind of data you want to print, run '
-                    '`omicron-print {mode} --help` for detailed help',
+                    '`omicron-show {mode} --help` for detailed help',
     )
 
     # -- common options
