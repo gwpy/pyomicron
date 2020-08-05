@@ -114,7 +114,7 @@ setup(
     entry_points={
         "console_scripts": [
             "omicron-hdf5-merge = omicron.cli.hdf5_merge:main",
-            "omicron-print = omicron.cli.print:main",
+            "omicron-show = omicron.cli.show:main",
             "omicron-process = omicron.cli.process:main",
             "omicron-root-merge = omicron.cli.root_merge:main",
             "omicron-status = omicron.cli.status:main",

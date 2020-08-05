@@ -32,4 +32,4 @@ conda install -c conda-forge pyomicron
 
 ## License
 
-PyOmicron is released under the GNU General Public License v3.0, see [here](https://choosealicense.com/licenses/gpl-3.0/) for a description of this license, or see [COPYING](https://github.com/gwpy/pyomicron/blob/master/COPYING) for the full text.
+PyOmicron is released under the GNU General Public License v3.0, see [here](https://choosealicense.com/licenses/gpl-3.0/) for a description of this license, or see [LICENSE](https://github.com/gwpy/pyomicron/blob/master/LICENSE) for the full text.
