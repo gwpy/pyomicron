@@ -51,6 +51,7 @@ script:
   - python -m coverage run -a $(which omicron-process) --help
   - python -m coverage run -a $(which omicron-status) --help
   - python -m coverage run -a $(which omicron-hdf5-merge) --help
+  - python -m coverage run -a $(which omicron-root-merge) --help
 
 after_success:
   - travis_retry conda install --quiet --yes --name pyomicron codecov
