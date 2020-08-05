@@ -120,6 +120,7 @@ setup(
     entry_points={
         "console_scripts": [
             "omicron-hdf5-merge = omicron.cli.hdf5_merge:main",
+            "omicron-root-merge = omicron.cli.root_merge:main",
         ],
     },
 )
