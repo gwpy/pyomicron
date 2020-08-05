@@ -29,8 +29,14 @@ import pytest
 
 from .. import utils
 
+# distutils.spawn.find_executable works differently before python-3.7
+if sys.version_info < (3, 7):
+    ISFILE_SIDE_EFFECT = (False, False, True)
+else:
+    ISFILE_SIDE_EFFECT = (False, True)
 
-@mock.patch("os.path.isfile", side_effect=(False, True))
+
+@mock.patch("os.path.isfile", side_effect=ISFILE_SIDE_EFFECT)
 @mock.patch("os.access", return_value=True)
 @mock.patch.dict("os.environ")
 def test_find_omicron_path(*mocks):
