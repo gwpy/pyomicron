@@ -29,10 +29,10 @@ import pytest
 # mock up condor modules for testing purposes
 # (so we don't need to have htcondor installed)
 from . import (mock_htcondor, mock_classad)
-sys.modules['htcondor'] = mock_htcondor  # noqa
-sys.modules['classad'] = mock_classad  # noqa
+sys.modules['htcondor'] = mock_htcondor
+sys.modules['classad'] = mock_classad
 
-from .. import condor
+from .. import condor  # noqa:E402
 
 
 # -- mock utilities -----------------------------------------------------------
