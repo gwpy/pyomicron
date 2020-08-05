@@ -122,6 +122,7 @@ setup(
             "omicron-hdf5-merge = omicron.cli.hdf5_merge:main",
             "omicron-print = omicron.cli.print:main",
             "omicron-root-merge = omicron.cli.root_merge:main",
+            "omicron-status = omicron.cli.status:main",
         ],
     },
 )
