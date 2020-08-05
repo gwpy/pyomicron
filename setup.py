@@ -117,4 +117,9 @@ setup(
     packages=packagenames,
     scripts=scripts,
     include_package_data=True,
+    entry_points={
+        "console_scripts": [
+            "omicron-hdf5-merge = omicron.cli.hdf5_merge:main",
+        ],
+    },
 )
