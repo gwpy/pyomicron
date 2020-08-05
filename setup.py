@@ -19,8 +19,6 @@
 """Setup the PyOmicron package
 """
 
-import glob
-import os.path
 import sys
 
 from setuptools import (setup, find_packages)
@@ -73,9 +71,6 @@ if {'test'}.intersection(sys.argv):
 # Use the find_packages tool to locate all packages and modules
 packagenames = find_packages()
 
-# glob for all scripts
-scripts = glob.glob(os.path.join('bin', '*'))
-
 # -- run setup --------------
 
 setup(
@@ -115,6 +110,14 @@ setup(
     tests_require=tests_require,
     # content
     packages=packagenames,
-    scripts=scripts,
     include_package_data=True,
+    entry_points={
+        "console_scripts": [
+            "omicron-hdf5-merge = omicron.cli.hdf5_merge:main",
+            "omicron-print = omicron.cli.print:main",
+            "omicron-process = omicron.cli.process:main",
+            "omicron-root-merge = omicron.cli.root_merge:main",
+            "omicron-status = omicron.cli.status:main",
+        ],
+    },
 )
