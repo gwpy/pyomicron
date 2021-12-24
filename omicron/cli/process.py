@@ -943,7 +943,7 @@ def main(args=None):
                     # we need to ignore errors in individual nodes
                     node.set_post_script(find_executable('bash'))
                     node.add_post_script_arg('-c')
-                    node.add_post_script_arg(f'echo {subseg[0]} omicron status $?;exit 0')
+                    node.add_post_script_arg(f'exit 0')
 
                     for chan in chanlist:
                         for form, flist in nodefiles[chan].items():
