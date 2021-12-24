@@ -115,6 +115,7 @@ https://github.com/gwpy/pyomicron/
 
 All issues regarding this software should be raised using the GitHub web
 interface, bug reports and feature requests are encouraged."""
+
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -572,7 +573,7 @@ def main(args=None):
     # -- set directories ------------------------------------------------------
 
     rundir.mkdir(exist_ok=True, parents=True)
-    logger.info("Using run directory\n%s" % rundir)
+    logger.info(f"Using run directory\n{rundir}")
 
     cachedir = rundir / "cache"
     condir = rundir / "condor"
@@ -586,7 +587,7 @@ def main(args=None):
 
     # -- check for an existing process ----------------------------------------
 
-    dagpath = condir / "{}.dag".format(DAG_TAG)
+    dagpath = condir / f"{DAG_TAG}.dag"
 
     # check dagman lock file
     running = condor.dag_is_running(dagpath)
@@ -603,13 +604,11 @@ def main(args=None):
 
     # check dagman rescue files
     nrescue = len(list(condir.glob(
-        "{}.rescue[0-9][0-9][0-9]".format(dagpath.name),
+            f"{dagpath.name}.rescue[0-9][0-9][0-9]",
     )))
     if args.rescue and not nrescue:
         raise RuntimeError(
-            "--rescue given but no rescue DAG files found for {}".format(
-                dagpath,
-            ),
+                f"--rescue given but no rescue DAG files found for {dagpath}",
         )
     if nrescue and not args.rescue and "force" not in args.dagman_option:
         raise RuntimeError(
@@ -700,7 +699,7 @@ def main(args=None):
             )
     # get segments from segment database
     elif stateflag:
-        logger.info("Querying segments for relevant state...")
+        logger.info(f'Querying segments for relevant state: {stateflag}')
         segs = segments.query_state_segments(stateflag, datastart, dataend,
                                              pad=statepad)
     # get segments from frame availability
@@ -857,12 +856,12 @@ def main(args=None):
         pardir = gettempdir()
     parfile, jobfiles = oconfig.write_distributed(
         pardir, nchannels=args.max_channels_per_job)
-    logger.debug("Created master parameters file\n%s" % parfile)
+    logger.debug(f"Created master parameters file\n{parfile}")
     if newdag:
         keepfiles.append(parfile)
 
     # create dag
-    dag = pipeline.CondorDAG(str(logdir / "{}.log".format(DAG_TAG)))
+    dag = pipeline.CondorDAG(str(logdir / f"{DAG_TAG}.log"))
     dag.set_dag_file(str(dagpath.with_suffix("")))
 
     # set up condor commands for all jobs
@@ -941,6 +940,11 @@ def main(args=None):
                     node.add_var_arg(str(subseg[0]))
                     node.add_var_arg(str(subseg[1]))
                     node.add_file_arg(pf)
+                    # we need to ignore errors in individual nodes
+                    node.set_post_script(find_executable('bash'))
+                    node.add_post_script_arg('-c')
+                    node.add_post_script_arg(f'echo {subseg[0]} omicron status $?;exit 0')
+
                     for chan in chanlist:
                         for form, flist in nodefiles[chan].items():
                             # record file as output from this node
