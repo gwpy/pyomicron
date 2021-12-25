@@ -890,10 +890,20 @@ def main(args=None):
     ppjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
     ppjob.add_short_opt('e', '')
     ppnodes = []
+    flist_check = find_executable('flist-check.sh')
+    xml_fix = find_executable('xml-uint-fix.sh')
     rootmerge = find_executable('omicron-root-merge')
     hdf5merge = find_executable('omicron-hdf5-merge')
     ligolw_add = find_executable('ligolw_add')
     gzip = find_executable('gzip')
+
+    goterr = False
+    for exe in [flist_check, xml_fix, rootmerge, hdf5merge, ligolw_add, gzip]:
+        if not exe:
+            logger.critical(f'require program: {exe} not found')
+            goterr = True
+    if goterr:
+        raise ValueError('Required programs not found in current environment')
 
     # create node to remove files
     rmjob = condor.OmicronProcessJob(
@@ -990,8 +1000,8 @@ def main(args=None):
                             root = rootfiles
                         else:
                             root = str(mergepath)
-                            operations.append('%s %s %s --strict'
-                                              % (rootmerge, rootfiles, root))
+                            operations.append(f'root_flist=$({flist_check} {rootfiles})')
+                            operations.append(f'{rootmerge} ${{root_flist}} {root}')
                             rmfiles.append(rootfiles)
                             ppnode._CondorDAGNode__output_files.append(root)
                         if args.archive:
@@ -1011,12 +1021,9 @@ def main(args=None):
                             hdf5 = hdf5files
                         else:
                             hdf5 = str(mergepath.with_suffix(".h5"))
+                            operations.append(f'hdf5_files=$({flist_check} {hdf5files})')
                             operations.append(
-                                '{cmd} {infiles} {outfile}'.format(
-                                    cmd=hdf5merge,
-                                    infiles=hdf5files,
-                                    outfile=hdf5,
-                                ),
+                                f'{hdf5merge} ${{hdf5_files}} {hdf5}',
                             )
                             rmfiles.append(hdf5files)
                             ppnode._CondorDAGNode__output_files.append(hdf5)
@@ -1039,16 +1046,17 @@ def main(args=None):
                             xml = xmlfiles
                         else:
                             xml = str(mergepath.with_suffix(".xml"))
+                            operations.append(f'xml_files=$({flist_check} {xmlfiles})')
+                            operations.append(f'# temp fix for omicron bug in creating xml files')
+                            operations.append(f'{xml_fix} ${{xml_files}}')
                             operations.append(
-                                '%s %s --ilwdchar-compat --output %s'
-                                % (ligolw_add, xmlfiles, xml),
+                                f'{ligolw_add} ${{xml_files}} --ilwdchar-compat --output {xml}',
                             )
                             rmfiles.append(xmlfiles)
                             ppnode._CondorDAGNode__output_files.append(xml)
 
                         if not args.skip_gzip:
-                            operations.append('%s --force --stdout %s > %s.gz'
-                                              % (gzip, xml, xml))
+                            operations.append(f'{gzip} --force --stdout {xml} > {xml}.gz')
                             rmfiles.append(xml)
                             xml = str(mergepath.with_suffix(".xml.gz"))
                             ppnode._CondorDAGNode__output_files.append(xml)
