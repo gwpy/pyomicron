@@ -20,14 +20,26 @@
 """
 
 import sys
-
-from setuptools import (setup, find_packages)
-
+from setuptools import setup, find_packages
+from os import path, walk
 import versioneer
+
 __version__ = versioneer.get_version()
 cmdclass = versioneer.get_cmdclass()
 
+
+def get_scripts(scripts_dir='bin'):
+    """Get relative file paths for all files under the ``scripts_dir``
+    """
+    ret_scripts = []
+    for (dirname, _, filenames) in walk(scripts_dir):
+        ret_scripts.extend([path.join(dirname, fn) for fn in filenames])
+    print('Scripts found:{}'.format(' '.join(ret_scripts)))
+
+    return ret_scripts
+
 # -- metadata ---------------
+
 
 # set basic metadata
 PACKAGENAME = 'pyomicron'
@@ -70,6 +82,7 @@ if {'test'}.intersection(sys.argv):
 
 # Use the find_packages tool to locate all packages and modules
 packagenames = find_packages()
+scripts = get_scripts('scripts')
 
 # -- run setup --------------
 
@@ -110,6 +123,7 @@ setup(
     tests_require=tests_require,
     # content
     packages=packagenames,
+    scripts=scripts,
     include_package_data=True,
     entry_points={
         "console_scripts": [
