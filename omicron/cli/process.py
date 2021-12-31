@@ -887,7 +887,8 @@ def main(args=None):
     ppjob = condor.OmicronProcessJob(args.universe, find_executable('bash'),
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)
-    ppjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
+    ppjob.add_condor_cmd('+OmicronPostProcess', f'"{group}"')
+    ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
     ppjob.add_short_opt('e', '')
     ppnodes = []
     flist_check = find_executable('flist-check.sh')
