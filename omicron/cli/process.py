@@ -1249,18 +1249,18 @@ def main(args=None):
             # _always_ move on even if the workflow fails
             if i == 0:
                 segments.write_segments(span, segfile)
-                logger.info("Segments written to\n%s" % segfile)
+                logger.info(f"Segments written to\n{segfile}")
             if 'force' in args.dagman_option:
                 args.dagman_option.pop(args.dagman_option.index('force'))
 
         # monitor the dag
         logger.debug("----------------------------------------")
-        logger.info("Monitoring DAG:")
+        logger.info(f"Monitoring DAG: {dagid}")
         check_call([
             "condor_watch_q",
             "-exit", "all,done,0",
-            "-exit", "any,held,1", "5",
-            str(dagfile),
+            "-exit", "any,held,1",
+            "-clusters", str(dagid),
         ])
         print()
         logger.debug("----------------------------------------")
