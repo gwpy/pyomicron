@@ -1257,10 +1257,9 @@ def main(args=None):
         logger.debug("----------------------------------------")
         logger.info("Monitoring DAG:")
         check_call([
-            "pycondor",
-            "monitor",
-            "--time", "5",
-            "--length", "36",
+            "condor_watch_q",
+            "-exit", "all,done,0",
+            "-exit", "any,held,1", "5",
             str(dagfile),
         ])
         print()
