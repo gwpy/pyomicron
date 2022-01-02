@@ -348,7 +348,7 @@ def main(args=None):
         }
         out.update(extras)
         with open(outfile, 'w') as f:
-            f.write(json.dumps(out))
+            f.write(json.dumps(out, indent=3))
         logger.debug("nagios info written to %s" % outfile)
 
     # -- get condor status ------------------------------------------------

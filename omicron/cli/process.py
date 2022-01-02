@@ -1255,7 +1255,7 @@ def main(args=None):
 
         # monitor the dag
         logger.debug("----------------------------------------")
-        logger.info(f"Monitoring DAG: {dagid}")
+        logger.info(f"Monitoring DAG: {dagid} {dagfile}")
         check_call([
             "condor_watch_q",
             "-exit", "all,done,0",
