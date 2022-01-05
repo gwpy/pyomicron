@@ -412,8 +412,8 @@ def main(args=None):
         if const.OMICRON_FILETAG.lower() in filetag.lower():
             afiletag = filetag
         else:
-            afiletag = '%s_%s' % (filetag, const.OMICRON_FILETAG.upper())
-        filetag = '_%s' % filetag
+            afiletag = f'{filetag}_{const.OMICRON_FILETAG.upper()}'
+        filetag = f'_{filetag}'
     else:
         filetag = ''
         afiletag = const.OMICRON_FILETAG.upper()
@@ -587,7 +587,7 @@ def main(args=None):
 
     # -- check for an existing process ----------------------------------------
 
-    dagpath = condir / f"{DAG_TAG}.dag"
+    dagpath = condir / f"{DAG_TAG}-{group}.dag"
 
     # check dagman lock file
     running = condor.dag_is_running(dagpath)
@@ -880,8 +880,11 @@ def main(args=None):
         logdir=logdir,
         **condorcmds
     )
-    ojob.add_condor_cmd('request_memory', reqmem)
-    ojob.add_condor_cmd('+OmicronProcess', '"%s"' % group)
+    # This allows us to sart with a memory request that works maaybe 80%, but bumps it if we go over
+    ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage),{reqmem},3*MemoryUsage) ')
+    ojob.add_condor_cmd('periodic_release', '(HoldReason == 26) && (JobStatus == 5)')
+
+    ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
 
     # create post-processing job
     ppjob = condor.OmicronProcessJob(args.universe, find_executable('bash'),
