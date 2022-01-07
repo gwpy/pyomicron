@@ -22,6 +22,7 @@
 import argparse
 import configparser
 import json
+import logging
 import operator
 import sys
 import warnings
@@ -227,6 +228,7 @@ def main(args=None):
     grid = GridSpec(2, 1)
 
     logger = log.Logger('omicron-status')
+    logger.setLevel(logging.DEBUG)
 
     try:
         omicronversion = str(get_omicron_version())
@@ -610,12 +612,12 @@ def main(args=None):
             gaps[c][ft] -= acknowledged
             # print warnings
             if abs(gaps[c][ft]):
-                warnings.warn("Gaps found in %s files for %s:\n%s"
-                              % (c, ft, gaps[c][ft]))
+                warnings.warn(
+                    f"Gaps found in {c} files for {ft}:\n{gaps[c][ft]}")
             overlap[c][ft] = segments.cache_overlaps(cache)
             if abs(overlap[c][ft]):
-                warnings.warn("Overlap found in %s files for %s:\n%s"
-                              % (c, ft, overlap[c][ft]))
+                warnings.warn(
+                    f"Overlap found in {c} files for {ft}:\n{overlap[c][ft]}")
 
             # append archive
             times[c][ft] = numpy.concatenate((times[c][ft][-99999:], [NOW]))

@@ -190,7 +190,7 @@ def find_frames(obs, frametype, start, end, on_gaps='warn', **kwargs):
     if on_gaps != 'ignore':
         seglist = SegmentList(map(file_segment, cache)).coalesce()
         missing = (SegmentList([Segment(start, end)]) - seglist).coalesce()
-        msg = "Missing segments:\n%s" % '\n'.join(map(str, missing))
+        msg = "Missing segments:\n{}".format('\n'.join(map(str, missing)))
         if missing and on_gaps == 'warn':
             warnings.warn(msg)
         elif missing:

@@ -833,15 +833,15 @@ def main(args=None):
     # display segments
     logger.info("Final data segments selected as")
     for seg in segs:
-        logger.info("    %d %d " % seg + "[%d]" % abs(seg))
-    logger.info("Duration = %d seconds" % abs(segs))
+        logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
+    logger.info(f"Duration = {abs(segs):d} seconds")
 
     span = type(trigsegs)([trigsegs.extent()])
 
     logger.info("This will output triggers for")
     for seg in trigsegs:
-        logger.info("    %d %d " % seg + "[%d]" % abs(seg))
-    logger.info("Duration = %d seconds" % abs(trigsegs))
+        logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
+    logger.info(f"Duration = {abs(trigsegs):d} seconds")
 
     # -- config omicron config directory --------------------------------------
 
@@ -880,7 +880,7 @@ def main(args=None):
         logdir=logdir,
         **condorcmds
     )
-    # This allows us to sart with a memory request that works maaybe 80%, but bumps it if we go over
+    # This allows us to start with a memory request that works maaybe 80%, but bumps it if we go over
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage),{reqmem},3*MemoryUsage) ')
     ojob.add_condor_cmd('periodic_release', '(HoldReason == 26) && (JobStatus == 5)')
 
