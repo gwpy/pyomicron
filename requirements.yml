@@ -16,6 +16,8 @@ dependencies:
   - numpy
   - omicron >=2.3.12
   - pycondor
+  - pytest
+  - pytest-cov
   - python
   - python-ldas-tools-framecpp
   - python-ligo-lw >=1.4.0
