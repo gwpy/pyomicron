@@ -46,7 +46,7 @@ setup_requires = [
     'setuptools',
 ]
 install_requires = [
-    'dqsegdb2',
+    'dqsegdb2 < 1.1.0',
     'gwdatafind',
     'gwpy >= 1.0.0',
     'h5py',
