@@ -1,0 +1,27 @@
+name: pyomicron
+channels:
+  - conda-forge
+dependencies:
+  # build
+  - pip
+  - setuptools
+  - setuptools-scm
+  - wheel
+  # install
+  - dqsegdb2
+  - gwdatafind
+  - gwpy >=1.0.0
+  - h5py
+  - ligo-segments
+  - lscsoft-glue >=1.60.0
+  - markuppy
+  - omicron >=2.3.12
+  - pycondor
+  - python
+  - python-htcondor
+  - root_base
+  # docs
+  - numpydoc
+  - sphinx
+  - sphinx_rtd_theme
+  - sphinxcontrib-programoutput
