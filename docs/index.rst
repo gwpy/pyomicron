@@ -11,11 +11,26 @@ PyOmicron is a workflow generator and processor tool for the `Omicron gravitatio
 Installing PyOmicron
 --------------------
 
-The easiest method to install PyOmicron is using `pip <https://pip.pypa.io/en/stable/>`_ directly from the `GitHub repository <https://github.com/ligovirgo/pyomicron.git>`_:
+Installation
+------------
 
-.. code-block:: bash
+PyOmicron can be installed with `conda <https://conda.io`
+(or `Mamba <https://mamba.readthedocs.io/>`_):
 
-   $ pip install git+https://github.com/ligovirgo/pyomicron.git
+.. code-block:: shell
+
+   conda install -c conda-forge pyomicron
+
+or `pip <https://pip.pypa.io>`_:
+
+.. code-block:: shell
+
+   python -m pip install pyomicron
+
+.. warning::
+
+   Omicron (the C++ application) cannot be installed with `pip`, so installing
+   PyOmicron with `conda/mamba` is strongly encouraged.
 
 Documentation
 -------------
