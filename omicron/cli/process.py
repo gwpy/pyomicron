@@ -1060,7 +1060,7 @@ def main(args=None):
                             ppnode._CondorDAGNode__output_files.append(xml)
 
                         if not args.skip_gzip:
-                            operations.append((f'if [ ! -z "{xml}" ];then'))
+                            operations.append((f'if [ ! -e "{xml}" ];then'))
                             operations.append(f'  {gzip} --force --stdout {xml} > {xml}.gz')
                             operations.append('fi')
                             rmfiles.append(xml)
