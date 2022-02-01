@@ -29,6 +29,7 @@ conda install -c conda-forge pyomicron
 
 [![Build status](https://github.com/gwpy/pyomicron/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/gwpy/pyomicron/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/gwpy/pyomicron/branch/master/graph/badge.svg)](https://codecov.io/gh/gwpy/pyomicron)
+[![Documentation](https://readthedocs.org/projects/pyomicron/badge/?version=latest)](https://pyomicron.readthedocs.io/en/latest/?badge=latest)
 
 ## License
 
