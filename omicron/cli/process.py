@@ -1134,8 +1134,10 @@ def main(args=None):
                     for fn in filelist:
                         archivenode._CondorDAGNode__input_files.append(fn)
                     # write 'mv' op to script
-                    print("mkdir -p %s" % gpsdir, file=f)
-                    print("cp %s %s" % (' '.join(filelist), gpsdir), file=f)
+                    print(f"mkdir -p {gpsdir}", file=f)
+                    for filepath in filelist:
+                        # if that file exists archive it
+                        print(f'[ -f "{filepath}" ] && cp {filepath} {gpsdir}', file=f)
                     # record archived files in caches
                     filenames = [str(Path(gpsdir) / x.name) for
                                  x in map(Path, filelist)]
