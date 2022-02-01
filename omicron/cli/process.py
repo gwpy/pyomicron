@@ -1053,7 +1053,7 @@ def main(args=None):
                         else:
                             xml = str(mergepath.with_suffix(".xml"))
                             operations.append(f'xml_files=$({flist_check} {xmlfiles})')
-                            operations.append(f'if [ ! -z "${{xml_files}} ]; then ')
+                            operations.append(f'if [ ! -z "${{xml_files}}" ]; then ')
                             operations.append(f'  {ligolw_add} ${{xml_files}} --output {xml}')
                             operations.append('fi')
                             rmfiles.append(xmlfiles)
