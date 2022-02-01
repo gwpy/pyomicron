@@ -1028,7 +1028,7 @@ def main(args=None):
                         else:
                             hdf5 = str(mergepath.with_suffix(".h5"))
                             operations.append(f'hdf5_files=$({flist_check} {hdf5files})')
-                            operations.append(f'if [ ! -z "{{hdf5_files}}" ]; then')
+                            operations.append(f'if [ ! -z "${{hdf5_files}}" ]; then')
                             operations.append(f'  {hdf5merge} ${{hdf5_files}} {hdf5}')
                             operations.append('fi')
                             rmfiles.append(hdf5files)
