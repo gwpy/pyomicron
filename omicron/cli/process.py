@@ -896,14 +896,13 @@ def main(args=None):
     ppjob.add_short_opt('e', '')
     ppnodes = []
     flist_check = find_executable('flist-check.sh')
-    xml_fix = find_executable('xml-uint-fix.sh')
     rootmerge = find_executable('omicron-root-merge')
     hdf5merge = find_executable('omicron-hdf5-merge')
     ligolw_add = find_executable('ligolw_add')
     gzip = find_executable('gzip')
 
     goterr = False
-    for exe in [flist_check, xml_fix, rootmerge, hdf5merge, ligolw_add, gzip]:
+    for exe in [flist_check, rootmerge, hdf5merge, ligolw_add, gzip]:
         if not exe:
             logger.critical(f'require program: {exe} not found')
             goterr = True
@@ -1053,10 +1052,7 @@ def main(args=None):
                             xml = str(mergepath.with_suffix(".xml"))
                             operations.append(f'xml_files=$({flist_check} {xmlfiles})')
                             operations.append(f'# temp fix for omicron bug in creating xml files')
-                            operations.append(f'{xml_fix} ${{xml_files}}')
-                            operations.append(
-                                f'{ligolw_add} ${{xml_files}} --ilwdchar-compat --output {xml}',
-                            )
+                            operations.append(f'{ligolw_add} ${{xml_files}} --output {xml}')
                             rmfiles.append(xmlfiles)
                             ppnode._CondorDAGNode__output_files.append(xml)
 
