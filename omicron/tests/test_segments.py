@@ -87,3 +87,56 @@ def test_get_frame_segments(find):
         25,
         100,
     ) == SegmentList([Segment(25, 30)])
+
+
+@pytest.fixture
+def requests_mock(requests_mock):
+    requests_mock.get(
+        "https://segments.example.com/report/coverage",
+        json={
+            'query_information': 'stuff',
+            'results': {
+                '/dq/X1/TEST-FLAG/1': {
+                    'total_known_segments': 1,
+                    'total_active_segments': 0,
+                    'earliest_known_segment': 0.,
+                    'latest_active_segment': 100.,
+                    'latest_known_segment': 90.,
+                    'earliest_active_segment': 10.,
+                },
+                '/dq/Y1/TEST-FLAG/1': {
+                    'total_known_segments': 2388,
+                    'total_active_segments': 2388,
+                },
+            },
+        },
+    )
+    return requests_mock
+
+
+def test_get_flag_coverage(requests_mock):
+    assert segments.get_flag_coverage(
+        "X1:TEST-FLAG:1",
+        url="https://segments.example.com",
+    ) == {
+        'total_known_segments': 1,
+        'total_active_segments': 0,
+        'earliest_known_segment': 0.,
+        'latest_active_segment': 100.,
+        'latest_known_segment': 90.,
+        'earliest_active_segment': 10.,
+    }
+
+
+def test_get_latest_active_gps(requests_mock):
+    assert segments.get_latest_active_gps(
+        "X1:TEST-FLAG:1",
+        url="https://segments.example.com",
+    ) == 100.
+
+
+def test_get_latest_known_gps(requests_mock):
+    assert segments.get_latest_known_gps(
+        "X1:TEST-FLAG:1",
+        url="https://segments.example.com",
+    ) == 90.
