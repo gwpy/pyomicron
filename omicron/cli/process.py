@@ -1005,7 +1005,9 @@ def main(args=None):
                         else:
                             root = str(mergepath)
                             operations.append(f'root_flist=$({flist_check} {rootfiles})')
-                            operations.append(f'{rootmerge} ${{root_flist}} {root}')
+                            operations.append(f'if [ -z "{rootfiles}" ];then')
+                            operations.append(f'  {rootmerge} ${{root_flist}} {root}')
+                            operations.append('fi')
                             rmfiles.append(rootfiles)
                             ppnode._CondorDAGNode__output_files.append(root)
                         if args.archive:
@@ -1026,9 +1028,9 @@ def main(args=None):
                         else:
                             hdf5 = str(mergepath.with_suffix(".h5"))
                             operations.append(f'hdf5_files=$({flist_check} {hdf5files})')
-                            operations.append(
-                                f'{hdf5merge} ${{hdf5_files}} {hdf5}',
-                            )
+                            operations.append(f'if [ ! -z "{hdf5files}" ]; then')
+                            operations.append(f'  {hdf5merge} ${{hdf5_files}} {hdf5}')
+                            operations.append('fi')
                             rmfiles.append(hdf5files)
                             ppnode._CondorDAGNode__output_files.append(hdf5)
                         if args.archive:
@@ -1051,13 +1053,16 @@ def main(args=None):
                         else:
                             xml = str(mergepath.with_suffix(".xml"))
                             operations.append(f'xml_files=$({flist_check} {xmlfiles})')
-                            operations.append(f'# temp fix for omicron bug in creating xml files')
-                            operations.append(f'{ligolw_add} ${{xml_files}} --output {xml}')
+                            operations.append(f'if [ ! -z "${{xml_files}} ]; then ')
+                            operations.append(f'  {ligolw_add} ${{xml_files}} --output {xml}')
+                            operations.append('fi')
                             rmfiles.append(xmlfiles)
                             ppnode._CondorDAGNode__output_files.append(xml)
 
                         if not args.skip_gzip:
-                            operations.append(f'{gzip} --force --stdout {xml} > {xml}.gz')
+                            operations.append((f'if [ ! -z "${xml}" ];then'))
+                            operations.append(f'  {gzip} --force --stdout {xml} > {xml}.gz')
+                            operations.append('fi')
                             rmfiles.append(xml)
                             xml = str(mergepath.with_suffix(".xml.gz"))
                             ppnode._CondorDAGNode__output_files.append(xml)
