@@ -6,7 +6,7 @@
 Welcome to PyOmicron's documentation!
 =====================================
 
-PyOmicron is a workflow generator and processor tool for the `Omicron gravitational-wave event trigger generator <http://virgo.in2p3.fr/GWOLLUM/v2r2/index.html?Main>`_. It was built chiefly to simplify the automatic processing hundreds of data channels recorded by the `Laser Interferometer Gravitational-wave Observatory (LIGO) <http://ligo.org>`_ detectors in order to characterise the instrumental and environmental noises impacting their sensitivity.
+PyOmicron is a workflow generator and processor tool for the `Omicron gravitational-wave event trigger generator <https://virgo.docs.ligo.org/virgoapp/Omicron/>`_. It was built chiefly to simplify the automatic processing hundreds of data channels recorded by the `Laser Interferometer Gravitational-wave Observatory (LIGO) <https://www.ligo.caltech.edu>`_ and `Virgo <https://www.ego-gw.it/>`_ detectors in order to characterise the instrumental and environmental noises impacting their sensitivity.
 
 Installing PyOmicron
 --------------------
