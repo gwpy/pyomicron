@@ -27,7 +27,7 @@ conda install -c conda-forge pyomicron
 
 ## Development status
 
-[![Build Status](https://travis-ci.org/gwpy/pyomicron.svg?branch=master)](https://travis-ci.org/gwpy/pyomicron)
+[![Build status](https://github.com/gwpy/pyomicron/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/gwpy/pyomicron/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/gwpy/pyomicron/branch/master/graph/badge.svg)](https://codecov.io/gh/gwpy/pyomicron)
 
 ## License

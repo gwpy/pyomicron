@@ -5,7 +5,7 @@ name: pyomicron
 channels:
   - conda-forge
 dependencies:
-  - dqsegdb2
+  - dqsegdb2 < 1.1.0
   - gwdatafind
   - gwpy >=1.0.0
   - h5py
@@ -16,6 +16,8 @@ dependencies:
   - numpy
   - omicron >=2.3.12
   - pycondor
+  - pytest
+  - pytest-cov
   - python
   - python-ldas-tools-framecpp
   - python-ligo-lw >=1.4.0
