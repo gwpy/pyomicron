@@ -1005,7 +1005,7 @@ def main(args=None):
                         else:
                             root = str(mergepath)
                             operations.append(f'root_flist=$({flist_check} {rootfiles})')
-                            operations.append(f'if [ -z "{rootfiles}" ];then')
+                            operations.append(f'if [ -z "${{root_flist}}" ];then')
                             operations.append(f'  {rootmerge} ${{root_flist}} {root}')
                             operations.append('fi')
                             rmfiles.append(rootfiles)
@@ -1174,8 +1174,7 @@ def main(args=None):
     with open(rmscript, 'w') as f:
         print('#!/bin/bash -e\n#', file=f)
         print("# omicron-process post-processing-rm", file=f)
-        print('#\n# File created by\n# %s\n#' % ' '.join(sys.argv),
-              file=f)
+        print(f'#\n# File created by\n# {" ".join(sys.argv)}\n#', file=f)
         print("# Group: %s" % group, file=f)
         print("# Segment: [%d, %d)" % (s, e), file=f)
         print("# Channels:\n#", file=f)
