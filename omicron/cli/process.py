@@ -1005,7 +1005,7 @@ def main(args=None):
                         else:
                             root = str(mergepath)
                             operations.append(f'root_flist=$({flist_check} {rootfiles})')
-                            operations.append(f'if [ -z "${{root_flist}}" ];then')
+                            operations.append(f'if [ ! -z "${{root_flist}}" ];then')
                             operations.append(f'  {rootmerge} ${{root_flist}} {root}')
                             operations.append('fi')
                             rmfiles.append(rootfiles)
