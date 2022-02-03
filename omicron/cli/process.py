@@ -1137,7 +1137,12 @@ def main(args=None):
                     print(f"mkdir -p {gpsdir}", file=f)
                     for filepath in filelist:
                         # if that file exists archive it
-                        print(f'[ -f "{filepath}" ] && cp {filepath} {gpsdir}', file=f)
+                        print(f'if [ -f "{filepath}" ]; then', file=f)
+                        print(f'  cp {filepath} {gpsdir}', file=f)
+                        print(f'  echo "archived {filepath}"', file=f)
+                        print('else', file=f)
+                        print(f'  echo "{filepath} not archived"', file=f)
+                        print('fi', file=f)
                     # record archived files in caches
                     filenames = [str(Path(gpsdir) / x.name) for
                                  x in map(Path, filelist)]
