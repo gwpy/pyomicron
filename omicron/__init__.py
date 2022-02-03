@@ -19,9 +19,10 @@
 """Utilities for controlling and processing Omicron in python
 """
 
-from ._version import get_versions
+try:
+    from ._version import version as __version__
+except ModuleNotFoundError:  # pragma: no cover
+    # development mode
+    __version__ = 'dev'
 
-__version__ = get_versions()['version']
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
-
-del get_versions
