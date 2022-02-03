@@ -2,7 +2,7 @@ Python utilities and extensions for the Omicron (C++) GW event trigger generator
 
 This package augments the core functionality of the Omicron ETG by providing utilities for building an HTCondor workflow (DAG) to parallelise processing, including segment-selection logic, frame-file discovery, and post-processing.
 
-All credit for the actual Omicron algorithm goes to [Florent Robinet](//github.com/FlorentRobinet/), see [here](http://virgo.in2p3.fr/GWOLLUM/v2r2/index.html?Main) for more details.
+All credit for the actual Omicron algorithm goes to [Florent Robinet](//github.com/FlorentRobinet/), see [here](https://virgo.docs.ligo.org/virgoapp/Omicron/) for more details.
 
 ## Installation
 
@@ -29,6 +29,7 @@ conda install -c conda-forge pyomicron
 
 [![Build status](https://github.com/gwpy/pyomicron/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/gwpy/pyomicron/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/gwpy/pyomicron/branch/master/graph/badge.svg)](https://codecov.io/gh/gwpy/pyomicron)
+[![Documentation](https://readthedocs.org/projects/pyomicron/badge/?version=latest)](https://pyomicron.readthedocs.io/en/latest/?badge=latest)
 
 ## License
 
