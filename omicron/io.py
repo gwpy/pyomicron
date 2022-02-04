@@ -60,7 +60,7 @@ def merge_root_files(inputfiles, outputfile,
 
     Notes
     -----
-    This method requires the `ROOT <https://root.cern.ch/pyroot>`_ package.
+    This method requires the `ROOT <https://root.cern.ch/>`_ package.
     """
     import ROOT
     chains = {}

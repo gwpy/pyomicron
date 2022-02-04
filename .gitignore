@@ -17,3 +17,6 @@
 
 # testing stuff
 /.pytest_cache/
+
+# setuptools-scm
+omicron/_version.py
