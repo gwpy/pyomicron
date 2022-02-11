@@ -5,24 +5,26 @@ To cut a new release
 
 - create a git tag
 
-  ```bash
-  git tag -a -s vX.Y.Z
-  ```
+   ```bash
+   git tag -a -s vX.Y.Z
+   ```
 
   and populate the tag message with the release notes
 
-- push the tag to github.com
+- push the tag to github.com (change `upstream` to the appropriate
+  `remote` reference):
 
-  ```bash
-  git push -u origin master --tags
-  ```
+   ```bash
+   git push upstream vX.Y.Z
+   ```
 
 - [create a release](https://github.com/gwpy/pyomicron/releases/new) on
   github.com and copy the release notes into the description
 
 - publish the release on pypi.python.org:
 
-  ```bash
-  python setup.py sdist bdist_wheel --universal
-  python -m twine upload dist/pyomicron-X.Y.Z*
-  ```
+   ```bash
+   rm -rf dist/  # remove old distributions
+   python3 -m build --sdist --wheel
+   python3 -m twine upload --sign dist/pyomicron-*
+   ```
