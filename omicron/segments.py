@@ -19,13 +19,13 @@
 """Segment utilities for Omicron
 """
 
-import json
 import re
 from functools import wraps
 from math import (floor, ceil)
 
+from igwn_auth_utils.requests import get as igwn_get
+
 from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
-from dqsegdb2.http import request as dqsegdb2_request
 
 from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
 from gwpy.io.gwf import data_segments as gwf_data_segments
@@ -291,8 +291,8 @@ def get_flag_coverage(flag, url=DEFAULT_SEGMENT_SERVER):
     """
     ifo, name, version = flag.rsplit(':', 2)
     flagu = '/dq/%s/%s/%s' % (ifo, name, version)
-    raw = dqsegdb2_request('%s/report/coverage' % url)
-    return json.loads(raw.read().decode('utf-8'))['results'][flagu]
+    raw = igwn_get('%s/report/coverage' % url)
+    return raw.json()['results'][flagu]
 
 
 def get_latest_active_gps(flag, url=DEFAULT_SEGMENT_SERVER):
