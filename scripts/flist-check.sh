@@ -2,6 +2,8 @@
 # vim: nu:ai:ts=4:sw=4
 
 # remove any files from input list that do not exist
+# stderr report file counts
+# stdout holds list of th existing files
 filelist=$@
 for x in ${filelist}
 do

@@ -1141,7 +1141,7 @@ def main(args=None):
                         print(f'  cp {filepath} {gpsdir}', file=f)
                         print(f'  echo "archived {filepath}"', file=f)
                         print('else', file=f)
-                        print(f'  echo "{filepath} not archived"', file=f)
+                        print(f'  echo "{filepath} not archived+"', file=f)
                         print('fi', file=f)
                     # record archived files in caches
                     filenames = [str(Path(gpsdir) / x.name) for
