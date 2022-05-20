@@ -63,7 +63,8 @@ class ColoredFormatter(logging.Formatter):
 
 
 class MaxLevelFilter(logging.Filter):
-    '''Filters (lets through) all messages with level < LEVEL'''
+    """Filters (lets through) all messages with level < LEVEL"""
+
     def __init__(self, level):
         self.level = level
 
@@ -74,7 +75,7 @@ class MaxLevelFilter(logging.Filter):
 class Logger(logging.Logger):
     """`~logging.Logger` with a nice format
     """
-    FORMAT = ('[{bold}%(name)s{reset} %(gpstime)d] %(levelname)+19s: '
+    FORMAT = ('[{bold}%(name)s{reset} %(gpstime)d] %(levelname)+19s %(filename)s:%(lineno)d: '
               '%(message)s'.format(bold=BOLD_SEQ, reset=RESET_SEQ))
 
     def __init__(self, name, level=logging.DEBUG):

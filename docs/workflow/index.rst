@@ -54,6 +54,11 @@ By default the DAG will do something like this
 #. merge contiguous ouput files for both ``.root`` and ``.xml`` extensions
 #. gzip ``.xml`` files to save space
 
+.. note::
+    The workflow will break the interval into *chunks* defined in the configuration
+    file ``chunkdur`` parameter, which includes the padding. The nominal value
+    is 120 sec. This results in multiple htCondor jobs.
+
 ----------------------------
 Archiving multiple workflows
 ----------------------------

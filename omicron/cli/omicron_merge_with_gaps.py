@@ -35,7 +35,7 @@ import sys
 __author__ = 'joseph areeda'
 __email__ = 'joseph.areeda@ligo.org'
 __version__ = '0.0.1'
-__process_name__ = 'merge-with-gaps'
+__process_name__ = 'omicron_merge_with_gaps'
 
 # global logger
 logging.basicConfig()
@@ -56,10 +56,13 @@ def get_merge_cmd(ext):
         ret = 'ligolw_add'
     else:
         raise AttributeError(f'Unknown trigger file typr {ext}')
+    ret_path = shutil.which(ret)
+    if not ret_path:
+        raise AttributeError(f'{ext} files require {ret} which is not in out path')
     return ret
 
 
-def do_merge(opath, curfiles, chan, stime, etime, ext):
+def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip, uint_bug):
     """
     Given the list of trigger files merge them all into a single file
     :param Path opath: output directory
@@ -68,9 +71,13 @@ def do_merge(opath, curfiles, chan, stime, etime, ext):
     :param int stime: Start GPS time for file list
     :param int etime: End GPS time
     :param str ext: trigger file extension, identifying file type
+    :param boolean skip_gzip: if type is xml do not compress merged file
+    :param boolean uint_bug: if type is xml fix an old Omicron bug
     """
     outfile_path = opath / f'{chan}-{stime}-{etime - stime}.{ext}'
     ret = None
+    returncode = -1
+
     if curfiles:
         if len(curfiles) == 1:
             infile = curfiles[0]
@@ -85,7 +92,13 @@ def do_merge(opath, curfiles, chan, stime, etime, ext):
             cmd.extend(curfiles)
             if ext != 'xml':
                 cmd.append(outfile_path)
+                if uint_bug:
+                    for f in curfiles:
+                        if Path(f).exists():
+                            sed_cmd = ['sed', '-ie', f]
+                            subprocess.run(sed_cmd)
             logger.info(f'Merging {len(curfiles)} {ext} files into {outfile_path}')
+            logger.debug('Merge command: {cmd}')
             result = subprocess.run(cmd, capture_output=True)
             returncode = result.returncode
             err_old_fmt = b"invalid type 'ilwd:char'"
@@ -102,9 +115,9 @@ def do_merge(opath, curfiles, chan, stime, etime, ext):
             else:
                 logger.error(f'Return code:{returncode}, stderr:\n{result.stderr}')
 
-        if ext == 'xml' and returncode == 0:
+        if ext == 'xml' and returncode == 0 and not skip_gzip:
             logger.info(f'Compressing {outfile_path} with gzip')
-            res2 = subprocess.run(['gzip', '-9', outfile_path], capture_output=True)
+            res2 = subprocess.run(['gzip', '-9',  '--force', outfile_path], capture_output=True)
             if res2.returncode == 0:
                 ret = str(outfile_path.absolute()) + '.gz'
             else:
@@ -131,7 +144,13 @@ def main():
                         help='show only fatal errors')
     parser.add_argument('-l', '--log-file', help='Save log messages to this file')
     parser.add_argument('-o', '--out-dir', help='Path to output directory for merged diles')
-    parser.add_argument('infiles', nargs='+', help='List of paths to files to merge')
+    parser.add_argument('-n', '--no-merge', action='store_true', default=False,
+                        help='Do not merge files, onpy copy to output dir')
+    parser.add_argument('--no-gzip', action='store_true', default=False,
+                        help='Do not compress the ligolw xml files')
+    parser.add_argument('--uint-bug', default=False, action='store_true',
+                        help='Deal with old version of Omicron that had a bug writing xml files')
+    parser.add_argument('infiles', nargs='+', help='List of paths to files to merge or copy')
 
     args = parser.parse_args()
 
@@ -166,6 +185,7 @@ def main():
         files = glob.glob(infile)
         infiles.extend(files)
     infiles.sort()
+    logger.info(f'{len(args.infiles)} requested {len(infiles)} were found.')
     curfiles = list()
     start_time = None
     end_time = None
@@ -186,6 +206,11 @@ def main():
         if m is None:
             logger.error(f'Skipping {inpath.absolute()} parse error')
             continue
+
+        if args.no_merge:
+            shutil.copy(infile, out_dir)
+            continue
+
         cname = m.group(1)
         stime = int(m.group(2))
         cdur = int(m.group(3))
@@ -216,7 +241,7 @@ def main():
             curfiles.append(inpath)
         else:
             # break in continuity
-            outfile = do_merge(out_dir, curfiles, name, start_time, etime, ext)
+            outfile = do_merge(out_dir, curfiles, name, start_time, etime, ext, args.no_gzip, args.uint_bug)
             if outfile:
                 outfiles.append(outfile)
             else:
@@ -226,7 +251,7 @@ def main():
             end_time = None
             curfiles = [inpath]
     if curfiles:
-        outfile = do_merge(out_dir, curfiles, name, start_time, end_time, ext)
+        outfile = do_merge(out_dir, curfiles, name, start_time, end_time, ext, args.no_gzip, args.uint_bug)
         if outfile:
             outfiles.append(outfile)
         else:
