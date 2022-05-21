@@ -92,10 +92,11 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip, uint_bug):
             cmd.extend(curfiles)
             if ext != 'xml':
                 cmd.append(outfile_path)
+            else:
                 if uint_bug:
                     for f in curfiles:
                         if Path(f).exists():
-                            sed_cmd = ['sed', '-ie', f]
+                            sed_cmd = ['sed', '-ie', 's/uint_8s/int_8u/g', f]
                             subprocess.run(sed_cmd)
             logger.info(f'Merging {len(curfiles)} {ext} files into {outfile_path}')
             logger.debug('Merge command: {cmd}')
