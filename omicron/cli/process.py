@@ -273,6 +273,11 @@ interface, bug reports and feature requests are encouraged."""
         'LIGO Data Grid (default: %(default)s)',
     )
     condorg.add_argument(
+        '--condor-request-disk',
+        default='1G',
+        help='Required LIGO argument: local disk use (default: %(default)s)',
+    )
+    condorg.add_argument(
         '--submit-rescue-dag',
         type=int,
         default=0,
@@ -873,7 +878,8 @@ def main(args=None):
 
     # set up condor commands for all jobs
     condorcmds = {'accounting_group': args.condor_accounting_group,
-                  'accounting_group_user': args.condor_accounting_group_user}
+                  'accounting_group_user': args.condor_accounting_group_user,
+                  'request_disk': args.condor_request_disk}
     for cmd_ in args.condor_command:
         key, value = cmd_.split('=', 1)
         condorcmds[key.rstrip().lower()] = value.strip()
