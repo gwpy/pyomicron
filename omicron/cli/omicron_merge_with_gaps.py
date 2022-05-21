@@ -113,7 +113,7 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip, uint_bug):
             if returncode == 0:
                 logger.debug(f'Merge of {ext} files succeeded')
             else:
-                logger.error(f'Return code:{returncode}, stderr:\n{result.stderr}')
+                logger.error(f'Return code:{returncode}, stderr:\n{str(result.stderr)}')
 
         if ext == 'xml' and returncode == 0 and not skip_gzip:
             logger.info(f'Compressing {outfile_path} with gzip')
