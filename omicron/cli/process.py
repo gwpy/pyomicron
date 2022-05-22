@@ -895,7 +895,7 @@ def main(args=None):
     )
     # This allows us to start with a memory request that works maaybe 80%, but bumps it if we go over
     ojob.add_condor_cmd('+InitialRequestMemory', f'{reqmem}')
-    ojob.add_condor_cmd('request_memory', f'ifthenelse(HoldReasonCode =?= 26,{reqmem},int(3*MemoryUsage)) ')
+    ojob.add_condor_cmd('request_memory', f'ifthenelse(HoldReasonCode =?= 26,int(3*MemoryUsage)),  {reqmem}')
     ojob.add_condor_cmd('periodic_release', '(HoldReason =?= 26) && (JobStatus == 5)')
 
     ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
