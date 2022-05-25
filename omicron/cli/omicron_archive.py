@@ -38,8 +38,10 @@ INPUT
     └──   channel (eg: L1:GDS-CALIB_STRAIN/)
         └──  trigger-files (eg: L1-GDS_CALIB_STRAIN_OMICRON-1323748945-1055.h5)
 """
+import sys
 import textwrap
 import time
+from pathlib import Path
 
 start_time = time.time()
 import argparse
@@ -53,6 +55,21 @@ __author__ = 'joseph areeda'
 __email__ = 'joseph.areeda@ligo.org'
 __version__ = '0.0.1'
 __process_name__ = 'omicron_archive'
+
+# example channel dir: L1:SUS-PR3_M1_DAMP_T_IN1_DQ
+chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
+# example trigger file: L1-SUS_PR3_M1_DAMP_T_IN1_DQ_OMICRON-1336799058-8064.h5
+tfpat = re.compile("([A-Z][0-9])-(.+)-(\\d+)-(\\d+)\\.(.*)$")
+
+
+def process_dir(dir_path, outdir):
+    """
+    Copy all trigget files to appropriate directory
+    @param dir_path: input directory
+    @param outdir: top level output directory eg ${HOME}/triggers
+    @return: True if successful
+    """
+
 
 
 def main():
@@ -88,13 +105,24 @@ def main():
     else:
         logger.setLevel(logging.DEBUG)
 
-    chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
-    possible_dirs = glob.glob(args.indir)
+    indir = Path(args.indir)
+    outdir = Path(args.outdir)
+    if not outdir.exists():
+        logger.critical(f'The output directory {str(outdir.absolute())} does bot exist')
+        sys.exit(1)
+    possible_dirs = glob.glob(str(indir.absolute()) + '/*')
     logger.info(f'Input directory {args.indir} has {len(possible_dirs)} possible channels')
     dirs = list()
     for pdir in possible_dirs:
         m = chpat.match(pdir)
-
+        if m:
+            dir_path = Path(pdir)
+            if dir_path.exists() and glob.glob(str(dir_path.absolute()) + '/*'):
+                dirs.append(dir_path)
+                logger.debug(f'Directory with files added: {dir_path.name}')
+    logger.info(f'{len(dirs)} channel directories with files found')
+    for dir_path in dirs:
+        process_dir(dir_path, outdir)
     # ================================
     elap = time.time() - start_time
     logger.info('run time {:.1f} s'.format(elap))
