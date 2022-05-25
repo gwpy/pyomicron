@@ -89,7 +89,11 @@ def main():
         logger.setLevel(logging.DEBUG)
 
     chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
-
+    possible_dirs = glob.glob(args.indir)
+    logger.info(f'Input directory {args.indir} has {len(possible_dirs)} possible channels')
+    dirs = list()
+    for pdir in possible_dirs:
+        m = chpat.match(pdir)
 
     # ================================
     elap = time.time() - start_time

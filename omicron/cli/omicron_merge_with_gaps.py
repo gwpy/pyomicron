@@ -99,7 +99,7 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip, uint_bug):
                             sed_cmd = ['sed', '-ie', 's/uint_8s/int_8u/g', f]
                             subprocess.run(sed_cmd)
             logger.info(f'Merging {len(curfiles)} {ext} files into {outfile_path}')
-            logger.debug('Merge command: {cmd}')
+            logger.debug(f'Merge command: {cmd}')
             result = subprocess.run(cmd, capture_output=True)
             returncode = result.returncode
             err_old_fmt = b"invalid type 'ilwd:char'"
