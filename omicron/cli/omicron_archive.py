@@ -38,6 +38,7 @@ INPUT
     └──   channel (eg: L1:GDS-CALIB_STRAIN/)
         └──  trigger-files (eg: L1-GDS_CALIB_STRAIN_OMICRON-1323748945-1055.h5)
 """
+import shutil
 import sys
 import textwrap
 import time
@@ -62,14 +63,37 @@ chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
 tfpat = re.compile("([A-Z][0-9])-(.+)-(\\d+)-(\\d+)\\.(.*)$")
 
 
-def process_dir(dir_path, outdir):
+def process_dir(dir_path, outdir, logger):
     """
     Copy all trigget files to appropriate directory
-    @param dir_path: input directory
-    @param outdir: top level output directory eg ${HOME}/triggers
-    @return: True if successful
+    @param Path dir_path: input directory
+    @param Path outdir: top level output directory eg ${HOME}/triggers
+    @return: boolean True if successful
     """
+    trig_files = glob.glob(str(dir_path.absolute())+'/*')
+    good = 0
+    bad = 0
 
+    for tfile in trig_files:
+        tf = Path(tfile)
+        m = tfpat.match(tf.name)
+        if not m:
+            logger.warn(f'Non trigger file {tf.name} found in {tf.parent.name}')
+            bad += 1
+        else:
+            ifo = m.group(1)
+            chan = m.group(2)
+            strt = int(m.group(3))
+            dur = int(m.group(4))
+            ext = m.group(5)
+
+            otrigdir = outdir / ifo / chan / str(int(strt/1e5))
+
+            logger.debug(f'ifo: [{ifo}], chan: [{chan}], strt: {strt}, ext: [{ext}] -> {str(otrigdir.absolute())}')
+            otrigdir.mkdir(mode=0o755, parents=True, exist_ok=True)
+            shutil.copy(tfile, str(otrigdir.absolute()))
+            good += 1
+    return good > 0
 
 
 def main():
@@ -108,7 +132,7 @@ def main():
     indir = Path(args.indir)
     outdir = Path(args.outdir)
     if not outdir.exists():
-        logger.critical(f'The output directory {str(outdir.absolute())} does bot exist')
+        logger.critical(f'The output directory {str(outdir.absolute())} does not exist')
         sys.exit(1)
     possible_dirs = glob.glob(str(indir.absolute()) + '/*')
     logger.info(f'Input directory {args.indir} has {len(possible_dirs)} possible channels')
@@ -122,7 +146,7 @@ def main():
                 logger.debug(f'Directory with files added: {dir_path.name}')
     logger.info(f'{len(dirs)} channel directories with files found')
     for dir_path in dirs:
-        process_dir(dir_path, outdir)
+        process_dir(dir_path, outdir, logger)
     # ================================
     elap = time.time() - start_time
     logger.info('run time {:.1f} s'.format(elap))
