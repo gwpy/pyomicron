@@ -262,7 +262,7 @@ interface, bug reports and feature requests are encouraged."""
     )
     condorg.add_argument(
         '--condor-accounting-group',
-        default='ligo.dev.o1.detchar.transient.omicron',
+        default='accounting_group = ligo.prod.o3.detchar.transient.omicron',
         help='accounting_group for condor submission on the LIGO '
         'Data Grid (default: %(default)s)',
     )
@@ -370,6 +370,22 @@ interface, bug reports and feature requests are encouraged."""
              '--skip-root-merge --skip-hdf5-merge '
              '--skip-ligolw_add --skip-gzip '
              '(default: %(default)s)',
+    )
+    pipeg.add_argument(
+            '--skip-archive',
+            '--skip-rm',
+            action='store_true',
+            default=False,
+            help='Do not copy merged files to archive dir.  '
+                 '(default: %(default)s)',
+    )
+    pipeg.add_argument(
+            '--skip-rm',
+            action='store_true',
+            default=False,
+            help='Do not remove all the trigger files created by the job.'
+                 'Useful for debugging'
+                 '(default: %(default)s)'
     )
 
     return parser
@@ -893,7 +909,7 @@ def main(args=None):
         **condorcmds
     )
     # This allows us to start with a memory request that works maybe 80%, but bumps it if we go over
-    reqmem = condorcmds.pop('request_memory', 1536)
+    reqmem = condorcmds.pop('request_memory', 4096)
     ojob.add_condor_cmd('+InitialRequestMemory', f'{reqmem}')
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage),int(3*MemoryUsage),  {reqmem})')
     ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26) && (JobStatus == 5)')
