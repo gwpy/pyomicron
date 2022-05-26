@@ -373,7 +373,6 @@ interface, bug reports and feature requests are encouraged."""
     )
     pipeg.add_argument(
             '--skip-archive',
-            '--skip-rm',
             action='store_true',
             default=False,
             help='Do not copy merged files to archive dir.  '
