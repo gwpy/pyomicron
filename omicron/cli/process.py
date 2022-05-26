@@ -262,7 +262,7 @@ interface, bug reports and feature requests are encouraged."""
     )
     condorg.add_argument(
         '--condor-accounting-group',
-        default='accounting_group = ligo.prod.o3.detchar.transient.omicron',
+        default='accounting_group = ligo.dev.o1.detchar.transient.omicron',
         help='accounting_group for condor submission on the LIGO '
         'Data Grid (default: %(default)s)',
     )
