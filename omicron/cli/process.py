@@ -416,7 +416,7 @@ def main(args=None):
         for arg in ['skip-root-merge', 'skip-hdf5-merge',
                     'skip-ligolw-add', 'skip-gzip']:
             if argsd[arg.replace('-', '_')]:
-                parser.error("Cannot use --%s with --archive" % arg)
+                parser.error("Cannot use --%s with ----" % arg)
 
     # check conflicts
     if args.gps is None and args.cache_file is not None:
@@ -920,6 +920,13 @@ def main(args=None):
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)
     ppjob.add_condor_cmd('+OmicronPostProcess', f'"{group}"')
+    ppmem = 1024
+    ojob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
+    ojob.add_condor_cmd('request_memory',
+                        f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
+    ojob.add_condor_cmd('periodic_release',
+                        '(HoldReasonCode =?= 26) && (JobStatus == 5)')
+
     ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
     ppjob.add_short_opt('e', '')
     ppnodes = []
@@ -929,6 +936,7 @@ def main(args=None):
     prog_path['hdf5merge'] = find_executable('omicron-hdf5-merge')
     prog_path['ligolw_add'] = find_executable('ligolw_add')
     prog_path['gzip'] = find_executable('gzip')
+    prog_path['omicron_archive'] = find_executable('omicron-archive')
 
     goterr = list()
     for exe in prog_path.keys():
@@ -952,6 +960,8 @@ def main(args=None):
             subdir=condir, logdir=logdir, tag='archive', **condorcmds)
         archivejob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
         archivefiles = {}
+    else:
+        archivejob = None
 
     # loop over data segments
     for s, e in segs:
@@ -1116,35 +1126,9 @@ def main(args=None):
             # write shell script to seed archive
             with open(archivejob.get_executable(), 'w') as f:
                 print('#!/bin/bash -e\n', file=f)
-                for gpsdir, filelist in archivefiles.items():
-                    for fn in filelist:
-                        archivenode._CondorDAGNode__input_files.append(fn)
-                    # write 'mv' op to script
-                    print(f"mkdir -p {gpsdir}", file=f)
-                    for filepath in filelist:
-                        # if that file exists archive it
-                        print(f'if [ -f "{filepath}" ]; then', file=f)
-                        print(f'  cp {filepath} {gpsdir}', file=f)
-                        print(f'  echo "archived {filepath}"', file=f)
-                        print('else', file=f)
-                        print(f'  echo "{filepath} not archived+"', file=f)
-                        print('fi', file=f)
-                    # record archived files in caches
-                    filenames = [str(Path(gpsdir) / x.name) for
-                                 x in map(Path, filelist)]
-                    for fn in filenames:
-                        archivenode._CondorDAGNode__output_files.append(fn)
-                    for fmt, extensions in {
-                            'xml': ('.xml.gz', '.xml'),
-                            'root': '.root',
-                            'hdf5': '.h5',
-                            'txt': '.txt',
-                    }.items():
-                        try:
-                            acache[fmt].extend(filter(
-                                lambda x: x.endswith(extensions), filenames))
-                        except KeyError:  # file format not used
-                            continue
+                print('# Archive all trigger files saved in the merge directory ', file=f)
+                print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv')
+
             os.chmod(archivejob.get_executable(), 0o755)
             # write caches to disk
             for fmt, fcache in acache.items():
