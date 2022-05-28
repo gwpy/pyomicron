@@ -266,9 +266,11 @@ interface, bug reports and feature requests are encouraged."""
         help='accounting_group for condor submission on the LIGO '
         'Data Grid (default: %(default)s)',
     )
+    default_user = os.environ.get('_CONDOR_ACCOUNTING_USER')
+    default_user = getuser() if not default_user else default_user
     condorg.add_argument(
         '--condor-accounting-group-user',
-        default=getuser(),
+        default=default_user,
         help='accounting_group_user for condor submission on the '
         'LIGO Data Grid (default: %(default)s)',
     )
