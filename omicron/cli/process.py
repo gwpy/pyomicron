@@ -920,7 +920,7 @@ def main(args=None):
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)
     ppjob.add_condor_cmd('+OmicronPostProcess', f'"{group}"')
-    ppmem = 1024
+    ppmem = 3072
     ojob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
     ojob.add_condor_cmd('request_memory',
                         f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
@@ -1127,7 +1127,7 @@ def main(args=None):
             with open(archivejob.get_executable(), 'w') as f:
                 print('#!/bin/bash -e\n', file=f)
                 print('# Archive all trigger files saved in the merge directory ', file=f)
-                print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv')
+                print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv', file=f)
 
             os.chmod(archivejob.get_executable(), 0o755)
             # write caches to disk
