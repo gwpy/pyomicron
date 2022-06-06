@@ -25,7 +25,7 @@ from functools import wraps
 from math import (floor, ceil)
 
 from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
-from dqsegdb2.http import request as dqsegdb2_request
+# from dqsegdb2.http import request as dqsegdb2_request
 
 from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
 from gwpy.io.gwf import data_segments as gwf_data_segments
@@ -289,22 +289,24 @@ def segmentlist_from_tree(tree, coalesce=False):
 def get_flag_coverage(flag, url=DEFAULT_SEGMENT_SERVER):
     """Return the coverage data for the given flag
     """
-    ifo, name, version = flag.rsplit(':', 2)
-    flagu = '/dq/%s/%s/%s' % (ifo, name, version)
-    raw = dqsegdb2_request('%s/report/coverage' % url)
-    return json.loads(raw.read().decode('utf-8'))['results'][flagu]
-
+    # ifo, name, version = flag.rsplit(':', 2)
+    # flagu = '/dq/%s/%s/%s' % (ifo, name, version)
+    # raw = dqsegdb2_request('%s/report/coverage' % url)
+    # return json.loads(raw.read().decode('utf-8'))['results'][flagu]
+    raise NameError('get_flag_coverage is no longer available')
 
 def get_latest_active_gps(flag, url=DEFAULT_SEGMENT_SERVER):
     """Return the end time of the latest active segment for this flag
     """
-    return get_flag_coverage(flag, url=url)['latest_active_segment']
+    # return get_flag_coverage(flag, url=url)['latest_active_segment']
+    raise NameError('get_latest_active_gps is no longer available')
 
 
 def get_latest_known_gps(flag, url=DEFAULT_SEGMENT_SERVER):
     """Return the end time of the latest known segment for this flag
     """
-    return get_flag_coverage(flag, url=url)['latest_known_segment']
+    # return get_flag_coverage(flag, url=url)['latest_known_segment']
+    raise NameError('get_latest_known_gps is no longer available')
 
 
 @integer_segments

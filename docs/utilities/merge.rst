@@ -1,10 +1,17 @@
-Merging teigger files
+Merging trigger files
 #####################
 
 In order to not end up with millions of small ``.root``, ``.hdf5``, and
 ``.xml`` files each representing a
 small chunk of processed time, the ``omicron-process`` workflow will merge
-contiguous files together using the following command-line utilities:
+contiguous files together using the ``omicron-merge-with-gaps`` command line utility.
+The purpose of this control utility is to detect any gaps in the expected list
+trigger files.  The gaps are data dependent failures of Omicron to process
+one of the short time intervals. 
+
+
+``omicron-merge-with-gaps`` uses the following command-line utilities to
+merge te contiguous trigger files:
 
 +------------+-----------+-------------------------------------------------+
 | File type  | Extension | Program                                         |
@@ -39,9 +46,21 @@ Command-line options
 For detailed documentation of all command-line options and arguments, print the ``--help``
 message of each program:
 
+.. command-output:: omicron-merge-with-gaps --help
+
 .. command-output:: omicron-root-merge --help
 
 .. command-output:: omicron-hdf5-merge --help
 
 .. command-output:: ligolw_add --help
 
+
+Archive trigger files
+======================
+
+Archiving is also complicated by the potential gaps in triggers. The ``omicron-archive``
+program examines all the merged trigger files organizing them by channel and metric day
+(int(gps_start_time/1e5)). These are then *copied* to the archive directory, usually
+/home/detchar/triggers/<ifo>, but it can be overridden for testing. The full help opions are:
+
+.. command-output:: omicron-merge-with-gaps --help
