@@ -14,7 +14,7 @@ Installing PyOmicron
 Installation
 ------------
 
-PyOmicron can be installed with `conda <https://conda.io`
+PyOmicron can be installed with `conda <https://conda.io/>`_
 (or `Mamba <https://mamba.readthedocs.io/>`_):
 
 .. code-block:: shell

@@ -29,14 +29,21 @@ where ``<config-file>`` is the name of your configuration file, and ``<group>`` 
 .. warning::
 
    `omicron-process` will complain loudly if it can't find ``omicron.exe``
-   on the path somewhere. You can either specify ``--executable`` manually
-   on the command line, or **if you are working on the LIGO Data Grid** you
-   can source the virgosoft ``environment.sh`` script to set the paths
-   appropriately:
+   on the path somewhere.
 
-   .. code-block:: bash
+You can either specify ``--executable`` manually
+on the command line, or **if you are working in the detchar account on the LIGO Data Grid**
+you enable the standard conda environment for omicron with the following command:
 
-      source /home/detchar/opt/virgosoft/environment.sh
+.. code-block:: bash
+
+    conda_omicron
+
+The other alternative is to install omicron into your conda environment with:
+
+.. code-block:: bash
+
+    mamba install omicron
 
 -----------------------
 Details of the workflow
@@ -48,11 +55,19 @@ The ``omicron-process`` executable will do the following
 * find the frame files containing the data (using :mod:`gw_data_find <glue.datafind>`),
 * build a Directed Acyclic Graph (DAG) defining the workflow.
 
-By default the DAG will do something like this
+The DAG will normally do something like this:
 
 #. process raw data using ``omicron.exe``
-#. merge contiguous ouput files for both ``.root`` and ``.xml`` extensions
+#. merge contiguous output files with ``.root``, ``.h5``, and ``.xml`` extensions
 #. gzip ``.xml`` files to save space
+#. the merged files are copied to the archive directory, nominally
+   ``/home/detchar/triggers/<ifo>/<channel-filetag>/<metric day>``
+#. if everything completes successfully, trigger and log files are deleted
+
+.. figure:: ../_static/TypicalDAG.png
+    :align: center
+    :alt: typical DAG diagram
+    :figclass: align-center
 
 .. note::
     The workflow will break the interval into *chunks* defined in the configuration

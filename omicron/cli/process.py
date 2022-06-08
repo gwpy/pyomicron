@@ -77,6 +77,7 @@ import gwpy.time
 from glue import pipeline
 
 from gwpy.io.cache import read_cache
+from gwpy.time import to_gps
 
 from omicron import (const, segments, log, data, parameters, utils, condor, io,
                      __version__)
@@ -142,7 +143,7 @@ interface, bug reports and feature requests are encouraged."""
         '-t',
         '--gps',
         nargs=2,
-        type=int,
+        type=to_gps,
         metavar='GPSTIME',
         help='GPS times for offline processing')
     parser.add_argument(
@@ -672,6 +673,8 @@ def main(args=None):
         start, end = segments.get_last_run_segment(segfile)
     else:
         start, end = args.gps
+        start = int(start)
+        end = int(end)
 
     duration = end - start
     datastart = start - padding
@@ -708,7 +711,8 @@ def main(args=None):
     # get segments from state vector
     if (online and statechannel) or (statechannel and not stateflag) or (
             statechannel and args.no_segdb):
-        logger.info("Finding segments for relevant state...")
+        logger.info("Finding segments for relevant state...  from:{datastart} length: {dataduration}s")
+        seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
             segs = segments.get_guardian_segments(
                 statechannel,
@@ -726,11 +730,16 @@ def main(args=None):
                 bits=statebits,
                 pad=statepad,
             )
+        logger.info(f'State query took {time.time() - seg_qry_strt:.2f}s')
+
     # get segments from segment database
     elif stateflag:
-        logger.info(f'Querying segments for relevant state: {stateflag}')
+        logger.info(f'Querying segments for relevant state: {stateflag} from:{datastart} length: {dataduration}s')
+        seg_qry_strt = time.time()
         segs = segments.query_state_segments(stateflag, datastart, dataend,
                                              pad=statepad)
+        logger.info(f'Segment query took {time.time() - seg_qry_strt:.2f}s')
+
     # get segments from frame availability
     else:
         segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
