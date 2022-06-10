@@ -96,7 +96,7 @@ def main():
                 logger.info(f'Empty trigger file: {str(path.absolute())}')
                 os.remove(path)
                 empty_count += 1
-                
+
     logger.info(f'{file_count} examined, {empty_count} empty files removed.')
     elap = time.time() - start_time
     logger.info('run time {:.1f} s'.format(elap))
