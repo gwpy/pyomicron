@@ -37,7 +37,7 @@ import re
 __author__ = 'joseph areeda'
 __email__ = 'joseph.areeda@ligo.org'
 __version__ = '0.0.1'
-__process_name__ = 'omicron-rm-empty'
+__process_name__ = 'omicron_rm_empty'
 
 
 def main():

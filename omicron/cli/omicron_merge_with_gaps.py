@@ -19,8 +19,11 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 """Handle merging different trigger file types detecting any gaps"""
+import os
 import time
 from logging.handlers import RotatingFileHandler
+
+from gwpy.table import EventTable
 
 prog_start_time = time.time()
 import argparse
@@ -62,7 +65,7 @@ def get_merge_cmd(ext):
     return ret
 
 
-def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip, uint_bug):
+def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
     """
     Given the list of trigger files merge them all into a single file
     :param Path opath: output directory
@@ -92,12 +95,7 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip, uint_bug):
             cmd.extend(curfiles)
             if ext != 'xml':
                 cmd.append(outfile_path)
-            else:
-                if uint_bug:
-                    for f in curfiles:
-                        if Path(f).exists():
-                            sed_cmd = ['sed', '-ie', 's/uint_8s/int_8u/g', f]
-                            subprocess.run(sed_cmd)
+
             logger.info(f'Merging {len(curfiles)} {ext} files into {outfile_path}')
             logger.debug(f'Merge command: {cmd}')
             result = subprocess.run(cmd, capture_output=True)
@@ -126,6 +124,36 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip, uint_bug):
         else:
             ret = str(outfile_path.absolute())
 
+    return ret
+
+
+def valid_file(path, uint_bug):
+    """
+    Check if this trigger file exists and has at least one trigger
+    @param boolean uint_bug: use sed to fix an old omicron bug
+    @param Path path: path to file
+    @return boolean: True if file is valid
+    """
+    ret = False
+    if path.exists():
+        if path.name.endswith('.h5'):
+            table = EventTable.read(path, path='/triggers')
+        elif path.name.endswith('.xml.gz') or path.name.endswith('.xml'):
+            if uint_bug:
+                sed_cmd = ['sed', '-ie', 's/uint_8s/int_8u/g', str(path.absolute())]
+                subprocess.run(sed_cmd)
+            table = EventTable.read(path, tablename='sngl_burst')
+        elif path.name.endswith('.root'):
+            # reading root files fail if there is a : in the name
+            cwd = Path.cwd()
+            os.chdir(path.parent)
+            table = EventTable.read(str(path.name), treename='triggers;1')
+            os.chdir(cwd)
+        if len(table) == 0:
+            logger.info(f'Empty trigger file: {str(path.absolute())}')
+            os.remove(path)
+        else:
+            ret = True
     return ret
 
 
@@ -208,6 +236,10 @@ def main():
             logger.error(f'Skipping {inpath.absolute()} parse error')
             continue
 
+        if not valid_file(inpath, args.uint_bug):
+            # make sure that this file has at least one trigger
+            continue
+
         if args.no_merge:
             shutil.copy(infile, out_dir)
             continue
@@ -242,7 +274,7 @@ def main():
             curfiles.append(inpath)
         else:
             # break in continuity
-            outfile = do_merge(out_dir, curfiles, name, start_time, etime, ext, args.no_gzip, args.uint_bug)
+            outfile = do_merge(out_dir, curfiles, name, start_time, etime, ext, args.no_gzip)
             if outfile:
                 outfiles.append(outfile)
             else:
