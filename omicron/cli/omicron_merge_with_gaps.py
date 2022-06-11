@@ -75,7 +75,6 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
     :param int etime: End GPS time
     :param str ext: trigger file extension, identifying file type
     :param boolean skip_gzip: if type is xml do not compress merged file
-    :param boolean uint_bug: if type is xml fix an old Omicron bug
     """
     outfile_path = opath / f'{chan}-{stime}-{etime - stime}.{ext}'
     ret = None
@@ -134,7 +133,9 @@ def valid_file(path, uint_bug):
     @param Path path: path to file
     @return boolean: True if file is valid
     """
+    vf_strt = time.time()
     ret = False
+    table = None
     if path.exists():
         if path.name.endswith('.h5'):
             table = EventTable.read(path, path='/triggers')
@@ -149,11 +150,16 @@ def valid_file(path, uint_bug):
             os.chdir(path.parent)
             table = EventTable.read(str(path.name), treename='triggers;1')
             os.chdir(cwd)
-        if len(table) == 0:
+        else:
+            tfile = False
+
+        ntrig = 0 if table is None else len(table)
+        if ntrig == 0:
             logger.info(f'Empty trigger file: {str(path.absolute())}')
             os.remove(path)
         else:
             ret = True
+        logger.debug(f'valid_file  {path.name} ({ntrig}), {ret} took {time.time()-vf_strt:.2f}')
     return ret
 
 
@@ -179,7 +185,8 @@ def main():
                         help='Do not compress the ligolw xml files')
     parser.add_argument('--uint-bug', default=False, action='store_true',
                         help='Deal with old version of Omicron that had a bug writing xml files')
-    parser.add_argument('infiles', nargs='+', help='List of paths to files to merge or copy')
+    parser.add_argument('--file-list', help='File ith list of nput file paths, one per line')
+    parser.add_argument('infiles', nargs='*', help='List of paths to files to merge or copy')
 
     args = parser.parse_args()
 
@@ -213,6 +220,10 @@ def main():
     for infile in args.infiles:
         files = glob.glob(infile)
         infiles.extend(files)
+    if args.file_list:
+        with open(args.file_list, 'r') as flist:
+            for file in flist:
+                infiles.append(file.strip())
     infiles.sort()
     logger.info(f'{len(args.infiles)} requested {len(infiles)} were found.')
     curfiles = list()
@@ -284,7 +295,7 @@ def main():
             end_time = None
             curfiles = [inpath]
     if curfiles:
-        outfile = do_merge(out_dir, curfiles, name, start_time, end_time, ext, args.no_gzip, args.uint_bug)
+        outfile = do_merge(out_dir, curfiles, name, start_time, end_time, ext, args.no_gzip)
         if outfile:
             outfiles.append(outfile)
         else:
