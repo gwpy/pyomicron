@@ -912,10 +912,11 @@ def main(args=None):
         **condorcmds
     )
     # This allows us to start with a memory request that works maybe 80%, but bumps it if we go over
-    reqmem = condorcmds.pop('request_memory', 3072)
+    reqmem = condorcmds.pop('request_memory', 1024)
     ojob.add_condor_cmd('+InitialRequestMemory', f'{reqmem}')
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage), {reqmem}, int(3*MemoryUsage))')
     ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26) && (JobStatus == 5)')
+    ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
     ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
 
@@ -924,12 +925,13 @@ def main(args=None):
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)
     ppjob.add_condor_cmd('+OmicronPostProcess', f'"{group}"')
-    ppmem = 3072
+    ppmem = 1024
     ojob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
     ojob.add_condor_cmd('request_memory',
                         f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
     ojob.add_condor_cmd('periodic_release',
                         '(HoldReasonCode =?= 26) && (JobStatus == 5)')
+    ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
     ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
     ppjob.add_short_opt('e', '')
