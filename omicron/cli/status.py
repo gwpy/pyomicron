@@ -185,7 +185,7 @@ def create_parser():
         '--html',
         default=False,
         action='store_true',
-        help='write HTML summary to index.html in output indir',
+        help='write HTML summary to index.html in output dir',
     )
 
     pnag = parser.add_argument_group('Monitoring options')

@@ -178,14 +178,14 @@ def main():
     parser.add_argument('-q', '--quiet', default=False, action='store_true',
                         help='show only fatal errors')
     parser.add_argument('-l', '--log-file', help='Save log messages to this file')
-    parser.add_argument('-o', '--out-indir', help='Path to output directory for merged files')
+    parser.add_argument('-o', '--out-dir', help='Path to output directory for merged files')
     parser.add_argument('-n', '--no-merge', action='store_true', default=False,
                         help='Do not merge files, only copy to output indir')
     parser.add_argument('--no-gzip', action='store_true', default=False,
                         help='Do not compress the ligolw xml files')
     parser.add_argument('--uint-bug', default=False, action='store_true',
                         help='Deal with old version of Omicron that had a bug writing xml files')
-    parser.add_argument('--file-list', help='File ith list of input file paths, one per line')
+    parser.add_argument('--file-list', help='File with list of input file paths, one per line')
     parser.add_argument('infiles', nargs='*', help='List of paths to files to merge or copy')
 
     args = parser.parse_args()

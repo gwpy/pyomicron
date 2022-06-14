@@ -171,7 +171,7 @@ interface, bug reports and feature requests are encouraged."""
     outg = parser.add_argument_group('Output options')
     outg.add_argument(
         '-o',
-        '--output-indir',
+        '--output-dir',
         default=Path.cwd(),
         type=Path,
         help='path to output directory (default: %(default)s)',
@@ -1048,7 +1048,7 @@ def main(args=None):
                         no_merge = '--no-merge' if args.skip_root_merge else ''
 
                         operations.append(f'  {prog_path["omicron-merge"]} {no_merge}  '
-                                          f'--out-indir {mergepath} {rootfiles} ')
+                                          f'--out-dir {mergepath} {rootfiles} ')
                         rmfiles.append(rootfiles)
 
                     # add HDF5 operations
@@ -1060,7 +1060,7 @@ def main(args=None):
 
                         operations.append(
                             f'  {prog_path["omicron-merge"]} {no_merge}  '
-                            f' --out-indir {mergepath} {hdf5files} ')
+                            f' --out-dir {mergepath} {hdf5files} ')
                         rmfiles.append(hdf5files)
 
                     # add LIGO_LW operations
@@ -1073,7 +1073,7 @@ def main(args=None):
                         no_gzip = '--no-gzip' if args.skip_gzip else ''
                         operations.append(
                             f'  {prog_path["omicron-merge"]} {no_merge} {no_gzip} --uint-bug '
-                            f' --out-indir {mergepath} {xmlfiles} ')
+                            f' --out-dir {mergepath} {xmlfiles} ')
 
                         rmfiles.append(xmlfiles)
 

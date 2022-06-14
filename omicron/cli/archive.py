@@ -112,7 +112,7 @@ def main():
     parser.add_argument('-q', '--quiet', default=False, action='store_true',
                         help='show only fatal errors')
     parser.add_argument('-i', '--indir', help='Input directory. expecing one or more '
-                                              'subdirectories with channel names. trigger files '
+                                              'subdirectories with channel names and the trigger files '
                                               'in those directories',
                         )
     parser.add_argument('-o', '--outdir', help='Top directory for storing files. default: %(default)s',
