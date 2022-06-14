@@ -55,9 +55,9 @@ import re
 __author__ = 'joseph areeda'
 __email__ = 'joseph.areeda@ligo.org'
 __version__ = '0.0.1'
-__process_name__ = 'omicron_archive'
+__process_name__ = 'archive'
 
-# example channel dir: L1:SUS-PR3_M1_DAMP_T_IN1_DQ
+# example channel indir: L1:SUS-PR3_M1_DAMP_T_IN1_DQ
 chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
 # example trigger file: L1-SUS_PR3_M1_DAMP_T_IN1_DQ_OMICRON-1336799058-8064.h5
 tfpat = re.compile("([A-Z][0-9])-(.+)-(\\d+)-(\\d+)\\.(.*)$")
@@ -111,8 +111,8 @@ def main():
                         version=__version__)
     parser.add_argument('-q', '--quiet', default=False, action='store_true',
                         help='show only fatal errors')
-    parser.add_argument('-i', '--indir', help='Input directory. expecing one or more'
-                                              'subdirectories with channel names. trigger files'
+    parser.add_argument('-i', '--indir', help='Input directory. expecing one or more '
+                                              'subdirectories with channel names. trigger files '
                                               'in those directories',
                         )
     parser.add_argument('-o', '--outdir', help='Top directory for storing files. default: %(default)s',

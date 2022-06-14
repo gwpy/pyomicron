@@ -171,7 +171,7 @@ interface, bug reports and feature requests are encouraged."""
     outg = parser.add_argument_group('Output options')
     outg.add_argument(
         '-o',
-        '--output-dir',
+        '--output-indir',
         default=Path.cwd(),
         type=Path,
         help='path to output directory (default: %(default)s)',
@@ -373,13 +373,6 @@ interface, bug reports and feature requests are encouraged."""
              '--skip-root-merge --skip-hdf5-merge '
              '--skip-ligolw_add --skip-gzip '
              '(default: %(default)s)',
-    )
-    pipeg.add_argument(
-            '--skip-archive',
-            action='store_true',
-            default=False,
-            help='Do not copy merged files to archive dir.  '
-                 '(default: %(default)s)',
     )
     pipeg.add_argument(
             '--skip-rm',
@@ -958,12 +951,13 @@ def main(args=None):
         raise ValueError(f'Required programs not found in current environment: {", ".join(goterr)}')
 
     # create node to remove files
-    rmjob = condor.OmicronProcessJob(
-        args.universe, str(condir / "post-process-rm.sh"),
-        subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
-    rm = find_executable('rm')
-    rmfiles = []
-    rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
+    if not args.skip_rm:
+        rmjob = condor.OmicronProcessJob(
+            args.universe, str(condir / "post-process-rm.sh"),
+            subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
+        rm = find_executable('rm')
+        rmfiles = []
+        rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 
     if args.archive:
         archivejob = condor.OmicronProcessJob(
@@ -1052,7 +1046,7 @@ def main(args=None):
                         no_merge = '--no-merge' if args.skip_root_merge else ''
 
                         operations.append(f'  {prog_path["omicron-merge"]} {no_merge}  '
-                                          f'--out-dir {mergepath} {rootfiles} ')
+                                          f'--out-indir {mergepath} {rootfiles} ')
                         rmfiles.append(rootfiles)
 
                     # add HDF5 operations
@@ -1064,7 +1058,7 @@ def main(args=None):
 
                         operations.append(
                             f'  {prog_path["omicron-merge"]} {no_merge}  '
-                            f' --out-dir {mergepath} {hdf5files} ')
+                            f' --out-indir {mergepath} {hdf5files} ')
                         rmfiles.append(hdf5files)
 
                     # add LIGO_LW operations
@@ -1077,7 +1071,7 @@ def main(args=None):
                         no_gzip = '--no-gzip' if args.skip_gzip else ''
                         operations.append(
                             f'  {prog_path["omicron-merge"]} {no_merge} {no_gzip} --uint-bug '
-                            f' --out-dir {mergepath} {xmlfiles} ')
+                            f' --out-indir {mergepath} {xmlfiles} ')
 
                         rmfiles.append(xmlfiles)
 
