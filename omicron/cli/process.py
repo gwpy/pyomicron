@@ -1151,6 +1151,7 @@ def main(args=None):
         tempfiles.append(archivejob.get_executable())
 
     # add rm job right at the end
+    rmnode = None
     if not args.skip_rm:
         rmnode = pipeline.CondorDAGNode(rmjob)
         rmscript = rmjob.get_executable()
@@ -1170,12 +1171,14 @@ def main(args=None):
             os.chmod(rmscript, 0o755)
         tempfiles.append(rmscript)
         rmnode.set_category('postprocessing')
-    if args.archive:  # run this after archiving
-        rmnode.add_parent(archivenode)
-    else:  # or just after post-processing if not archiving
-        for node in ppnodes:
-            rmnode.add_parent(node)
-    dag.add_node(rmnode)
+    if rmnode:
+        # set parents for removing files
+        if args.archive:  # run this after archiving
+            rmnode.add_parent(archivenode)
+        else:  # or just after post-processing if not archiving
+            for node in ppnodes:
+                rmnode.add_parent(node)
+        dag.add_node(rmnode)
 
     # print DAG to file
     dagfile = Path(dag.get_dag_file()).resolve(strict=False)
