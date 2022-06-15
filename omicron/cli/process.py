@@ -953,12 +953,12 @@ def main(args=None):
         raise ValueError(f'Required programs not found in current environment: {", ".join(goterr)}')
 
     # create node to remove files
+    rmfiles = []
     if not args.skip_rm:
         rmjob = condor.OmicronProcessJob(
             args.universe, str(condir / "post-process-rm.sh"),
             subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
         rm = find_executable('rm')
-        rmfiles = []
         rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 
     if args.archive:
@@ -1151,24 +1151,25 @@ def main(args=None):
         tempfiles.append(archivejob.get_executable())
 
     # add rm job right at the end
-    rmnode = pipeline.CondorDAGNode(rmjob)
-    rmscript = rmjob.get_executable()
-    with open(rmscript, 'w') as f:
-        print('#!/bin/bash -e\n#', file=f)
-        print("# omicron-process post-processing-rm", file=f)
-        print(f'#\n# File created by\n# {" ".join(sys.argv)}\n#', file=f)
-        print("# Group: %s" % group, file=f)
-        print("# Segment: [%d, %d)" % (s, e), file=f)
-        print("# Channels:\n#", file=f)
-        for c in channels:
-            print('# %s' % c, file=f)
-        print('', file=f)
-        for rmset in rmfiles:
-            print('%s -f %s' % (rm, rmset), file=f)
-    if newdag:
-        os.chmod(rmscript, 0o755)
-    tempfiles.append(rmscript)
-    rmnode.set_category('postprocessing')
+    if not args.skip_rm:
+        rmnode = pipeline.CondorDAGNode(rmjob)
+        rmscript = rmjob.get_executable()
+        with open(rmscript, 'w') as f:
+            print('#!/bin/bash -e\n#', file=f)
+            print("# omicron-process post-processing-rm", file=f)
+            print(f'#\n# File created by\n# {" ".join(sys.argv)}\n#', file=f)
+            print("# Group: %s" % group, file=f)
+            print("# Segment: [%d, %d)" % (s, e), file=f)
+            print("# Channels:\n#", file=f)
+            for c in channels:
+                print('# %s' % c, file=f)
+            print('', file=f)
+            for rmset in rmfiles:
+                print('%s -f %s' % (rm, rmset), file=f)
+        if newdag:
+            os.chmod(rmscript, 0o755)
+        tempfiles.append(rmscript)
+        rmnode.set_category('postprocessing')
     if args.archive:  # run this after archiving
         rmnode.add_parent(archivenode)
     else:  # or just after post-processing if not archiving
