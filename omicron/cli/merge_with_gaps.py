@@ -41,7 +41,9 @@ __version__ = '0.0.1'
 __process_name__ = 'omicron_merge_with_gaps'
 
 # global logger
-logging.basicConfig()
+log_file_format = "%(asctime)s - %(levelname)s - %(funcName)s %(lineno)d: %(message)s"
+log_file_date_format = '%m-%d %H:%M:%S'
+logging.basicConfig(format=log_file_format, datefmt=log_file_date_format)
 logger = logging.getLogger(__process_name__)
 logger.setLevel(logging.DEBUG)
 
@@ -62,7 +64,7 @@ def get_merge_cmd(ext):
     ret_path = shutil.which(ret)
     if not ret_path:
         raise AttributeError(f'{ext} files require {ret} which is not in out path')
-    return ret
+    return ret_path
 
 
 def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
@@ -89,18 +91,20 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
                 returncode = 0
         else:
             cmd = [get_merge_cmd(ext)]
-            if ext == 'xml':
+            if 'xml' in ext:    # also accept xml.gz
+                outfile_path = Path(str(outfile_path.absolute()).replace('.xml.gz', '.xml'))
                 cmd.append(f'--output={outfile_path}')
-            cmd.extend(curfiles)
+            for cur in curfiles:
+                cmd.append(str(cur.absolute()))
             if ext != 'xml':
-                cmd.append(outfile_path)
+                cmd.append(str(outfile_path.absolute()))
 
             logger.info(f'Merging {len(curfiles)} {ext} files into {outfile_path}')
-            logger.debug(f'Merge command: {cmd}')
+            logger.debug(f'Merge command:\n {" ".join(cmd)}')
             result = subprocess.run(cmd, capture_output=True)
             returncode = result.returncode
             err_old_fmt = b"invalid type 'ilwd:char'"
-            if returncode == 1 and ext == 'xml' and err_old_fmt in result.stderr:
+            if returncode == 1 and 'xml' in ext and err_old_fmt in result.stderr:
                 # old ligolw format seems to be the problem
                 cmd = [get_merge_cmd(ext), '--ilwdchar-compat', f'--output={outfile_path}']
                 cmd.extend(curfiles)
@@ -111,15 +115,15 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
             if returncode == 0:
                 logger.debug(f'Merge of {ext} files succeeded')
             else:
-                logger.error(f'Return code:{returncode}, stderr:\n{str(result.stderr)}')
+                logger.error(f'Return code:{returncode}, stderr:\n{result.stderr.decode("UTF-8")}')
 
-        if ext == 'xml' and returncode == 0 and not skip_gzip:
+        if 'xml' in ext and returncode == 0 and not skip_gzip:
             logger.info(f'Compressing {outfile_path} with gzip')
             res2 = subprocess.run(['gzip', '-9',  '--force', outfile_path], capture_output=True)
             if res2.returncode == 0:
                 ret = str(outfile_path.absolute()) + '.gz'
             else:
-                logger.error(f'gzip error on {outfile_path}:\n {str(res2.stderr)}')
+                logger.error(f'gzip error on {outfile_path}:\n {res2.stderr.decode("UTF-8")}')
         else:
             ret = str(outfile_path.absolute())
 
@@ -165,9 +169,6 @@ def valid_file(path, uint_bug):
 
 def main():
     global logger
-    logging.basicConfig()
-    logger = logging.getLogger(__process_name__)
-    logger.setLevel(logging.DEBUG)
 
     parser = argparse.ArgumentParser(description=__doc__,
                                      prog=__process_name__)
@@ -199,10 +200,6 @@ def main():
     else:
         log_level = logging.DEBUG
 
-    log_file_format = "%(asctime)s - %(levelname)s: %(message)s"
-    log_file_date_format = '%m-%d %H:%M:%S'
-    logging.basicConfig(format=log_file_format, datefmt=log_file_date_format)
-    logger = logging.getLogger(__process_name__)
     logger.setLevel(log_level)
 
     if args.log_file:
@@ -225,7 +222,7 @@ def main():
             for file in flist:
                 infiles.append(file.strip())
     infiles.sort()
-    logger.info(f'{len(args.infiles)} requested {len(infiles)} were found.')
+    logger.info(f'FILES: {len(args.infiles)} requested {len(infiles)} were found.')
     curfiles = list()
     start_time = None
     end_time = None
