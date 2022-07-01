@@ -96,7 +96,7 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
                 cmd.append(f'--output={outfile_path}')
             for cur in curfiles:
                 cmd.append(str(cur.absolute()))
-            if ext != 'xml':
+            if 'xml' not in ext:
                 cmd.append(str(outfile_path.absolute()))
 
             logger.info(f'Merging {len(curfiles)} {ext} files into {outfile_path}')
