@@ -1,5 +1,5 @@
-Merging trigger files
-#####################
+Merge trigger files
+###################
 
 In order to not end up with millions of small ``.root``, ``.hdf5``, and
 ``.xml`` files each representing a
@@ -54,13 +54,27 @@ message of each program:
 
 .. command-output:: ligolw_add --help
 
+Reducing file count and disk space
+##################################
+
+Current operations run ``omicron-proocess`` every 12 minutes to provide near
+real time triggers. Over a day this can result in up to 360 (5 * 24 * 3) files per
+channel with O(1000) channels per day.
+
+To address this issue, the program ``omicron-metric-day-merge`` will scan each channel
+for trigger files in a specific metric day. A metric  day is used to mean 100,000 second
+boundary of GPS time. It will colaesce all contiguous trigger files into a temporary diretory
+
+.. command-output:: omicron-metric-day-merge --help
+
 
 Archive trigger files
-======================
+#####################
 
 Archiving is also complicated by the potential gaps in triggers. The ``omicron-archive``
 program examines all the merged trigger files organizing them by channel and metric day
 (int(gps_start_time/1e5)). These are then *copied* to the archive directory, usually
-/home/detchar/triggers/<ifo>, but it can be overridden for testing. The full help opions are:
+/home/detchar/triggers/<ifo>, but it can be overridden for testing on the command
+line or by setting the envirnment variable ``OMICRON_HOME``. The full help opions are:
 
 .. command-output:: omicron-merge-with-gaps --help

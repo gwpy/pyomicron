@@ -1,12 +1,16 @@
-.. PyOmicron documentation master file, created by
-   sphinx-quickstart on Tue Apr 26 09:12:21 2016.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+PyOmicron
+=========
 
-Welcome to PyOmicron's documentation!
-=====================================
+PyOmicron is a workflow generator and processor tool for
+the `Omicron gravitational-wave event trigger
+generator <https://virgo.docs.ligo.org/virgoapp/Omicron/>`_.
+It was built chiefly to simplify the automatic processing hundreds of
+data channels recorded by the `Laser Interferometer Gravitational-wave Observatory
+(LIGO) <https://www.ligo.caltech.edu>`_ and `Virgo <https://www.ego-gw.it/>`_
+detectors in order to characterise the instrumental and environmental noises
+impacting their sensitivity.
 
-PyOmicron is a workflow generator and processor tool for the `Omicron gravitational-wave event trigger generator <https://virgo.docs.ligo.org/virgoapp/Omicron/>`_. It was built chiefly to simplify the automatic processing hundreds of data channels recorded by the `Laser Interferometer Gravitational-wave Observatory (LIGO) <https://www.ligo.caltech.edu>`_ and `Virgo <https://www.ego-gw.it/>`_ detectors in order to characterise the instrumental and environmental noises impacting their sensitivity.
+Built: |today|
 
 Installing PyOmicron
 --------------------

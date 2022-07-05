@@ -102,6 +102,7 @@ def main():
     logger.setLevel(logging.DEBUG)
 
     home = os.getenv('HOME')
+    outdir_default = os.getenv('OMICRON_HOME', f'{home}/triggers')
     parser = argparse.ArgumentParser(description=textwrap.dedent(__doc__),
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                      prog=__process_name__)
@@ -116,7 +117,7 @@ def main():
                                               'in those directories',
                         )
     parser.add_argument('-o', '--outdir', help='Top directory for storing files. default: %(default)s',
-                        default=f'{home}/triggers')
+                        default=outdir_default)
 
     args = parser.parse_args()
 
