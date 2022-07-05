@@ -158,12 +158,12 @@ def valid_file(path, uint_bug):
             tfile = False
 
         ntrig = 0 if table is None else len(table)
-        if ntrig == 0:
+        if table is None:
             logger.info(f'Empty trigger file: {str(path.absolute())}')
             os.remove(path)
         else:
             ret = True
-        logger.debug(f'valid_file  {path.name} ({ntrig}), {ret} took {time.time()-vf_strt:.2f}')
+        logger.debug(f'valid_file: {ret}  {path.name} ({ntrig}), {ret} took {time.time()-vf_strt:.2f}')
     return ret
 
 
