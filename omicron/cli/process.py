@@ -460,6 +460,9 @@ def main(args=None):
     logger.debug('Omicron version: %s' % omicronv)
 
     # -- parse configuration file and get parameters --------------------------
+    config_path = Path(args.config_file)
+    if not config_path.is_file():
+        logger.critical(f'Configuration file : {str(config_path.absolute())} does not exsit')
 
     cp = configparser.ConfigParser()
     cp.read(args.config_file)
@@ -898,7 +901,8 @@ def main(args=None):
     # set up condor commands for all jobs
     condorcmds = {'accounting_group': args.condor_accounting_group,
                   'accounting_group_user': args.condor_accounting_group_user,
-                  'request_disk': args.condor_request_disk}
+                  'request_disk': args.condor_request_disk,
+                  'use_x509userproxy': 'True'}
     for cmd_ in args.condor_command:
         key, value = cmd_.split('=', 1)
         condorcmds[key.rstrip().lower()] = value.strip()
