@@ -19,7 +19,6 @@
 """Segment utilities for Omicron
 """
 
-import json
 import re
 from functools import wraps
 from math import (floor, ceil)
@@ -150,7 +149,7 @@ def query_state_segments(flag, start, end, url=DEFAULT_SEGMENT_SERVER,
     """
     # NOTE: DQF.pad pads forward in time at end
     return DataQualityFlag.query(
-        flag, start-pad[0], end+pad[1], url=url,
+        flag, start - pad[0], end + pad[1], url=url,
     ).coalesce().pad(pad[0], -pad[1]).active
 
 
@@ -257,8 +256,7 @@ def get_guardian_segments(node, frametype, start, end, nproc=1, pad=(0, 0),
             gdata = TimeSeriesDict.read(
                 cache, channels, nproc=nproc, start=seg[0], end=seg[1],
                 gap='pad', pad=0)
-            ok = ((gdata[state].value == gdata[nominal].value) &
-                  (gdata[active].value == 1)).view(StateTimeSeries)
+            ok = ((gdata[state].value == gdata[nominal].value) & (gdata[active].value == 1)).view(StateTimeSeries)
             ok.t0 = gdata[state].t0
             ok.dt = gdata[state].dt
             segs += ok.to_dqflag().active

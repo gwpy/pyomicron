@@ -24,15 +24,11 @@ import time
 start_time = time.time()
 
 from pathlib import Path
-import shutil
 from gwpy.table import EventTable
 
 import argparse
-import glob
-import h5py
 import logging
 import os
-import re
 
 __author__ = 'joseph areeda'
 __email__ = 'joseph.areeda@ligo.org'

@@ -47,7 +47,6 @@ from pathlib import Path
 start_time = time.time()
 import argparse
 import glob
-import h5py
 import logging
 import os
 import re
@@ -70,7 +69,7 @@ def process_dir(dir_path, outdir, logger):
     @param Path outdir: top level output directory eg ${HOME}/triggers
     @return: boolean True if successful
     """
-    trig_files = glob.glob(str(dir_path.absolute())+'/*')
+    trig_files = glob.glob(str(dir_path.absolute()) + '/*')
     good = 0
     bad = 0
 
@@ -84,10 +83,9 @@ def process_dir(dir_path, outdir, logger):
             ifo = m.group(1)
             chan = m.group(2)
             strt = int(m.group(3))
-            dur = int(m.group(4))
             ext = m.group(5)
 
-            otrigdir = outdir / ifo / chan / str(int(strt/1e5))
+            otrigdir = outdir / ifo / chan / str(int(strt / 1e5))
 
             logger.debug(f'ifo: [{ifo}], chan: [{chan}], strt: {strt}, ext: [{ext}] -> {str(otrigdir.absolute())}')
             otrigdir.mkdir(mode=0o755, parents=True, exist_ok=True)

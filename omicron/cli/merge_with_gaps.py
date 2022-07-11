@@ -119,7 +119,7 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
 
         if 'xml' in ext and returncode == 0 and not skip_gzip:
             logger.info(f'Compressing {outfile_path} with gzip')
-            res2 = subprocess.run(['gzip', '-9',  '--force', outfile_path], capture_output=True)
+            res2 = subprocess.run(['gzip', '-9', '--force', outfile_path], capture_output=True)
             if res2.returncode == 0:
                 ret = str(outfile_path.absolute()) + '.gz'
             else:
@@ -154,8 +154,6 @@ def valid_file(path, uint_bug):
             os.chdir(path.parent)
             table = EventTable.read(str(path.name), treename='triggers;1')
             os.chdir(cwd)
-        else:
-            tfile = False
 
         ntrig = 0 if table is None else len(table)
         if table is None:

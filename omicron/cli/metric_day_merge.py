@@ -23,24 +23,19 @@
 a metric day: int(GPS/100000) to merge any contiguous files into a new indir"""
 
 import shutil
-import subprocess
 import sys
 import time
 import socket
 from pathlib import Path
 
-import configargparse
 from gwpy.time import to_gps
 
 start_time = time.time()
 import argparse
 import glob
-import h5py
 import logging
 import os
-import re
 import htcondor  # for submitting jobs, querying HTCondor daemons, etc.
-import classad   # for interacting with ClassAds, HTCondor's internal data format
 
 
 __author__ = 'joseph areeda'
@@ -132,7 +127,7 @@ def main():
                    'specified if not running in an IFO cluster')
 
     if args.day:
-        day = args.day if args.day < 1e6 else int(args.day/1e5)
+        day = args.day if args.day < 1e6 else int(args.day / 1e5)
     else:
         err.append('Metric day to scan must be specified')
 

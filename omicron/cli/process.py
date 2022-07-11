@@ -375,12 +375,12 @@ interface, bug reports and feature requests are encouraged."""
              '(default: %(default)s)',
     )
     pipeg.add_argument(
-            '--skip-rm',
-            action='store_true',
-            default=False,
-            help='Do not remove all the trigger files created by the job.'
-                 'Useful for debugging'
-                 '(default: %(default)s)'
+        '--skip-rm',
+        action='store_true',
+        default=False,
+        help='Do not remove all the trigger files created by the job.'
+             'Useful for debugging'
+             '(default: %(default)s)'
     )
 
     return parser
@@ -626,13 +626,9 @@ def main(args=None):
         args.reattach = False
 
     # check dagman rescue files
-    nrescue = len(list(condir.glob(
-            f"{dagpath.name}.rescue[0-9][0-9][0-9]",
-    )))
+    nrescue = len(list(condir.glob(f"{dagpath.name}.rescue[0-9][0-9][0-9]")))
     if args.rescue and not nrescue:
-        raise RuntimeError(
-                f"--rescue given but no rescue DAG files found for {dagpath}",
-        )
+        raise RuntimeError(f"--rescue given but no rescue DAG files found for {dagpath}")
     if nrescue and not args.rescue and "force" not in args.dagman_option:
         raise RuntimeError(
             "rescue DAGs found for {} but `--rescue` not given and "
@@ -680,7 +676,7 @@ def main(args=None):
     start_dt = gwpy.time.tconvert(datastart).strftime('%x %X')
     end_dt = gwpy.time.tconvert(dataend).strftime('%x %X')
     logger.info(f'Processing segment determined as: {datastart:d} - {dataend:d} : {start_dt} - {end_dt}')
-    dur_str = '{} {}'.format(int(dataduration/86400) if dataduration > 86400 else '',
+    dur_str = '{} {}'.format(int(dataduration / 86400) if dataduration > 86400 else '',
                              time.strftime('%H:%M:%S', time.gmtime(dataduration)))
     logger.info(f"Duration = {dataduration} - {dur_str}")
 
@@ -1007,7 +1003,7 @@ def main(args=None):
                     # we need to ignore errors in individual nodes
                     node.set_post_script(find_executable('bash'))
                     node.add_post_script_arg('-c')
-                    node.add_post_script_arg(f'exit 0')
+                    node.add_post_script_arg('exit 0')
 
                     for chan in chanlist:
                         for form, flist in nodefiles[chan].items():
@@ -1036,7 +1032,7 @@ def main(args=None):
                 # build post-processing nodes for each channel
                 for c in chanlist:
                     operations.append('\n# %s' % c)
-                    chandir = trigdir / c
+
                     # work out filenames for coalesced files
                     archpath = Path(io.get_archive_filename(
                         c, ts, td, filetag=afiletag, ext='root',

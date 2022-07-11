@@ -24,7 +24,6 @@ import configparser
 import json
 import logging
 import operator
-import shutil
 import sys
 import warnings
 from collections import OrderedDict
@@ -245,8 +244,6 @@ def main(args=None):
     if args.ifo is None:
         parser.error("Cannot determine IFO prefix from system, "
                      "please pass --ifo on the command line")
-    ourfile = Path(__file__)
-    python_prog = shutil.which('python')
 
     group = args.group
 

@@ -180,7 +180,7 @@ class OmicronParameters(configparser.ConfigParser):
         files = OrderedDict()
         i = 0
         while i * nchannels < len(channels):
-            chans = channels[i * nchannels:(i+1) * nchannels]
+            chans = channels[i * nchannels:(i + 1) * nchannels]
             pfile = os.path.join(directory, 'parameters-%d.txt' % i)
             tmpcp.set('DATA', 'CHANNELS', ' '.join(chans))
             with open(pfile, 'w') as f2:
@@ -220,8 +220,7 @@ class OmicronParameters(configparser.ConfigParser):
         # reformat from separate low, high to a tuple of values
         for (range_, low_, high_) in [('frequency-range', 'flow', 'fhigh'),
                                       ('q-range', 'qlow', 'qhigh')]:
-            if (not config.has_option(section, range_) and
-                    config.has_option(section, low_)):
+            if not config.has_option(section, range_) and config.has_option(section, low_):
                 config.set(
                     section, range_,
                     '%s %s' % (config.getfloat(section, low_),
@@ -328,7 +327,7 @@ class OmicronParameters(configparser.ConfigParser):
         psdlen = psdsize / sampling
         chunkp = chunk * sampling
         overlapp = overlap * sampling
-        flow = 5 * sampling / exp(log((chunk - overlap)/4., 2))
+        flow = 5 * sampling / exp(log((chunk - overlap) / 4., 2))
         assert (chunkp - overlapp) >= 2 * psdsize, (
             "Chunk duration not large enough to resolve lower-frequency "
             "bound, Omicron needs at least %ds. Minimum lower-frequency bound "

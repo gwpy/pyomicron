@@ -80,8 +80,7 @@ def merge_root_files(inputfiles, outputfile,
         chains[tree] = ROOT.TChain(tree)
         for i, f in enumerate(inputfiles):
             chains[tree].Add(f)
-        if (strict and tree == 'segments' and
-                len(segmentlist_from_tree(chains[tree]).coalesce()) > 1):
+        if strict and tree == 'segments' and len(segmentlist_from_tree(chains[tree]).coalesce()) > 1:
             raise RuntimeError("Cannot perform a 'strict' merge on files "
                                "containing discontiguous data")
 
@@ -121,7 +120,7 @@ def find_omicron_files(channel, start, end, basepath, ext='xml.gz',
                        filetag=const.OMICRON_FILETAG.upper()):
     """Find Omicron files under a given starting directory
     """
-    gps5 = int(str(start)[:5])-1
+    gps5 = int(str(start)[:5]) - 1
     cache = list()
     span = Segment(start, end)
     while gps5 <= int(str(end)[:5]):
@@ -280,7 +279,7 @@ def merge_hdf5_files(inputfiles, outputfile, **compression_kw):
                     data = h5in[dset]
                     size = data.shape[0]
                     pos = position[dset]
-                    h5out[dset][pos:pos+size] = data
+                    h5out[dset][pos:pos + size] = data
                     position[dset] += size
 
     return outputfile
