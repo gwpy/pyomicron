@@ -248,7 +248,6 @@ def main(args=None):
     ourfile = Path(__file__)
     python_prog = shutil.which('python')
 
-
     group = args.group
 
     logger.info("Checking status for %r group" % group)
