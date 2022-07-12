@@ -45,5 +45,5 @@ def test_logger():
     # test that the formatter prints the correct thing
     outhandler = logger.handlers[0]
     assert re.match(r'\[\x1b\[1mTEST\x1b\[0m \d+\]    '
-                    r'\x1b\[1;34mDEBUG\x1b\[0m: test message',
+                    r'\x1b\[1;34mDEBUG\x1b\[0m:.+ test message',
                     outhandler.format(record))

@@ -412,7 +412,7 @@ def main(args=None):
         for arg in ['skip-root-merge', 'skip-hdf5-merge',
                     'skip-ligolw-add', 'skip-gzip']:
             if argsd[arg.replace('-', '_')]:
-                parser.error("Cannot use --%s with ----" % arg)
+                parser.error(f"Cannot use --{arg} with --archive")
 
     # check conflicts
     if args.gps is None and args.cache_file is not None:
@@ -926,12 +926,12 @@ def main(args=None):
                                      tag='post-processing', **condorcmds)
     ppjob.add_condor_cmd('+OmicronPostProcess', f'"{group}"')
     ppmem = 1024
-    ojob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
-    ojob.add_condor_cmd('request_memory',
-                        f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
-    ojob.add_condor_cmd('periodic_release',
-                        '(HoldReasonCode =?= 26) && (JobStatus == 5)')
-    ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
+    ppjob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
+    ppjob.add_condor_cmd('request_memory',
+                         f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
+    ppjob.add_condor_cmd('periodic_release',
+                         '(HoldReasonCode =?= 26) && (JobStatus == 5)')
+    ppjob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
     ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
     ppjob.add_short_opt('e', '')
