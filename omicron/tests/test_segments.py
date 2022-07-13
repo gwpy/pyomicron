@@ -126,4 +126,3 @@ def test_get_flag_coverage(requests_mock):
         'latest_known_segment': 90.,
         'earliest_active_segment': 10.,
     }
-
