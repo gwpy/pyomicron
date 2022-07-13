@@ -157,7 +157,7 @@ def valid_file(path, uint_bug):
 
         ntrig = 0 if table is None else len(table)
         if table is None:
-            logger.info(f'Empty trigger file: {str(path.absolute())}')
+            logger.info(f'Invalid trigger file: {str(path.absolute())}')
             os.remove(path)
         else:
             ret = True
@@ -183,7 +183,7 @@ def main():
     parser.add_argument('--no-gzip', action='store_true', default=False,
                         help='Do not compress the ligolw xml files')
     parser.add_argument('--uint-bug', default=False, action='store_true',
-                        help='Deal with old version of Omicron that had a bug writing xml files')
+                        help='Fix problem XML files created by old version of Omicron beforew merging.')
     parser.add_argument('--file-list', help='File with list of input file paths, one per line')
     parser.add_argument('infiles', nargs='*', help='List of paths to files to merge or copy')
 
