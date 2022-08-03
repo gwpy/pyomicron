@@ -59,6 +59,7 @@ __author__ = "Duncan Macleod <duncan.macleod@ligo.org>"
 NOW = int(to_gps('now'))
 logger = None
 
+
 def create_parser():
     parser = argparse.ArgumentParser(
         description=__doc__,
