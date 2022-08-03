@@ -18,6 +18,8 @@
 
 """Check the status of Omicron trigger generation
 """
+import time
+prog_start = time.time()
 
 import argparse
 import configparser
@@ -55,7 +57,7 @@ from omicron.utils import get_omicron_version
 __author__ = "Duncan Macleod <duncan.macleod@ligo.org>"
 
 NOW = int(to_gps('now'))
-
+logger = None
 
 def create_parser():
     parser = argparse.ArgumentParser(
@@ -86,16 +88,16 @@ def create_parser():
     parser.add_argument(
         '-s',
         '--gps-start-time',
-        type=int,
+        type=to_gps,
         default=NOW - 7 * 86400,
-        help='GPS start time of check',
+        help='GPS start time of check or date/time',
     )
     parser.add_argument(
         '-e',
         '--gps-end-time',
-        type=int,
+        type=to_gps,
         default=NOW,
-        help='GPS end time of check',
+        help='GPS end time of check or date/time',
     )
     parser.add_argument(
         '-c',
@@ -215,6 +217,7 @@ def create_parser():
 
 
 def main(args=None):
+    global logger
     use('agg')
     rcParams.update({
         'figure.subplot.bottom': 0.15,
@@ -569,7 +572,7 @@ def main(args=None):
     pending = {}
     plots = {}
     for c in channels:
-        # create data storate
+        # create data storage
         latency[c] = {}
         gaps[c] = {}
         overlap[c] = {}
@@ -839,3 +842,5 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
+    if logger:
+        logger.info(f'Run time: {(time.time()-prog_start):.1f} seconds')
