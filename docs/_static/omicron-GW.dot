@@ -1,0 +1,24 @@
+digraph DAG {
+    label="Sample DAGMan Job created by pyomicron";
+
+    "Omicron interval 1" [shape=ellipse label="Omicron interval 1 "];
+    "Omicron interval 2" [shape=ellipse label="Omicron interval 2 "];
+    "Omicron interval 3" [shape=ellipse label="Omicron interval 3 "];
+    "post processing" [shape=ellipse label="post processing "];
+    "merge1" [shape=ellipse label=<merge <br/>Channel list 1>];
+    "merge2" [shape=ellipse label=<merge <br/>Channel list 2>];
+    "merge3" [shape=ellipse label=<merge <br/>Channel list 3>];
+    "archive" [shape=ellipse label=<archive merged files<br/>For general access>];
+    "remove intermediate"  [shape=ellipse label=<remove intermediate files<br/>Save logs and Condor files>];
+
+    "Omicron interval 1" -> "post processing";
+    "Omicron interval 2" -> "post processing";
+    "Omicron interval 3" -> "post processing";
+    "post processing" -> "merge1";
+    "post processing" -> "merge2";
+    "post processing" -> "merge3";
+    "merge1" -> "archive";
+    "merge2" -> "archive";
+    "merge3" -> "archive";
+    "archive" -> "remove intermediate";
+}

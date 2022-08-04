@@ -4,6 +4,7 @@ Generating a workflow using ``omicron-process``
 
 PyOmicron provides the `omicron-process` command-line executable, designed for creating and managing `HTCondor <https://research.cs.wisc.edu/htcondor/>`_ workflows.
 
+
 The only hard requirement in order to run `omicron-process` is a :ref:`configuration <configuration>` file. Once you have that you can run automatically over the most recent chunk of data as
 
 .. code-block:: bash
@@ -64,7 +65,7 @@ The DAG will normally do something like this:
    ``/home/detchar/triggers/<ifo>/<channel-filetag>/<metric day>``
 #. if everything completes successfully, trigger and log files are deleted
 
-.. figure:: ../_static/TypicalDAG.png
+.. figure:: ../_static/omicron-GW.png
     :align: center
     :alt: typical DAG diagram
     :figclass: align-center

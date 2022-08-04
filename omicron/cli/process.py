@@ -118,7 +118,11 @@ def create_parser():
 https://github.com/gwpy/pyomicron/
 
 All issues regarding this software should be raised using the GitHub web
-interface, bug reports and feature requests are encouraged."""
+interface, bug reports and feature requests are encouraged.
+
+Documentation is available here:
+
+https://pyomicron.readthedocs.io/en/latest/"""
 
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -703,7 +707,7 @@ def main(args=None):
     # get segments from state vector
     if (online and statechannel) or (statechannel and not stateflag) or (
             statechannel and args.no_segdb):
-        logger.info("Finding segments for relevant state...  from:{datastart} length: {dataduration}s")
+        logger.info(f'Finding segments for relevant state...  from:{datastart} length: {dataduration}s')
         seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
             segs = segments.get_guardian_segments(
