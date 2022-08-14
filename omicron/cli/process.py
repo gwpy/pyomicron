@@ -58,7 +58,8 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 *automatically* submitted to condor for processing.
 
 """
-
+import time
+prog_start = time.time()
 import argparse
 import configparser
 import os
@@ -77,7 +78,7 @@ import gwpy.time
 from glue import pipeline
 
 from gwpy.io.cache import read_cache
-from gwpy.time import to_gps
+from gwpy.time import to_gps, tconvert
 
 from omicron import (const, segments, log, data, parameters, utils, condor, io,
                      __version__)
@@ -98,6 +99,16 @@ def clean_exit(exitcode, tempfiles=None):
     if tempfiles:
         clean_tempfiles(tempfiles)
     sys.exit(exitcode)
+
+
+def gps2str(gps):
+    """Creat a string drom gps time for filenames
+    :param LIGOTimeGPS gps: input gps time
+    :returns str: something like 20220726.193002
+    """
+    dt = tconvert(gps)
+    ret = dt.strftime('%Y%m%d.%H%M%S')
+    return ret
 
 
 def clean_tempfiles(tempfiles):
@@ -198,6 +209,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
 
     # data processing/chunking options
     procg = parser.add_argument_group('Processing options')
+
     procg.add_argument(
         '-C',
         '--max-chunks-per-job',
@@ -214,6 +226,9 @@ https://pyomicron.readthedocs.io/en/latest/"""
         help='maximum number of channels to process in a single '
         'condor job (default: %(default)s)',
     )
+    # max concurrent omicron jobs
+    procg.add_argument('--max-concurrent', default=10, type=int,
+                       help='Max omicron jobs at one time [%(default)s]')
     procg.add_argument(
         '-x',
         '--exclude-channel',
@@ -974,6 +989,8 @@ def main(args=None):
     else:
         archivejob = None
 
+    omicron_nodes = list()
+
     # loop over data segments
     for s, e in segs:
 
@@ -986,8 +1003,7 @@ def main(args=None):
         nodesegs = oconfig.distribute_segment(
             s, e, nperjob=args.max_chunks_per_job)
 
-        omicronfiles = {}
-
+        omicronfiles = dict()
         # build node for each parameter file
         for i, pf in enumerate(jobfiles):
             chanlist = jobfiles[pf]
@@ -1023,7 +1039,8 @@ def main(args=None):
                                 except KeyError:
                                     omicronfiles[chan] = {form: flist}
                     dag.add_node(node)
-                    nodes.append(node)
+                    nodes.append(node)              # for this segment
+                    omicron_nodes.append(node)      # all nodes
 
             # post-process (one post-processing job per channel
             #               per data segment)
@@ -1123,7 +1140,20 @@ def main(args=None):
                         print('\n'.join(operations), file=f)
                     if newdag:
                         script.chmod(0o755)
-
+    parent_jobs = list()
+    child_jobs = list()
+    maxcon = args.max_concurrent
+    for j in omicron_nodes:
+        if len(parent_jobs) < maxcon:
+            parent_jobs.append(j)
+        elif len(child_jobs) < maxcon:
+            child_jobs.append(j)
+        else:
+            for pj in parent_jobs:
+                for cj in child_jobs:
+                    cj.add_parent(pj)
+            parent_jobs = child_jobs
+            child_jobs = list()
     # set 'strict' option for Omicron
     # this is done after the nodes are written so that 'strict' is last in
     # the call
@@ -1204,6 +1234,7 @@ def main(args=None):
         if newdag:
             segments.write_segments(span, segfile)
             logger.info("Segments written to\n%s" % segfile)
+        logger.info(f"Elapsed: {time.time() - prog_start:.1f} seconds ")
         sys.exit(0)
 
     # -- submit the DAG and babysit -------------------------------------------
@@ -1318,7 +1349,7 @@ def main(args=None):
     clean_tempfiles(tempfiles)
 
     # and exit
-    logger.info("--- Processing complete ----------------")
+    logger.info(f"--- Processing complete. Elapsed: {time.time()-prog_start} seconds ----------------")
 
 
 if __name__ == "__main__":

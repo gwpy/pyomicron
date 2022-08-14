@@ -44,6 +44,8 @@ import textwrap
 import time
 from pathlib import Path
 
+from gwpy.segments import Segment, SegmentList
+
 start_time = time.time()
 import argparse
 import glob
@@ -62,35 +64,71 @@ chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
 tfpat = re.compile("([A-Z][0-9])-(.+)-(\\d+)-(\\d+)\\.(.*)$")
 
 
-def process_dir(dir_path, outdir, logger):
+def scandir(otrigdir):
+    """
+    Scan the directory for any trigger files and return coverage as a segment list
+    @param Path otrigdir: directory to scan
+    @return SegmentList: covering all files
+    """
+    seg_set = set()
+    trig_files = otrigdir.glob('*')
+    for tfile in trig_files:
+        tf = Path(tfile)
+        m = tfpat.match(tf.name)
+        if m:
+            strt = int(m.group(3))
+            dur = int(m.group(4))
+            tspan = Segment(strt, strt + dur)
+            seg_set.add(tspan)
+    segs = list()
+    segs.sort()
+    seg_list = SegmentList(segs)
+    return seg_list
+
+
+def process_dir(dir_path, outdir, logger, keep_files):
     """
     Copy all trigget files to appropriate directory
+    @param logger: program'sclogger
     @param Path dir_path: input directory
     @param Path outdir: top level output directory eg ${HOME}/triggers
+    @param boolean keep_files: Do not delete files after copying to archive
     @return: boolean True if successful
     """
     trig_files = glob.glob(str(dir_path.absolute()) + '/*')
     good = 0
     bad = 0
+    dest_segs = dict()
 
     for tfile in trig_files:
-        tf = Path(tfile)
-        m = tfpat.match(tf.name)
+        tfile_path = Path(tfile)
+        m = tfpat.match(tfile_path.name)
         if not m:
-            logger.warn(f'Non trigger file {tf.name} found in {tf.parent.name}')
+            logger.warn(f'Non trigger file {tfile_path.name} found in {tfile_path.parent.name}')
             bad += 1
         else:
             ifo = m.group(1)
             chan = m.group(2)
             strt = int(m.group(3))
+            dur = int(m.group(4))
             ext = m.group(5)
+            tspan = Segment(strt, strt + dur)
 
             otrigdir = outdir / ifo / chan / str(int(strt / 1e5))
+            if str(otrigdir.absolute()) not in dest_segs.keys():
+                dest_segs[str(otrigdir.absolute())] = scandir(otrigdir)
 
-            logger.debug(f'ifo: [{ifo}], chan: [{chan}], strt: {strt}, ext: [{ext}] -> {str(otrigdir.absolute())}')
-            otrigdir.mkdir(mode=0o755, parents=True, exist_ok=True)
-            shutil.copy(tfile, str(otrigdir.absolute()))
-            good += 1
+            logger.debug(
+                f'ifo: [{ifo}], chan: [{chan}], strt: {strt}, ext: [{ext}] -> {str(otrigdir.absolute())}')
+
+            if dest_segs[str(otrigdir.absolute())].intersects_segment(tspan):
+                logger.warn(f'{tfile_path.name} ignored because it would overlap')
+            else:
+                otrigdir.mkdir(mode=0o755, parents=True, exist_ok=True)
+                shutil.copy(tfile, str(otrigdir.absolute()))
+                if not keep_files:
+                    os.remove(tfile_path)
+                good += 1
     return good > 0
 
 
@@ -116,6 +154,8 @@ def main():
                         )
     parser.add_argument('-o', '--outdir', help='Top directory for storing files. default: %(default)s',
                         default=outdir_default)
+    parser.add_argument('-k', '--keep-files', default=False, action='store_true',
+                        help='Do not delete files after copying them to the archive')
 
     args = parser.parse_args()
 
@@ -145,7 +185,7 @@ def main():
                 logger.debug(f'Directory with files added: {dir_path.name}')
     logger.info(f'{len(dirs)} channel directories with files found')
     for dir_path in dirs:
-        process_dir(dir_path, outdir, logger)
+        process_dir(dir_path, outdir, logger, args.keep_files)
     # ================================
     elap = time.time() - start_time
     logger.info('run time {:.1f} s'.format(elap))
