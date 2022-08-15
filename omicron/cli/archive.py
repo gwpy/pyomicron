@@ -64,7 +64,7 @@ chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
 tfpat = re.compile("([A-Z][0-9])-(.+)-(\\d+)-(\\d+)\\.(.*)$")
 
 
-def scandir(otrigdir):
+def  scandir(otrigdir):
     """
     Scan the directory for any trigger files and return coverage as a segment list
     @param Path otrigdir: directory to scan
@@ -80,7 +80,7 @@ def scandir(otrigdir):
             dur = int(m.group(4))
             tspan = Segment(strt, strt + dur)
             seg_set.add(tspan)
-    segs = list()
+    segs = list(seg_set)
     segs.sort()
     seg_list = SegmentList(segs)
     return seg_list

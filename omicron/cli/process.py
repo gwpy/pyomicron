@@ -949,7 +949,7 @@ def main(args=None):
     ppjob.add_condor_cmd('request_memory',
                          f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
     ppjob.add_condor_cmd('periodic_release',
-                         '(HoldReasonCode =?= 26) && (JobStatus == 5)')
+                         '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) && (JobStatus == 5)')
     ppjob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
     ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
@@ -966,7 +966,7 @@ def main(args=None):
     goterr = list()
     for exe in prog_path.keys():
         if not prog_path[exe]:
-            logger.critical(f'require program: {prog_path[exe]} not found')
+            logger.critical(f'required program: {prog_path[exe]} not found')
             goterr.append(exe)
     if goterr:
         raise ValueError(f'Required programs not found in current environment: {", ".join(goterr)}')
@@ -1153,7 +1153,12 @@ def main(args=None):
                 for cj in child_jobs:
                     cj.add_parent(pj)
             parent_jobs = child_jobs
-            child_jobs = list()
+            child_jobs = [j]
+    if len(child_jobs) > 0 and len(parent_jobs) > 0:
+        for pj in parent_jobs:
+            for cj in child_jobs:
+                cj.add_parent(pj)
+
     # set 'strict' option for Omicron
     # this is done after the nodes are written so that 'strict' is last in
     # the call
