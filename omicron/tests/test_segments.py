@@ -90,7 +90,7 @@ def test_get_frame_segments(find):
 
 
 @pytest.fixture
-def requests_mock(requests_mock):
+def requests_mock_2(requests_mock):
     requests_mock.get(
         "https://segments.example.com/report/coverage",
         json={
@@ -114,7 +114,7 @@ def requests_mock(requests_mock):
     return requests_mock
 
 
-def test_get_flag_coverage(requests_mock):
+def test_get_flag_coverage(requests_mock_2):
     assert segments.get_flag_coverage(
         "X1:TEST-FLAG:1",
         url="https://segments.example.com",
