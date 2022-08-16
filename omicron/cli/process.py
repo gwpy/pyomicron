@@ -58,13 +58,15 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 *automatically* submitted to condor for processing.
 
 """
-
+import time
+prog_start = time.time()
 import argparse
 import configparser
 import os
 import re
 import sys
 import shutil
+import time
 from distutils.spawn import find_executable
 from getpass import getuser
 from pathlib import Path
@@ -72,9 +74,11 @@ from subprocess import check_call
 from tempfile import gettempdir
 from time import sleep
 
+import gwpy.time
 from glue import pipeline
 
 from gwpy.io.cache import read_cache
+from gwpy.time import to_gps, tconvert
 
 from omicron import (const, segments, log, data, parameters, utils, condor, io,
                      __version__)
@@ -91,9 +95,20 @@ DAG_TAG = "omicron"
 logger = log.Logger('omicron-process')
 
 
-def clean_exit(exitcode, tempfiles=[]):
-    clean_tempfiles(tempfiles)
+def clean_exit(exitcode, tempfiles=None):
+    if tempfiles:
+        clean_tempfiles(tempfiles)
     sys.exit(exitcode)
+
+
+def gps2str(gps):
+    """Creat a string drom gps time for filenames
+    :param LIGOTimeGPS gps: input gps time
+    :returns str: something like 20220726.193002
+    """
+    dt = tconvert(gps)
+    ret = dt.strftime('%Y%m%d.%H%M%S')
+    return ret
 
 
 def clean_tempfiles(tempfiles):
@@ -114,7 +129,12 @@ def create_parser():
 https://github.com/gwpy/pyomicron/
 
 All issues regarding this software should be raised using the GitHub web
-interface, bug reports and feature requests are encouraged."""
+interface, bug reports and feature requests are encouraged.
+
+Documentation is available here:
+
+https://pyomicron.readthedocs.io/en/latest/"""
+
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -138,7 +158,7 @@ interface, bug reports and feature requests are encouraged."""
         '-t',
         '--gps',
         nargs=2,
-        type=int,
+        type=to_gps,
         metavar='GPSTIME',
         help='GPS times for offline processing')
     parser.add_argument(
@@ -189,6 +209,7 @@ interface, bug reports and feature requests are encouraged."""
 
     # data processing/chunking options
     procg = parser.add_argument_group('Processing options')
+
     procg.add_argument(
         '-C',
         '--max-chunks-per-job',
@@ -205,6 +226,9 @@ interface, bug reports and feature requests are encouraged."""
         help='maximum number of channels to process in a single '
         'condor job (default: %(default)s)',
     )
+    # max concurrent omicron jobs
+    procg.add_argument('--max-concurrent', default=10, type=int,
+                       help='Max omicron jobs at one time [%(default)s]')
     procg.add_argument(
         '-x',
         '--exclude-channel',
@@ -258,15 +282,22 @@ interface, bug reports and feature requests are encouraged."""
     )
     condorg.add_argument(
         '--condor-accounting-group',
-        default='ligo.dev.o1.detchar.transient.omicron',
+        default='ligo.prod.o3.detchar.transient.omicron',
         help='accounting_group for condor submission on the LIGO '
         'Data Grid (default: %(default)s)',
     )
+    default_user = os.environ.get('_CONDOR_ACCOUNTING_USER')
+    default_user = getuser() if not default_user else default_user
     condorg.add_argument(
         '--condor-accounting-group-user',
-        default=getuser(),
+        default=default_user,
         help='accounting_group_user for condor submission on the '
         'LIGO Data Grid (default: %(default)s)',
+    )
+    condorg.add_argument(
+        '--condor-request-disk',
+        default='1G',
+        help='Required LIGO argument: local disk use (default: %(default)s)',
     )
     condorg.add_argument(
         '--submit-rescue-dag',
@@ -362,6 +393,14 @@ interface, bug reports and feature requests are encouraged."""
              '--skip-ligolw_add --skip-gzip '
              '(default: %(default)s)',
     )
+    pipeg.add_argument(
+        '--skip-rm',
+        action='store_true',
+        default=False,
+        help='Do not remove all the trigger files created by the job.'
+             'Useful for debugging'
+             '(default: %(default)s)'
+    )
 
     return parser
 
@@ -392,7 +431,7 @@ def main(args=None):
         for arg in ['skip-root-merge', 'skip-hdf5-merge',
                     'skip-ligolw-add', 'skip-gzip']:
             if argsd[arg.replace('-', '_')]:
-                parser.error("Cannot use --%s with --archive" % arg)
+                parser.error(f"Cannot use --{arg} with --archive")
 
     # check conflicts
     if args.gps is None and args.cache_file is not None:
@@ -411,8 +450,8 @@ def main(args=None):
         if const.OMICRON_FILETAG.lower() in filetag.lower():
             afiletag = filetag
         else:
-            afiletag = '%s_%s' % (filetag, const.OMICRON_FILETAG.upper())
-        filetag = '_%s' % filetag
+            afiletag = f'{filetag}_{const.OMICRON_FILETAG.upper()}'
+        filetag = f'_{filetag}'
     else:
         filetag = ''
         afiletag = const.OMICRON_FILETAG.upper()
@@ -440,6 +479,9 @@ def main(args=None):
     logger.debug('Omicron version: %s' % omicronv)
 
     # -- parse configuration file and get parameters --------------------------
+    config_path = Path(args.config_file)
+    if not config_path.is_file():
+        logger.critical(f'Configuration file : {str(config_path.absolute())} does not exsit')
 
     cp = configparser.ConfigParser()
     cp.read(args.config_file)
@@ -572,21 +614,22 @@ def main(args=None):
     # -- set directories ------------------------------------------------------
 
     rundir.mkdir(exist_ok=True, parents=True)
-    logger.info("Using run directory\n%s" % rundir)
+    logger.info(f"Using run directory\n{rundir}")
 
     cachedir = rundir / "cache"
     condir = rundir / "condor"
     logdir = rundir / "logs"
     pardir = rundir / "parameters"
     trigdir = rundir / "triggers"
-    for d in [cachedir, condir, logdir, pardir, trigdir]:
+    mergedir = rundir / "merge"
+    for d in [cachedir, condir, logdir, pardir, trigdir, mergedir]:
         d.mkdir(exist_ok=True)
 
     oconfig.set('OUTPUT', 'DIRECTORY', str(trigdir))
 
     # -- check for an existing process ----------------------------------------
 
-    dagpath = condir / "{}.dag".format(DAG_TAG)
+    dagpath = condir / f"{DAG_TAG}-{group}.dag"
 
     # check dagman lock file
     running = condor.dag_is_running(dagpath)
@@ -602,15 +645,9 @@ def main(args=None):
         args.reattach = False
 
     # check dagman rescue files
-    nrescue = len(list(condir.glob(
-        "{}.rescue[0-9][0-9][0-9]".format(dagpath.name),
-    )))
+    nrescue = len(list(condir.glob(f"{dagpath.name}.rescue[0-9][0-9][0-9]")))
     if args.rescue and not nrescue:
-        raise RuntimeError(
-            "--rescue given but no rescue DAG files found for {}".format(
-                dagpath,
-            ),
-        )
+        raise RuntimeError(f"--rescue given but no rescue DAG files found for {dagpath}")
     if nrescue and not args.rescue and "force" not in args.dagman_option:
         raise RuntimeError(
             "rescue DAGs found for {} but `--rescue` not given and "
@@ -647,15 +684,20 @@ def main(args=None):
         start, end = segments.get_last_run_segment(segfile)
     else:
         start, end = args.gps
+        start = int(start)
+        end = int(end)
 
     duration = end - start
     datastart = start - padding
     dataend = end + padding
     dataduration = dataend - datastart
 
-    logger.info("Processing segment determined as")
-    logger.info("    %d %d" % (datastart, dataend))
-    logger.info("Duration = %d seconds" % dataduration)
+    start_dt = gwpy.time.tconvert(datastart).strftime('%x %X')
+    end_dt = gwpy.time.tconvert(dataend).strftime('%x %X')
+    logger.info(f'Processing segment determined as: {datastart:d} - {dataend:d} : {start_dt} - {end_dt}')
+    dur_str = '{} {}'.format(int(dataduration / 86400) if dataduration > 86400 else '',
+                             time.strftime('%H:%M:%S', time.gmtime(dataduration)))
+    logger.info(f"Duration = {dataduration} - {dur_str}")
 
     span = (start, end)
 
@@ -680,7 +722,8 @@ def main(args=None):
     # get segments from state vector
     if (online and statechannel) or (statechannel and not stateflag) or (
             statechannel and args.no_segdb):
-        logger.info("Finding segments for relevant state...")
+        logger.info(f'Finding segments for relevant state...  from:{datastart} length: {dataduration}s')
+        seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
             segs = segments.get_guardian_segments(
                 statechannel,
@@ -698,11 +741,16 @@ def main(args=None):
                 bits=statebits,
                 pad=statepad,
             )
+        logger.info(f'State query took {time.time() - seg_qry_strt:.2f}s')
+
     # get segments from segment database
     elif stateflag:
-        logger.info("Querying segments for relevant state...")
+        logger.info(f'Querying segments for relevant state: {stateflag} from:{datastart} length: {dataduration}s')
+        seg_qry_strt = time.time()
         segs = segments.query_state_segments(stateflag, datastart, dataend,
                                              pad=statepad)
+        logger.info(f'Segment query took {time.time() - seg_qry_strt:.2f}s')
+
     # get segments from frame availability
     else:
         segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
@@ -834,15 +882,15 @@ def main(args=None):
     # display segments
     logger.info("Final data segments selected as")
     for seg in segs:
-        logger.info("    %d %d " % seg + "[%d]" % abs(seg))
-    logger.info("Duration = %d seconds" % abs(segs))
+        logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
+    logger.info(f"Duration = {abs(segs):d} seconds")
 
     span = type(trigsegs)([trigsegs.extent()])
 
     logger.info("This will output triggers for")
     for seg in trigsegs:
-        logger.info("    %d %d " % seg + "[%d]" % abs(seg))
-    logger.info("Duration = %d seconds" % abs(trigsegs))
+        logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
+    logger.info(f"Duration = {abs(trigsegs):d} seconds")
 
     # -- config omicron config directory --------------------------------------
 
@@ -857,23 +905,24 @@ def main(args=None):
         pardir = gettempdir()
     parfile, jobfiles = oconfig.write_distributed(
         pardir, nchannels=args.max_channels_per_job)
-    logger.debug("Created master parameters file\n%s" % parfile)
+    logger.debug(f"Created master parameters file\n{parfile}")
     if newdag:
         keepfiles.append(parfile)
 
     # create dag
-    dag = pipeline.CondorDAG(str(logdir / "{}.log".format(DAG_TAG)))
+    dag = pipeline.CondorDAG(str(logdir / f"{DAG_TAG}.log"))
     dag.set_dag_file(str(dagpath.with_suffix("")))
 
     # set up condor commands for all jobs
     condorcmds = {'accounting_group': args.condor_accounting_group,
-                  'accounting_group_user': args.condor_accounting_group_user}
+                  'accounting_group_user': args.condor_accounting_group_user,
+                  'request_disk': args.condor_request_disk,
+                  'use_x509userproxy': 'True'}
     for cmd_ in args.condor_command:
         key, value = cmd_.split('=', 1)
         condorcmds[key.rstrip().lower()] = value.strip()
 
     # create omicron job
-    reqmem = condorcmds.pop('request_memory', 1000)
     ojob = condor.OmicronProcessJob(
         args.universe,
         args.executable,
@@ -881,28 +930,55 @@ def main(args=None):
         logdir=logdir,
         **condorcmds
     )
-    ojob.add_condor_cmd('request_memory', reqmem)
-    ojob.add_condor_cmd('+OmicronProcess', '"%s"' % group)
+    # This allows us to start with a memory request that works maybe 80%, but bumps it if we go over
+    reqmem = condorcmds.pop('request_memory', 1024)
+    ojob.add_condor_cmd('+InitialRequestMemory', f'{reqmem}')
+    ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage), {reqmem}, int(3*MemoryUsage))')
+    ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) && (JobStatus == 5)')
+    ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
+
+    ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
 
     # create post-processing job
     ppjob = condor.OmicronProcessJob(args.universe, find_executable('bash'),
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)
-    ppjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
+    ppjob.add_condor_cmd('+OmicronPostProcess', f'"{group}"')
+    ppmem = 1024
+    ppjob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
+    ppjob.add_condor_cmd('request_memory',
+                         f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
+    ppjob.add_condor_cmd('periodic_release',
+                         '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) && (JobStatus == 5)')
+    ppjob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
+
+    ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
     ppjob.add_short_opt('e', '')
     ppnodes = []
-    rootmerge = find_executable('omicron-root-merge')
-    hdf5merge = find_executable('omicron-hdf5-merge')
-    ligolw_add = find_executable('ligolw_add')
-    gzip = find_executable('gzip')
+    prog_path = dict()
+    prog_path['omicron-merge'] = find_executable('omicron-merge-with-gaps')
+    prog_path['rootmerge'] = find_executable('omicron-root-merge')
+    prog_path['hdf5merge'] = find_executable('omicron-hdf5-merge')
+    prog_path['ligolw_add'] = find_executable('ligolw_add')
+    prog_path['gzip'] = find_executable('gzip')
+    prog_path['omicron_archive'] = find_executable('omicron-archive')
+
+    goterr = list()
+    for exe in prog_path.keys():
+        if not prog_path[exe]:
+            logger.critical(f'required program: {prog_path[exe]} not found')
+            goterr.append(exe)
+    if goterr:
+        raise ValueError(f'Required programs not found in current environment: {", ".join(goterr)}')
 
     # create node to remove files
-    rmjob = condor.OmicronProcessJob(
-        args.universe, str(condir / "post-process-rm.sh"),
-        subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
-    rm = find_executable('rm')
     rmfiles = []
-    rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
+    if not args.skip_rm:
+        rmjob = condor.OmicronProcessJob(
+            args.universe, str(condir / "post-process-rm.sh"),
+            subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
+        rm = find_executable('rm')
+        rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 
     if args.archive:
         archivejob = condor.OmicronProcessJob(
@@ -910,6 +986,10 @@ def main(args=None):
             subdir=condir, logdir=logdir, tag='archive', **condorcmds)
         archivejob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
         archivefiles = {}
+    else:
+        archivejob = None
+
+    omicron_nodes = list()
 
     # loop over data segments
     for s, e in segs:
@@ -923,8 +1003,7 @@ def main(args=None):
         nodesegs = oconfig.distribute_segment(
             s, e, nperjob=args.max_chunks_per_job)
 
-        omicronfiles = {}
-
+        omicronfiles = dict()
         # build node for each parameter file
         for i, pf in enumerate(jobfiles):
             chanlist = jobfiles[pf]
@@ -941,6 +1020,11 @@ def main(args=None):
                     node.add_var_arg(str(subseg[0]))
                     node.add_var_arg(str(subseg[1]))
                     node.add_file_arg(pf)
+                    # we need to ignore errors in individual nodes
+                    node.set_post_script(find_executable('bash'))
+                    node.add_post_script_arg('-c')
+                    node.add_post_script_arg('exit 0')
+
                     for chan in chanlist:
                         for form, flist in nodefiles[chan].items():
                             # record file as output from this node
@@ -955,7 +1039,8 @@ def main(args=None):
                                 except KeyError:
                                     omicronfiles[chan] = {form: flist}
                     dag.add_node(node)
-                    nodes.append(node)
+                    nodes.append(node)              # for this segment
+                    omicron_nodes.append(node)      # all nodes
 
             # post-process (one post-processing job per channel
             #               per data segment)
@@ -968,99 +1053,56 @@ def main(args=None):
                 # build post-processing nodes for each channel
                 for c in chanlist:
                     operations.append('\n# %s' % c)
-                    chandir = trigdir / c
+
                     # work out filenames for coalesced files
                     archpath = Path(io.get_archive_filename(
                         c, ts, td, filetag=afiletag, ext='root',
                     ))
-                    mergepath = chandir / archpath.name
+                    mergepath = str(mergedir / c)
                     target = str(archpath.parent)
 
                     # add ROOT operations
                     if 'root' in fileformats:
                         rootfiles = ' '.join(omicronfiles[c]['root'])
                         for f in omicronfiles[c]['root']:
-                            ppnode._CondorDAGNode__input_files.append(f)
-                        if args.skip_root_merge or (
-                                len(omicronfiles[c]['root']) == 1):
-                            root = rootfiles
-                        else:
-                            root = str(mergepath)
-                            operations.append('%s %s %s --strict'
-                                              % (rootmerge, rootfiles, root))
-                            rmfiles.append(rootfiles)
-                            ppnode._CondorDAGNode__output_files.append(root)
-                        if args.archive:
-                            try:
-                                archivefiles[target].append(root)
-                            except KeyError:
-                                archivefiles[target] = [root]
-                            rmfiles.append(root)
+                            ppnode.add_input_file(f)
+                        no_merge = '--no-merge' if args.skip_root_merge else ''
+
+                        operations.append(f'  {prog_path["omicron-merge"]} {no_merge}  '
+                                          f'--out-dir {mergepath} {rootfiles} ')
+                        rmfiles.append(rootfiles)
 
                     # add HDF5 operations
                     if 'hdf5' in fileformats:
                         hdf5files = ' '.join(omicronfiles[c]['hdf5'])
                         for f in omicronfiles[c]['hdf5']:
-                            ppnode._CondorDAGNode__input_files.append(f)
-                        if args.skip_hdf5_merge or (
-                                len(omicronfiles[c]['hdf5']) == 1):
-                            hdf5 = hdf5files
-                        else:
-                            hdf5 = str(mergepath.with_suffix(".h5"))
-                            operations.append(
-                                '{cmd} {infiles} {outfile}'.format(
-                                    cmd=hdf5merge,
-                                    infiles=hdf5files,
-                                    outfile=hdf5,
-                                ),
-                            )
-                            rmfiles.append(hdf5files)
-                            ppnode._CondorDAGNode__output_files.append(hdf5)
-                        if args.archive:
-                            try:
-                                archivefiles[target].append(hdf5)
-                            except KeyError:
-                                archivefiles[target] = [hdf5]
-                            rmfiles.append(hdf5)
+                            ppnode.add_input_file(f)
+                        no_merge = '--no-merge' if args.skip_root_merge else ''
+
+                        operations.append(
+                            f'  {prog_path["omicron-merge"]} {no_merge}  '
+                            f' --out-dir {mergepath} {hdf5files} ')
+                        rmfiles.append(hdf5files)
 
                     # add LIGO_LW operations
                     if 'xml' in fileformats:
                         xmlfiles = ' '.join(omicronfiles[c]['xml'])
                         for f in omicronfiles[c]['xml']:
-                            ppnode._CondorDAGNode__input_files.append(f)
-                        if (
-                            args.skip_ligolw_add or
-                            len(omicronfiles[c]['xml']) == 1
-                        ):
-                            xml = xmlfiles
-                        else:
-                            xml = str(mergepath.with_suffix(".xml"))
-                            operations.append(
-                                '%s %s --ilwdchar-compat --output %s'
-                                % (ligolw_add, xmlfiles, xml),
-                            )
-                            rmfiles.append(xmlfiles)
-                            ppnode._CondorDAGNode__output_files.append(xml)
+                            ppnode.add_input_file(f)
 
-                        if not args.skip_gzip:
-                            operations.append('%s --force --stdout %s > %s.gz'
-                                              % (gzip, xml, xml))
-                            rmfiles.append(xml)
-                            xml = str(mergepath.with_suffix(".xml.gz"))
-                            ppnode._CondorDAGNode__output_files.append(xml)
+                        no_merge = '--no-merge' if args.skip_ligolw_add else ''
+                        no_gzip = '--no-gzip' if args.skip_gzip else ''
+                        operations.append(
+                            f'  {prog_path["omicron-merge"]} {no_merge} {no_gzip} --uint-bug '
+                            f' --out-dir {mergepath} {xmlfiles} ')
 
-                        if args.archive:
-                            try:
-                                archivefiles[target].append(xml)
-                            except KeyError:
-                                archivefiles[target] = [xml]
-                            rmfiles.append(xml)
+                        rmfiles.append(xmlfiles)
 
                     # add ASCII operations
                     if 'txt' in fileformats:
                         txtfiles = ' '.join(omicronfiles[c]['txt'])
                         for f in omicronfiles[c]['txt']:
-                            ppnode._CondorDAGNode__input_files.append(f)
+                            ppnode.add_input_file(f)
                         if args.archive:
                             try:
                                 archivefiles[target].append(txtfiles)
@@ -1098,6 +1140,24 @@ def main(args=None):
                         print('\n'.join(operations), file=f)
                     if newdag:
                         script.chmod(0o755)
+    parent_jobs = list()
+    child_jobs = list()
+    maxcon = args.max_concurrent
+    for j in omicron_nodes:
+        if len(parent_jobs) < maxcon:
+            parent_jobs.append(j)
+        elif len(child_jobs) < maxcon:
+            child_jobs.append(j)
+        else:
+            for pj in parent_jobs:
+                for cj in child_jobs:
+                    cj.add_parent(pj)
+            parent_jobs = child_jobs
+            child_jobs = [j]
+    if len(child_jobs) > 0 and len(parent_jobs) > 0:
+        for pj in parent_jobs:
+            for cj in child_jobs:
+                cj.add_parent(pj)
 
     # set 'strict' option for Omicron
     # this is done after the nodes are written so that 'strict' is last in
@@ -1112,28 +1172,9 @@ def main(args=None):
             # write shell script to seed archive
             with open(archivejob.get_executable(), 'w') as f:
                 print('#!/bin/bash -e\n', file=f)
-                for gpsdir, filelist in archivefiles.items():
-                    for fn in filelist:
-                        archivenode._CondorDAGNode__input_files.append(fn)
-                    # write 'mv' op to script
-                    print("mkdir -p %s" % gpsdir, file=f)
-                    print("cp %s %s" % (' '.join(filelist), gpsdir), file=f)
-                    # record archived files in caches
-                    filenames = [str(Path(gpsdir) / x.name) for
-                                 x in map(Path, filelist)]
-                    for fn in filenames:
-                        archivenode._CondorDAGNode__output_files.append(fn)
-                    for fmt, extensions in {
-                            'xml': ('.xml.gz', '.xml'),
-                            'root': '.root',
-                            'hdf5': '.h5',
-                            'txt': '.txt',
-                    }.items():
-                        try:
-                            acache[fmt].extend(filter(
-                                lambda x: x.endswith(extensions), filenames))
-                        except KeyError:  # file format not used
-                            continue
+                print('# Archive all trigger files saved in the merge directory ', file=f)
+                print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv', file=f)
+
             os.chmod(archivejob.get_executable(), 0o755)
             # write caches to disk
             for fmt, fcache in acache.items():
@@ -1149,31 +1190,34 @@ def main(args=None):
         tempfiles.append(archivejob.get_executable())
 
     # add rm job right at the end
-    rmnode = pipeline.CondorDAGNode(rmjob)
-    rmscript = rmjob.get_executable()
-    with open(rmscript, 'w') as f:
-        print('#!/bin/bash -e\n#', file=f)
-        print("# omicron-process post-processing-rm", file=f)
-        print('#\n# File created by\n# %s\n#' % ' '.join(sys.argv),
-              file=f)
-        print("# Group: %s" % group, file=f)
-        print("# Segment: [%d, %d)" % (s, e), file=f)
-        print("# Channels:\n#", file=f)
-        for c in channels:
-            print('# %s' % c, file=f)
-        print('', file=f)
-        for rmset in rmfiles:
-            print('%s -f %s' % (rm, rmset), file=f)
-    if newdag:
-        os.chmod(rmscript, 0o755)
-    tempfiles.append(rmscript)
-    rmnode.set_category('postprocessing')
-    if args.archive:  # run this after archiving
-        rmnode.add_parent(archivenode)
-    else:  # or just after post-processing if not archiving
-        for node in ppnodes:
-            rmnode.add_parent(node)
-    dag.add_node(rmnode)
+    rmnode = None
+    if not args.skip_rm:
+        rmnode = pipeline.CondorDAGNode(rmjob)
+        rmscript = rmjob.get_executable()
+        with open(rmscript, 'w') as f:
+            print('#!/bin/bash -e\n#', file=f)
+            print("# omicron-process post-processing-rm", file=f)
+            print(f'#\n# File created by\n# {" ".join(sys.argv)}\n#', file=f)
+            print("# Group: %s" % group, file=f)
+            print("# Segment: [%d, %d)" % (s, e), file=f)
+            print("# Channels:\n#", file=f)
+            for c in channels:
+                print('# %s' % c, file=f)
+            print('', file=f)
+            for rmset in rmfiles:
+                print('%s -f %s' % (rm, rmset), file=f)
+        if newdag:
+            os.chmod(rmscript, 0o755)
+        tempfiles.append(rmscript)
+        rmnode.set_category('postprocessing')
+    if rmnode:
+        # set parents for removing files
+        if args.archive:  # run this after archiving
+            rmnode.add_parent(archivenode)
+        else:  # or just after post-processing if not archiving
+            for node in ppnodes:
+                rmnode.add_parent(node)
+        dag.add_node(rmnode)
 
     # print DAG to file
     dagfile = Path(dag.get_dag_file()).resolve(strict=False)
@@ -1195,6 +1239,7 @@ def main(args=None):
         if newdag:
             segments.write_segments(span, segfile)
             logger.info("Segments written to\n%s" % segfile)
+        logger.info(f"Elapsed: {time.time() - prog_start:.1f} seconds ")
         sys.exit(0)
 
     # -- submit the DAG and babysit -------------------------------------------
@@ -1236,21 +1281,25 @@ def main(args=None):
             # _always_ move on even if the workflow fails
             if i == 0:
                 segments.write_segments(span, segfile)
-                logger.info("Segments written to\n%s" % segfile)
+                logger.info(f"Segments written to\n{segfile}")
             if 'force' in args.dagman_option:
                 args.dagman_option.pop(args.dagman_option.index('force'))
 
         # monitor the dag
         logger.debug("----------------------------------------")
-        logger.info("Monitoring DAG:")
-        check_call([
-            "pycondor",
-            "monitor",
-            "--time", "5",
-            "--length", "36",
-            str(dagfile),
-        ])
-        print()
+        logger.info(f"Monitoring DAG: {dagid} {dagfile}")
+        cwq = shutil.which('condor_watch_q')
+        if cwq:
+            check_call([
+                cwq,
+                "-exit", "all,done,0",
+                "-exit", "any,held,1",
+                "-clusters", str(dagid),
+            ])
+            print()
+        else:
+            logger.error('We cannot monitor condor job because condor_watch_q not in our path')
+
         logger.debug("----------------------------------------")
         sleep(5)
         try:
@@ -1305,7 +1354,7 @@ def main(args=None):
     clean_tempfiles(tempfiles)
 
     # and exit
-    logger.info("--- Processing complete ----------------")
+    logger.info(f"--- Processing complete. Elapsed: {time.time()-prog_start} seconds ----------------")
 
 
 if __name__ == "__main__":

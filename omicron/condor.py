@@ -186,19 +186,19 @@ def get_dag_status(dagmanid, schedd=None, detailed=True):
         sleep(1)
         try:
             job = list(schedd.history('ClusterId == %d' % dagmanid,
-                                      classads+['ExitCode'], 1))[0]
+                                      classads + ['ExitCode'], 1))[0]
         except IOError:  # try again
             job = list(schedd.history('ClusterId == %d' % dagmanid,
-                                      classads+['ExitCode'], 1))[0]
+                                      classads + ['ExitCode'], 1))[0]
         except KeyError:  # condor_rm not finished yet (probably)
             sleep(10)
             job = list(schedd.history('ClusterId == %d' % dagmanid,
-                                      classads+['ExitCode'], 1))[0]
+                                      classads + ['ExitCode'], 1))[0]
         except RuntimeError as e:
             if 'timeout' in str(e).lower() or 'cowardly' in str(e).lower():
                 job = get_condor_history_shell(
                     'ClusterId == %d' % dagmanid,
-                    classads+['ExitCode'], 1)[0]
+                    classads + ['ExitCode'], 1)[0]
                 job = dict((k, int(v)) for k, v in job.items())
             else:
                 raise
@@ -309,8 +309,7 @@ def get_job_duration_history(classad, value, user=getuser(), maxjobs=0,
     jobdur = numpy.zeros(len(history))
     for i, h in enumerate(history):
         times[i] = (
-            to_gps(datetime.fromtimestamp(h['EnteredCurrentStatus'])) +
-            time.timezone)
+            to_gps(datetime.fromtimestamp(h['EnteredCurrentStatus'])) + time.timezone)
         jobdur[i] = h['EnteredCurrentStatus'] - h['JobStartDate']
     return times, jobdur
 
@@ -546,7 +545,7 @@ class OmicronProcessJob(pipeline.CondorDAGJob):
     logtag = '$(cluster)-$(process)'
 
     def __init__(self, universe, executable, tag=None, subdir=None,
-                 logdir=None, request_memory=1000, **cmds):
+                 logdir=None, request_memory=4000, **cmds):
         pipeline.CondorDAGJob.__init__(self, universe, executable)
         if tag is None:
             tag = os.path.basename(os.path.splitext(executable)[0])

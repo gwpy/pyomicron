@@ -18,10 +18,13 @@
 
 """Check the status of Omicron trigger generation
 """
+import time
+prog_start = time.time()
 
 import argparse
 import configparser
 import json
+import logging
 import operator
 import sys
 import warnings
@@ -54,6 +57,7 @@ from omicron.utils import get_omicron_version
 __author__ = "Duncan Macleod <duncan.macleod@ligo.org>"
 
 NOW = int(to_gps('now'))
+logger = None
 
 
 def create_parser():
@@ -85,16 +89,16 @@ def create_parser():
     parser.add_argument(
         '-s',
         '--gps-start-time',
-        type=int,
+        type=to_gps,
         default=NOW - 7 * 86400,
-        help='GPS start time of check',
+        help='GPS start time of check or date/time',
     )
     parser.add_argument(
         '-e',
         '--gps-end-time',
-        type=int,
+        type=to_gps,
         default=NOW,
-        help='GPS end time of check',
+        help='GPS end time of check or date/time',
     )
     parser.add_argument(
         '-c',
@@ -214,6 +218,7 @@ def create_parser():
 
 
 def main(args=None):
+    global logger
     use('agg')
     rcParams.update({
         'figure.subplot.bottom': 0.15,
@@ -227,6 +232,7 @@ def main(args=None):
     grid = GridSpec(2, 1)
 
     logger = log.Logger('omicron-status')
+    logger.setLevel(logging.DEBUG)
 
     try:
         omicronversion = str(get_omicron_version())
@@ -240,7 +246,7 @@ def main(args=None):
     args = parser.parse_args(args=args)
 
     if args.ifo is None:
-        parser.error("Cannot determine IFO prefix from sytem, "
+        parser.error("Cannot determine IFO prefix from system, "
                      "please pass --ifo on the command line")
 
     group = args.group
@@ -348,7 +354,7 @@ def main(args=None):
         }
         out.update(extras)
         with open(outfile, 'w') as f:
-            f.write(json.dumps(out))
+            f.write(json.dumps(out, indent=3))
         logger.debug("nagios info written to %s" % outfile)
 
     # -- get condor status ------------------------------------------------
@@ -567,7 +573,7 @@ def main(args=None):
     pending = {}
     plots = {}
     for c in channels:
-        # create data storate
+        # create data storage
         latency[c] = {}
         gaps[c] = {}
         overlap[c] = {}
@@ -610,12 +616,12 @@ def main(args=None):
             gaps[c][ft] -= acknowledged
             # print warnings
             if abs(gaps[c][ft]):
-                warnings.warn("Gaps found in %s files for %s:\n%s"
-                              % (c, ft, gaps[c][ft]))
+                warnings.warn(
+                    f"Gaps found in {c} files for {ft}:\n{gaps[c][ft]}")
             overlap[c][ft] = segments.cache_overlaps(cache)
             if abs(overlap[c][ft]):
-                warnings.warn("Overlap found in %s files for %s:\n%s"
-                              % (c, ft, overlap[c][ft]))
+                warnings.warn(
+                    f"Overlap found in {c} files for {ft}:\n{overlap[c][ft]}")
 
             # append archive
             times[c][ft] = numpy.concatenate((times[c][ft][-99999:], [NOW]))
@@ -837,3 +843,5 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
+    if logger:
+        logger.info(f'Run time: {(time.time()-prog_start):.1f} seconds')

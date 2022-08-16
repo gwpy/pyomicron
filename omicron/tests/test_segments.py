@@ -126,17 +126,3 @@ def test_get_flag_coverage(requests_mock):
         'latest_known_segment': 90.,
         'earliest_active_segment': 10.,
     }
-
-
-def test_get_latest_active_gps(requests_mock):
-    assert segments.get_latest_active_gps(
-        "X1:TEST-FLAG:1",
-        url="https://segments.example.com",
-    ) == 100.
-
-
-def test_get_latest_known_gps(requests_mock):
-    assert segments.get_latest_known_gps(
-        "X1:TEST-FLAG:1",
-        url="https://segments.example.com",
-    ) == 90.

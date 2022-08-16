@@ -164,7 +164,7 @@ def test_write_distributed(pars):
     try:
         _, files = pars.write_distributed(tmpdir, nchannels=10)
         for i, f in enumerate(files):
-            cset = channels[i*10: (i+1)*10]
+            cset = channels[i * 10: (i + 1) * 10]
             p2 = create()
             p2.read(f)
             assert cset == p2.getlist('DATA', 'CHANNELS')
@@ -192,14 +192,15 @@ def test_output_files(pars):
     pars.set('OUTPUT', 'FORMAT', 'root xml')
     pars.set('DATA', 'CHANNELS', 'X1:TEST-CHANNEL')
     assert pars.output_files(0, 100) == {
-        'X1:TEST-CHANNEL': {
-             'root': [
-                 './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.root',
-                 './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.root',
-             ],
-             'xml': [
-                 './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.xml',
-                 './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.xml',
-             ],
-        },
+        'X1:TEST-CHANNEL':
+            {
+                'root': [
+                    './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.root',
+                    './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.root',
+                ],
+                'xml': [
+                    './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.xml',
+                    './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.xml',
+                ],
+            },
     }
