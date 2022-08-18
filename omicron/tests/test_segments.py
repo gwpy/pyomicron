@@ -88,4 +88,3 @@ def test_get_frame_segments(find):
         100,
     ) == SegmentList([Segment(25, 30)])
 
-
