@@ -145,7 +145,7 @@ def valid_file(path, uint_bug):
             table = EventTable.read(path, path='/triggers')
         elif path.name.endswith('.xml.gz') or path.name.endswith('.xml'):
             if uint_bug:
-                sed_cmd = ['sed', '-i', '-e', 's/uint_8s/int_8u/g', str(path.absolute())]
+                sed_cmd = ['sed', '-i', '', '-e', 's/uint_8s/int_8u/g', str(path.absolute())]
                 subprocess.run(sed_cmd)
             table = EventTable.read(path, tablename='sngl_burst')
         elif path.name.endswith('.root'):
