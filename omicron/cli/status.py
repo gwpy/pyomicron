@@ -78,7 +78,7 @@ def create_parser():
     parser.add_argument(
         '-f',
         '--config-file', default=const.OMICRON_CHANNELS_FILE,
-        help='path to configuration file',
+        help='path to a channel list configuration file',
     )
     parser.add_argument(
         '-i',
