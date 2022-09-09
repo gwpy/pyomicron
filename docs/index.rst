@@ -46,7 +46,6 @@ Documentation
 
    workflow/index
    configuration/index
-   workflow/simulations
 
 **Utilities**
 
