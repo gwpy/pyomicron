@@ -270,7 +270,7 @@ def main():
             continue
 
         etime = stime + cdur
-        sday = int(stime/100000)
+        sday = int(stime / 100000)
         if start_time is None:
             # first file in this time interval
             start_time = stime
@@ -301,6 +301,9 @@ def main():
         else:
             error_cnt += 1
 
+    elap = time.time() - prog_start_time
+    logger.info('run time {:.1f} s'.format(elap))
+
     if error_cnt > 0:
         logger.error(f'{error_cnt} errors detected.')
         sys.exit(1)
@@ -308,9 +311,6 @@ def main():
         # STDOUT should have only the list of output files
         print(' '.join(outfiles))
         sys.exit(0)
-
-    elap = time.time() - prog_start_time
-    logger.info('run time {:.1f} s'.format(elap))
 
 
 if __name__ == "__main__":
