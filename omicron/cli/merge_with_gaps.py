@@ -223,6 +223,7 @@ def main():
     logger.info(f'FILES: {len(args.infiles)} requested {len(infiles)} were found.')
     curfiles = list()
     start_time = None
+    start_day = None
     end_time = None
     name = None
     ext = None
@@ -269,24 +270,28 @@ def main():
             continue
 
         etime = stime + cdur
+        sday = int(stime / 100000)
         if start_time is None:
             # first file in this time interval
             start_time = stime
+            start_day = sday
             end_time = etime
             curfiles.append(inpath)
-        elif stime == end_time:
-            # this file is contiguous with previous, so it can be concatenated
+        elif stime == end_time and sday == start_day:
+            # this file is contiguous with previous, and it is in the same "metric day"
+            # so it can be concatenated
             end_time = etime
             curfiles.append(inpath)
         else:
-            # break in continuity
+            # break in continuity or start of a new metric day
             outfile = do_merge(out_dir, curfiles, name, start_time, end_time, ext, args.no_gzip)
             if outfile:
                 outfiles.append(outfile)
             else:
                 error_cnt += 1
-
+            # reset for next merge
             start_time = stime
+            start_day = sday
             end_time = etime
             curfiles = [inpath]
     if curfiles:
@@ -296,6 +301,9 @@ def main():
         else:
             error_cnt += 1
 
+    elap = time.time() - prog_start_time
+    logger.info('run time {:.1f} s'.format(elap))
+
     if error_cnt > 0:
         logger.error(f'{error_cnt} errors detected.')
         sys.exit(1)
@@ -303,9 +311,6 @@ def main():
         # STDOUT should have only the list of output files
         print(' '.join(outfiles))
         sys.exit(0)
-
-    elap = time.time() - prog_start_time
-    logger.info('run time {:.1f} s'.format(elap))
 
 
 if __name__ == "__main__":
