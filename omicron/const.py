@@ -63,8 +63,8 @@ OMICRON_FILETAG = 'OMICRON'
 
 # omicron channel files
 if ifo is not None:
-    OMICRON_GROUP_FILE = OMICRON_PROD / "{}-groups.txt".format(ifo)
-    OMICRON_CHANNELS_FILE = OMICRON_PROD, "{}-channels.txt".format(ifo)
+    OMICRON_GROUP_FILE = OMICRON_PROD / f"{ifo}-groups.txt"
+    OMICRON_CHANNELS_FILE = OMICRON_PROD / f"{ifo}-channels.ini"
 else:
     OMICRON_GROUP_FILE = None
     OMICRON_CHANNELS_FILE = None
