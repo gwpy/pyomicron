@@ -865,6 +865,18 @@ def main(args=None):
         logger.warning("Not all state times are available in frames")
     segs = (cachesegs & segs).coalesce()
 
+    # Deal with segments that cross a metric day (100,000 boundary)
+    seg_tmp = SegmentList()
+    for seg in segs:
+        sday = int(seg[0] / 1e5)
+        eday = int(seg[1] / 1e5)
+        if sday == eday:
+            seg_tmp.append(seg)
+        else:
+            seg1 = Segment(seg[0], eday)
+            seg2 = Segment(eday, seg[1])
+            seg_tmp.append(seg1)
+            seg_tmp.append(seg2)
     # apply minimum duration requirement
     segs = type(segs)(s for s in segs if abs(s) >= segdur)
 
