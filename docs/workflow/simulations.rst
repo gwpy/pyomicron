@@ -15,7 +15,7 @@ Below is a sample Python program which creates an example frame file
 with 200 seconds of gaussian noise and adds a few sine-gaussiasn glitches.
 It produces a frame file in /tmp.
 
-.. code-block::
+.. code-block:: python
 
     from gwpy.timeseries import TimeSeries
     from numpy.random import normal
