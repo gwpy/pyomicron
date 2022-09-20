@@ -77,8 +77,8 @@ def create_parser():
     )
     parser.add_argument(
         '-f',
-        '--config-file',
-        help='path to configuration file',
+        '--config-file', default=const.OMICRON_CHANNELS_FILE,
+        help='path to a channel list configuration file',
     )
     parser.add_argument(
         '-i',
@@ -271,13 +271,20 @@ def main(args=None):
     )
 
     # -- parse configuration file and get parameters --------------------------
-
+    ifo = args.ifo
+    if ifo is None:
+        raise ValueError('IFO is unknown.')
+    if args.config_file is None:
+        config_file = const.OMICRON_PROD / f"{ifo}-channels.ini"
+    else:
+        config_file = args.config_file
+    config_file = Path(config_file)
+    if not config_file.exists():
+        raise IOError(f'Configuration file does not exist: {str(config_file.absolute())}')
     cp = configparser.ConfigParser()
-    ok = cp.read(args.config_file)
-    if args.config_file not in ok:
-        raise IOError(
-            "Failed to read configuration file %r" % args.config_file,
-        )
+    ok = cp.read(config_file)
+    if str(config_file) not in ok:
+        raise IOError(f"Failed to read configuration file {str(config_file.absolute())}")
     logger.info("Configuration read")
 
     # validate
