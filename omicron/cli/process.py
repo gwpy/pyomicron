@@ -60,6 +60,8 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 """
 import time
 prog_start = time.time()
+from gwpy.segments import SegmentList, Segment
+
 import argparse
 import configparser
 import os
@@ -109,6 +111,25 @@ def gps2str(gps):
     dt = tconvert(gps)
     ret = dt.strftime('%Y%m%d.%H%M%S')
     return ret
+
+
+def clean_dirs(dir_list):
+    """Remove any empty directories we created"""
+    for adir in dir_list:
+        pdir = Path(adir)
+        flist = list(pdir.glob('*'))
+        if len(flist) == 0:
+            pdir.rmdir()
+        else:
+            can_delete = True
+            for file in flist:
+                f2 = list(file.glob('*'))
+                if len(f2) == 0:
+                    file.rmdir()
+                else:
+                    can_delete = False
+            if can_delete:
+                pdir.rmdir()
 
 
 def clean_tempfiles(tempfiles):
@@ -206,6 +227,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         help='additional file tag to be appended to final '
         'file descriptions',
     )
+    outg.add_argument('-l', '--log-file', type=Path, help="save a copy of all logger messages to this file")
 
     # data processing/chunking options
     procg = parser.add_argument_group('Processing options')
@@ -413,6 +435,11 @@ def main(args=None):
     # apply verbosity to logger
     args.verbose = max(5 - args.verbose, 0)
     logger.setLevel(args.verbose * 10)
+    if args.log_file:
+        logger.add_file_handler(args.log_file)
+    logger.debug("Command line args:")
+    for arg in vars(args):
+        logger.debug(f'{arg} = {str(getattr(args, arg))}')
 
     # validate command line arguments
     if args.ifo is None:
@@ -622,7 +649,8 @@ def main(args=None):
     pardir = rundir / "parameters"
     trigdir = rundir / "triggers"
     mergedir = rundir / "merge"
-    for d in [cachedir, condir, logdir, pardir, trigdir, mergedir]:
+    run_dir_list = [cachedir, condir, logdir, pardir, trigdir, mergedir]
+    for d in run_dir_list:
         d.mkdir(exist_ok=True)
 
     oconfig.set('OUTPUT', 'DIRECTORY', str(trigdir))
@@ -710,6 +738,7 @@ def main(args=None):
     if dataduration < minduration and online:
         logger.info("Segment is too short (%d < %d), please try again later"
                     % (duration, minduration))
+        clean_dirs(run_dir_list)
         clean_exit(0, tempfiles)
     elif dataduration < minduration:
         raise ValueError(
@@ -880,10 +909,13 @@ def main(args=None):
         )
         segments.write_segments(cachesegs, segfile)
         logger.info("Segments written to\n%s" % segfile)
+        clean_dirs(run_dir_list)
         clean_exit(0, tempfiles)
+
     # otherwise not all data are available, so
     elif len(segs) == 0 and online:
         logger.info("No analysable segments found, please try again later")
+        clean_dirs(run_dir_list)
         clean_exit(0, tempfiles)
     elif len(segs) == 0:
         raise RuntimeError("No analysable segments found")
@@ -951,7 +983,8 @@ def main(args=None):
 
     ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
 
-    # create post-processing job
+    # create post-processing jobs
+    merge_joblist = list()
     ppjob = condor.OmicronProcessJob(args.universe, find_executable('bash'),
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)

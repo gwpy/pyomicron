@@ -21,6 +21,7 @@
 
 import logging
 import sys
+from logging.handlers import RotatingFileHandler
 
 from gwpy.time import tconvert as gps_time_now
 
@@ -97,8 +98,15 @@ class Logger(logging.Logger):
         self.addHandler(stdouthandler)
         self.addHandler(stderrhandler)
 
+    def add_file_handler(self, path):
+        """ allow saving of all messages from here on to the file"""
+        colorformatter = ColoredFormatter(self.FORMAT)
+        log_file_handler = RotatingFileHandler(path, maxBytes=10 ** 7, backupCount=5)
+        log_file_handler.setFormatter(colorformatter)
+        self.addHandler(log_file_handler)
 
 def color_text(text, color):
     if not isinstance(color, int):
         color = COLORS[color]
     return COLOR_SEQ % color + str(text) + RESET_SEQ
+
