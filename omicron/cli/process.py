@@ -123,11 +123,12 @@ def clean_dirs(dir_list):
         else:
             can_delete = True
             for file in flist:
-                f2 = list(file.glob('*'))
-                if len(f2) == 0:
-                    file.rmdir()
-                else:
-                    can_delete = False
+                if file.is_dir():
+                    f2 = list(file.glob('*'))
+                    if len(f2) == 0:
+                        file.rmdir()
+                    else:
+                        can_delete = False
             if can_delete:
                 pdir.rmdir()
 
