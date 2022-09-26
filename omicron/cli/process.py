@@ -127,8 +127,8 @@ def clean_dirs(dir_list):
                     f2 = list(file.glob('*'))
                     if len(f2) == 0:
                         file.rmdir()
-                    else:
-                        can_delete = False
+                else:
+                    can_delete = False
             if can_delete:
                 pdir.rmdir()
 
@@ -755,6 +755,7 @@ def main(args=None):
         logger.info(f'Finding segments for relevant state...  from:{datastart} length: {dataduration}s')
         seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
+            logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend}')
             segs = segments.get_guardian_segments(
                 statechannel,
                 stateft,
@@ -763,6 +764,7 @@ def main(args=None):
                 pad=statepad,
             )
         else:
+            logger.debug(f'Using segdb for {statechannel}: {datastart}-{dataend}')
             segs = segments.get_state_segments(
                 statechannel,
                 stateft,
