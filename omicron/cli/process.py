@@ -59,6 +59,9 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 
 """
 import time
+
+from gwpy.segments import SegmentList, Segment
+
 prog_start = time.time()
 import argparse
 import configparser
@@ -751,6 +754,13 @@ def main(args=None):
                                              pad=statepad)
         logger.info(f'Segment query took {time.time() - seg_qry_strt:.2f}s')
 
+    # Get segments from frame cache
+    elif args.cache_file:
+        cache = read_cache(str(args.cache_file))
+        cache_segs = segments.cache_segments(cache)
+        srch_span = SegmentList([Segment(datastart, dataend)])
+        segs = cache_segs & srch_span
+
     # get segments from frame availability
     else:
         segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
@@ -855,6 +865,18 @@ def main(args=None):
         logger.warning("Not all state times are available in frames")
     segs = (cachesegs & segs).coalesce()
 
+    # Deal with segments that cross a metric day (100,000 boundary)
+    seg_tmp = SegmentList()
+    for seg in segs:
+        sday = int(seg[0] / 1e5)
+        eday = int(seg[1] / 1e5)
+        if sday == eday:
+            seg_tmp.append(seg)
+        else:
+            seg1 = Segment(seg[0], eday)
+            seg2 = Segment(eday, seg[1])
+            seg_tmp.append(seg1)
+            seg_tmp.append(seg2)
     # apply minimum duration requirement
     segs = type(segs)(s for s in segs if abs(s) >= segdur)
 
