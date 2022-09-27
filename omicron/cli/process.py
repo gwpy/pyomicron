@@ -125,13 +125,36 @@ def clean_dirs(dir_list):
             can_delete = True
             for file in flist:
                 if file.is_dir():
-                    f2 = list(file.glob('*'))
-                    if len(f2) == 0:
-                        file.rmdir()
+                    can_delete = remove_empty_dir(file)
                 else:
                     can_delete = False
+
             if can_delete:
                 pdir.rmdir()
+
+
+def remove_empty_dir(dir_path):
+    """
+    Remove a directory if empty or if all it contains is empty directories
+    :@param Path dir_path: directory to check
+    :@return boolean: True if directory was deleted
+    """
+    ret = True
+    if not dir_path.is_dir():
+        ret = False
+    else:
+        flist = list(dir_path.glob('*'))
+        if len(flist) == 0:
+            dir_path.rmdir()
+        else:
+            for file in flist:
+                if file.is_dir():
+                    ret = remove_empty_dir(file)
+                    if not ret:
+                        break
+            if ret:
+                dir_path.rmdir()
+    return ret
 
 
 def clean_tempfiles(tempfiles):
@@ -994,7 +1017,7 @@ def main(args=None):
 
     ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
 
-    # create post-processing job
+    # create post-processing jobs
     ppjob = condor.OmicronProcessJob(args.universe, find_executable('bash'),
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)

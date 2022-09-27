@@ -111,6 +111,7 @@ class Logger(logging.Logger):
         log_file_handler.setFormatter(colorformatter)
         self.addHandler(log_file_handler)
 
+
 def color_text(text, color):
     if not isinstance(color, int):
         color = COLORS[color]
