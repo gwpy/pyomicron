@@ -59,10 +59,8 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 
 """
 import time
-
-from gwpy.segments import SegmentList, Segment
-
 prog_start = time.time()
+
 from gwpy.segments import SegmentList, Segment
 
 import argparse
@@ -996,8 +994,7 @@ def main(args=None):
 
     ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
 
-    # create post-processing jobs
-    merge_joblist = list()
+    # create post-processing job
     ppjob = condor.OmicronProcessJob(args.universe, find_executable('bash'),
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)

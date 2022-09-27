@@ -115,4 +115,3 @@ def color_text(text, color):
     if not isinstance(color, int):
         color = COLORS[color]
     return COLOR_SEQ % color + str(text) + RESET_SEQ
-
