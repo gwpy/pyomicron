@@ -59,6 +59,9 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 
 """
 import time
+
+from gwpy.segments import SegmentList, Segment
+
 prog_start = time.time()
 
 from gwpy.segments import SegmentList, Segment
