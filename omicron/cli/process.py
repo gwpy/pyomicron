@@ -115,7 +115,9 @@ def gps2str(gps):
 
 
 def clean_dirs(dir_list):
-    """Remove any empty directories we created"""
+    """Remove any empty directories we created
+    NB: each of those directories may contain subdirectories which we will also delete if empty
+    """
     for adir in dir_list:
         pdir = Path(adir)
         flist = list(pdir.glob('*'))
@@ -125,8 +127,9 @@ def clean_dirs(dir_list):
             can_delete = True
             for file in flist:
                 if file.is_dir():
-                    can_delete = remove_empty_dir(file)
+                    can_delete &= remove_empty_dir(file)
                 else:
+                    # we found a file. Do not delete this direcory
                     can_delete = False
 
             if can_delete:
@@ -135,7 +138,8 @@ def clean_dirs(dir_list):
 
 def remove_empty_dir(dir_path):
     """
-    Remove a directory if empty or if all it contains is empty directories
+    Remove a directory if empty or if all it contains is empty directories.
+    This is a recursive function, it calls itself if it finds a directory.
     :@param Path dir_path: directory to check
     :@return boolean: True if directory was deleted
     """
