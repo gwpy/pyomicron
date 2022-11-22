@@ -1162,7 +1162,7 @@ def main(args=None):
                         hdf5files = ' '.join(omicronfiles[c]['hdf5'])
                         for f in omicronfiles[c]['hdf5']:
                             ppnode.add_input_file(f)
-                        no_merge = '--no-merge' if args.skip_root_merge else ''
+                        no_merge = '--no-merge' if args.skip_hdf5_merge else ''
 
                         operations.append(
                             f'  {prog_path["omicron-merge"]} {no_merge}  '

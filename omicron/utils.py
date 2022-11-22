@@ -102,7 +102,7 @@ def get_omicron_version(executable=None):
                 "version",
             ]).decode("utf-8").rsplit(maxsplit=1)[-1],
         )
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as ex:
         raise RuntimeError(
             "failed to determine omicron version from executable"
         )
