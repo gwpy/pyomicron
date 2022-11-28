@@ -28,6 +28,7 @@ from gwpy.table import EventTable
 prog_start_time = time.time()
 import argparse
 import glob
+import gzip
 import logging
 from pathlib import Path
 import re
@@ -41,7 +42,7 @@ __version__ = '0.0.1'
 __process_name__ = 'omicron_merge_with_gaps'
 
 # global logger
-log_file_format = "%(asctime)s - %(levelname)s - %(funcName)s %(lineno)d: %(message)s"
+log_file_format = "%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
 log_file_date_format = '%m-%d %H:%M:%S'
 logging.basicConfig(format=log_file_format, datefmt=log_file_date_format)
 logger = logging.getLogger(__process_name__)
@@ -65,6 +66,22 @@ def get_merge_cmd(ext):
     if not ret_path:
         raise AttributeError(f'{ext} files require {ret} which is not in out path')
     return ret_path
+
+
+def is_old_ligolw(path):
+    flag = "ilwd:char"
+    if 'gz' in path.name:
+        with gzip.open(str(path.absolute()), 'r') as gz:
+            for line in gz:
+                if flag in str(line):
+                    return True
+            return False
+    else:
+        with path.open('r') as fp:
+            for line in fp:
+                if flag in line:
+                    return True
+            return False
 
 
 def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
@@ -94,6 +111,9 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
             if 'xml' in ext:    # also accept xml.gz
                 outfile_path = Path(str(outfile_path.absolute()).replace('.xml.gz', '.xml'))
                 cmd.append(f'--output={outfile_path}')
+                if is_old_ligolw(curfiles[0]):
+                    cmd.append('--ilwdchar-compat')
+                    logger.debug('Working with old ligolw format')
             for cur in curfiles:
                 cmd.append(str(cur.absolute()))
             if 'xml' not in ext:
@@ -117,7 +137,7 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
             else:
                 logger.error(f'Return code:{returncode}, stderr:\n{result.stderr.decode("UTF-8")}')
 
-        if 'xml' in ext and returncode == 0 and not skip_gzip:
+        if 'xml' in ext and returncode == 0 and not skip_gzip and outfile_path.suffix != '.gz':
             logger.info(f'Compressing {outfile_path} with gzip')
             res2 = subprocess.run(['gzip', '-9', '--force', outfile_path], capture_output=True)
             if res2.returncode == 0:
@@ -161,7 +181,7 @@ def valid_file(path, uint_bug):
             os.remove(path)
         else:
             ret = True
-        logger.debug(f'valid_file: {ret}  {path.name} ({ntrig}), {ret} took {time.time()-vf_strt:.2f}')
+        logger.debug(f'valid_file: {ret}  {path.name} ({ntrig}), took {time.time()-vf_strt:.2f}')
     return ret
 
 
@@ -207,6 +227,11 @@ def main():
                                                backupCount=5)
         log_file_handler.setFormatter(log_formatter)
         logger.addHandler(log_file_handler)
+
+    # debugging?
+    logger.debug('{} called with arguments:'.format(__process_name__))
+    for k, v in args.__dict__.items():
+        logger.debug('    {} = {}'.format(k, v))
 
     fpat = '^(.+)-(\\d+)-(\\d+).(.+)$'
     fmatch = re.compile(fpat)
