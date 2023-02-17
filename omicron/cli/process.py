@@ -1019,7 +1019,9 @@ def main(args=None):
     reqmem = condorcmds.pop('request_memory', 1024)
     ojob.add_condor_cmd('+InitialRequestMemory', f'{reqmem}')
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage), {reqmem}, int(3*MemoryUsage))')
-    ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) && (JobStatus == 5)')
+    ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || allowed_job_duration =?= 34 '
+                                            '|| allowed_job_duration =?= 46) && (JobStatus == 5)')
+    ojob.add_condor_cmd('allowed_job_duration', 3600)
     ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
     ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
