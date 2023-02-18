@@ -1042,8 +1042,11 @@ def main(args=None):
     ppjob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
     ppjob.add_condor_cmd('request_memory',
                          f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
+    ojob.add_condor_cmd('allowed_job_duration', 3*3600)
     ppjob.add_condor_cmd('periodic_release',
-                         '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) && (JobStatus == 5)')
+                         '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
+                         '|| HoldReasonCode =?= 46) && (JobStatus == 5)')
+
     ppjob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
     ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
