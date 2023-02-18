@@ -488,7 +488,7 @@ def main(args=None):
                      "--executable on the command line")
 
     # validate processing options
-    if all((args.skip_root_merge, args.s1016kip_hdf5_merge, args.skip_ligolw_add,
+    if all((args.skip_root_merge, args.skip_hdf5_merge, args.skip_ligolw_add,
             args.skip_gzip, not args.archive)):
         args.skip_postprocessing = True
     if args.archive:
