@@ -488,7 +488,7 @@ def main(args=None):
                      "--executable on the command line")
 
     # validate processing options
-    if all((args.skip_root_merge, args.skip_hdf5_merge, args.skip_ligolw_add,
+    if all((args.skip_root_merge, args.s1016kip_hdf5_merge, args.skip_ligolw_add,
             args.skip_gzip, not args.archive)):
         args.skip_postprocessing = True
     if args.archive:
@@ -1022,11 +1022,12 @@ def main(args=None):
         **condorcmds
     )
     # This allows us to start with a memory request that works maybe 80%, but bumps it if we go over
+    # we also limit individual jobs to a max runtime to cause them to be vacates to deal with NFS hanging
     reqmem = condorcmds.pop('request_memory', 1024)
     ojob.add_condor_cmd('+InitialRequestMemory', f'{reqmem}')
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage), {reqmem}, int(3*MemoryUsage))')
-    ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || allowed_job_duration =?= 34 '
-                                            '|| allowed_job_duration =?= 46) && (JobStatus == 5)')
+    ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
+                                            '|| HoldReasonCode =?= 46) && (JobStatus == 5)')
     ojob.add_condor_cmd('allowed_job_duration', 3600)
     ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
