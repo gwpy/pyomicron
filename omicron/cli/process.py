@@ -468,7 +468,13 @@ def main(args=None):
     args.verbose = max(5 - args.verbose, 0)
     logger.setLevel(args.verbose * 10)
     if args.log_file:
-        logger.add_file_handler(args.log_file)
+        log_file = Path(args.log_file)
+    else:
+        # if not specified default to the output directory
+        log_file = Path(args.output_dir) / 'omicron-process.log'
+    log_file.parent.mkdir(mode=0o755, exist_ok=True, parents=True)
+    logger.add_file_handler(log_file)
+
     logger.debug("Command line args:")
     for arg in vars(args):
         logger.debug(f'{arg} = {str(getattr(args, arg))}')
