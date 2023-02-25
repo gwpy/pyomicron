@@ -951,11 +951,12 @@ def main(args=None):
     if newdag and len(segs) == 0 and online and alldata:
         logger.info(
             "No analysable segments found, but up-to-date data are "
-            "available. A segments.txt file will be written so we don't "
-            "have to search these data again",
+            "available. "
+            # "A segments.txt file will be written so we don't "
+            # "have to search these data again",
         )
-        segments.write_segments(cachesegs, segfile)
-        logger.info("Segments written to\n%s" % segfile)
+        # segments.write_segments(cachesegs, segfile)
+        # logger.info("Segments written to\n%s" % segfile)
         clean_dirs(run_dir_list)
         clean_exit(0, tempfiles)
 
