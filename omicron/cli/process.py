@@ -859,7 +859,8 @@ def main(args=None):
     # segment, or long enough to process safely)
     if truncate and abs(lastseg) < chunkdur * 2:
         logger.info(
-            "The final segment is too short, but ends at the limit of "
+            "The final segment is too short, " f'Minimum length is {int(chunkdur*2)} '
+            "but ends at the limit of "
             "available data, presumably this is an active segment. It "
             "will be removed so that it can be processed properly later",
         )
@@ -952,11 +953,7 @@ def main(args=None):
         logger.info(
             "No analysable segments found, but up-to-date data are "
             "available. "
-            # "A segments.txt file will be written so we don't "
-            # "have to search these data again",
         )
-        # segments.write_segments(cachesegs, segfile)
-        # logger.info("Segments written to\n%s" % segfile)
         clean_dirs(run_dir_list)
         clean_exit(0, tempfiles)
 

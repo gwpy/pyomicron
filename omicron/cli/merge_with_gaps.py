@@ -30,6 +30,7 @@ import argparse
 import glob
 import gzip
 import logging
+from omicron import __version__
 from pathlib import Path
 import re
 import shutil
@@ -38,7 +39,6 @@ import sys
 
 __author__ = 'joseph areeda'
 __email__ = 'joseph.areeda@ligo.org'
-__version__ = '0.0.1'
 __process_name__ = 'omicron_merge_with_gaps'
 
 # global logger

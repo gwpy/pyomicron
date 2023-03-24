@@ -53,9 +53,10 @@ import logging
 import os
 import re
 
+from omicron import __version__
+
 __author__ = 'joseph areeda'
 __email__ = 'joseph.areeda@ligo.org'
-__version__ = '0.0.1'
 __process_name__ = 'archive'
 
 # example channel indir: L1:SUS-PR3_M1_DAMP_T_IN1_DQ
