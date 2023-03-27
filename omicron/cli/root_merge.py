@@ -24,7 +24,7 @@
 import os.path
 import argparse
 
-from omicron import (io, __version__)
+from .. import (io, __version__)
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 

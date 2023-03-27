@@ -103,9 +103,7 @@ def get_omicron_version(executable=None):
             ]).decode("utf-8").rsplit(maxsplit=1)[-1],
         )
     except subprocess.CalledProcessError as ex:
-        raise RuntimeError(
-            "failed to determine omicron version from executable"
-        )
+        raise RuntimeError(f"failed to determine omicron version from executable: {str(ex)}")
 
 
 def astropy_config_path(parent, update_environ=True):

@@ -59,9 +59,6 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 
 """
 import time
-
-from gwpy.segments import SegmentList, Segment
-
 prog_start = time.time()
 
 from gwpy.segments import SegmentList, Segment
@@ -86,7 +83,7 @@ from glue import pipeline
 from gwpy.io.cache import read_cache
 from gwpy.time import to_gps, tconvert
 
-from omicron import (const, segments, log, data, parameters, utils, condor, io,
+from .. import (const, segments, log, data, parameters, utils, condor, io,
                      __version__)
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'

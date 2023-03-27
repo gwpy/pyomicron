@@ -53,7 +53,7 @@ import logging
 import os
 import re
 
-from omicron import __version__
+from .. import __version__
 
 __author__ = 'joseph areeda'
 __email__ = 'joseph.areeda@ligo.org'

@@ -30,7 +30,7 @@ import argparse
 import glob
 import gzip
 import logging
-from omicron import __version__
+from .. import __version__
 from pathlib import Path
 import re
 import shutil
