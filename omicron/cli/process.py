@@ -86,8 +86,7 @@ from glue import pipeline
 from gwpy.io.cache import read_cache
 from gwpy.time import to_gps, tconvert
 
-from omicron import (const, segments, log, data, parameters, utils, condor, io,
-                     __version__)
+from .. import (const, segments, log, data, parameters, utils, condor, io, __version__)
 
 __author__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
@@ -468,7 +467,13 @@ def main(args=None):
     args.verbose = max(5 - args.verbose, 0)
     logger.setLevel(args.verbose * 10)
     if args.log_file:
-        logger.add_file_handler(args.log_file)
+        log_file = Path(args.log_file)
+    else:
+        # if not specified default to the output directory
+        log_file = Path(args.output_dir) / 'omicron-process.log'
+    log_file.parent.mkdir(mode=0o755, exist_ok=True, parents=True)
+    logger.add_file_handler(log_file)
+
     logger.debug("Command line args:")
     for arg in vars(args):
         logger.debug(f'{arg} = {str(getattr(args, arg))}')
@@ -853,7 +858,8 @@ def main(args=None):
     # segment, or long enough to process safely)
     if truncate and abs(lastseg) < chunkdur * 2:
         logger.info(
-            "The final segment is too short, but ends at the limit of "
+            "The final segment is too short, " f'Minimum length is {int(chunkdur*2)} '
+            "but ends at the limit of "
             "available data, presumably this is an active segment. It "
             "will be removed so that it can be processed properly later",
         )
@@ -945,11 +951,8 @@ def main(args=None):
     if newdag and len(segs) == 0 and online and alldata:
         logger.info(
             "No analysable segments found, but up-to-date data are "
-            "available. A segments.txt file will be written so we don't "
-            "have to search these data again",
+            "available. "
         )
-        segments.write_segments(cachesegs, segfile)
-        logger.info("Segments written to\n%s" % segfile)
         clean_dirs(run_dir_list)
         clean_exit(0, tempfiles)
 
@@ -1016,10 +1019,13 @@ def main(args=None):
         **condorcmds
     )
     # This allows us to start with a memory request that works maybe 80%, but bumps it if we go over
+    # we also limit individual jobs to a max runtime to cause them to be vacates to deal with NFS hanging
     reqmem = condorcmds.pop('request_memory', 1024)
     ojob.add_condor_cmd('+InitialRequestMemory', f'{reqmem}')
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage), {reqmem}, int(3*MemoryUsage))')
-    ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) && (JobStatus == 5)')
+    ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
+                                            '|| HoldReasonCode =?= 46) && (JobStatus == 5)')
+    ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
     ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
     ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
@@ -1033,8 +1039,11 @@ def main(args=None):
     ppjob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
     ppjob.add_condor_cmd('request_memory',
                          f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
+    ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
     ppjob.add_condor_cmd('periodic_release',
-                         '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) && (JobStatus == 5)')
+                         '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
+                         '|| HoldReasonCode =?= 46) && (JobStatus == 5)')
+
     ppjob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
     ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
