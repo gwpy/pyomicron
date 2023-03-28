@@ -51,8 +51,8 @@ from gwpy.segments import (Segment, SegmentList)
 from gwpy.plot import Plot
 from gwpy.plot.segments import SegmentRectangle
 
-from omicron import (condor, const, io, log, segments, __version__)
-from omicron.utils import get_omicron_version
+from .. import (condor, const, io, log, segments, __version__)
+from ..utils import get_omicron_version
 
 __author__ = "Duncan Macleod <duncan.macleod@ligo.org>"
 

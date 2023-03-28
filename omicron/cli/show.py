@@ -31,7 +31,7 @@ from gwpy.table.filter import parse_column_filters
 from gwpy.table.filters import in_segmentlist
 from gwpy.time import to_gps
 
-from omicron import (io, const, __version__)
+from .. import (io, const, __version__)
 from omicron.data import write_cache
 from omicron.segments import (Segment, SegmentList, cache_segments)
 
