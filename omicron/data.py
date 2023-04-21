@@ -231,7 +231,7 @@ def _find_frames_datafind(obs, frametype, start, end, **kwargs):
     return cache
 
 
-def find_ll_frames(ifo, frametype, start, end, root='/dev/shm', tmpdir=None):
+def find_ll_frames(ifo, frametype, start, end, root='/dev/shm/kafka', tmpdir=None):
     """Find all buffered low-latency frames in the given interval
 
     Parameters
@@ -245,12 +245,12 @@ def find_ll_frames(ifo, frametype, start, end, root='/dev/shm', tmpdir=None):
     end : `int`
         the GPS end time of this search
     root : `str`, optional
-        the base root for the buffer, defaults to `/dev/shm`
+        the base root for the buffer, defaults to `/dev/shm/kafka`
     on_gaps : `str`, optional
         what to do when the found frames don't cover the full span, one of
         'warn', 'raise', or 'ignore'
     tmpdir : `str`, optional
-        temporary directory into which to copy files from /dev/shm
+        temporary directory into which to copy files from /dev/shm/kafka
 
         ..note::
 
@@ -283,12 +283,15 @@ def find_ll_frames(ifo, frametype, start, end, root='/dev/shm', tmpdir=None):
     return cache
 
 
-def _find_ll_frames(ifo, frametype, root='/dev/shm', ext='gwf'):
+def _find_ll_frames(ifo, frametype, root='/dev/shm/kafka', ext='gwf'):
     obs = ifo[0]
-    bits = frametype.rsplit('_', 1)
-    basedir = os.path.join(root, *bits[::-1])
-    globstr = os.path.join(basedir, '{obs}-{frametype}-*-*.{ext}'.format(
-        obs=obs, frametype=frametype, ext=ext))
+    root = root.rstrip(os.path.sep)
+    if root.endswith("kafka"):  # new shm system
+        subdirs = [ifo]
+    else:  # old 'lsmp' system
+        subdirs = frametype.rsplit('_', 1)[::-1]
+    basedir = os.path.join(root, *subdirs)
+    globstr = os.path.join(basedir, f"{obs}-{frametype}-*-*.{ext}")
     # don't return the last file, as it might not have been fully written yet
     return sorted(glob.glob(globstr)[:-1])
 
