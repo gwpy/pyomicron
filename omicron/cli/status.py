@@ -31,7 +31,9 @@ import warnings
 from collections import OrderedDict
 from functools import reduce
 from getpass import getuser
+from os import linesep
 from pathlib import Path
+from textwrap import indent
 from time import sleep
 
 import htcondor
@@ -713,7 +715,16 @@ def main(args=None):
         jsonfp = outdir / "nagios-{}-{}.json".format(tag, group)
         status.append((tag, jsonfp))
         if chans:
-            gapstr = '\n'.join('%s: %s' % c for c in chans)
+            # format the segments nicely for Icinga 2
+            lines = []
+            for chan, ftsegs in chans:
+                lines.append(f"{chan}:")
+                for ft, segs in ftsegs.items():
+                    lines.extend((
+                        f"  {ft}:",
+                        indent(str(segs), "    "),
+                    ))
+            gapstr = linesep.join(lines)
             code = 1
             message = ("%s found in Omicron files for group %r\n%s"
                        % (tag.title(), group, gapstr))
