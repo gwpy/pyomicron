@@ -473,7 +473,7 @@ def main(args=None):
 
     logger.debug("Command line args:")
     for arg in vars(args):
-        logger.debug(f'{arg} = {str(getattr(args, arg))}')
+        logger.debug(f'    {arg} = {str(getattr(args, arg))}')
 
     # validate command line arguments
     if args.ifo is None:
@@ -645,9 +645,12 @@ def main(args=None):
                     pass
 
     if statechannel:
-        logger.debug("State channel = %s" % statechannel)
-        logger.debug("State bits = %s" % ', '.join(map(str, statebits)))
-        logger.debug("State frametype = %s" % stateft)
+        logger.debug(f"State channel {statechannel}")
+        if statebits == 'guardian':
+            logger.debug(f"State bits {statebits}")
+        else:
+            logger.debug("State bits = %s" % ', '.join(map(str, statebits)))
+        logger.debug(f"State frametype {stateft}")
 
     # parse padding for state segments
     if statechannel or stateflag:
@@ -675,7 +678,7 @@ def main(args=None):
     # -- set directories ------------------------------------------------------
 
     rundir.mkdir(exist_ok=True, parents=True)
-    logger.info(f"Using run directory\n{rundir}")
+    logger.info(f"Using run directory: {rundir}")
 
     cachedir = rundir / "cache"
     condir = rundir / "condor"
@@ -730,7 +733,8 @@ def main(args=None):
         end = data.get_latest_data_gps(ifo, frametype) - padding
 
         try:  # start from where we got to last time
-            start = segments.get_last_run_segment(segfile)[1]
+            last_run_segment = segments.get_last_run_segment(segfile)
+            start = last_run_segment[1]
         except IOError:  # otherwise start with a sensible amount of data
             if args.use_dev_shm:  # process one chunk
                 logger.debug("No online segment record, starting with "
@@ -741,9 +745,10 @@ def main(args=None):
                              "4000 seconds")
                 start = end - 4000
         else:
-            logger.debug("Online segment record recovered")
+            logger.debug(f"Online segment record recovered: {last_run_segment[0]} - {last_run_segment[1]}")
     elif online:
         start, end = segments.get_last_run_segment(segfile)
+        logger.debug(f"Online segment record recovered: {start} - {end}")
     else:
         start, end = args.gps
         start = int(start)
@@ -786,9 +791,11 @@ def main(args=None):
     if (online and statechannel) or (statechannel and not stateflag) or (
             statechannel and args.no_segdb):
         logger.info(f'Finding segments for relevant state...  from:{datastart} length: {dataduration}s')
+        logger.debug(f'For segment finding: online: {online}, statechannel: {statechannel}, '
+                     f'stateflag: {stateflag} args.no_segdb: {args.no_segdb}')
         seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
-            logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend}')
+            logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend} ')
             segs = segments.get_guardian_segments(
                 statechannel,
                 stateft,
