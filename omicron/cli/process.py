@@ -236,7 +236,6 @@ https://pyomicron.readthedocs.io/en/latest/"""
     outg.add_argument(
         '-o',
         '--output-dir',
-        default=Path.cwd(),
         type=Path,
         help='path to output directory (default: %(default)s)',
     )
@@ -463,11 +462,17 @@ def main(args=None):
     # apply verbosity to logger
     args.verbose = max(5 - args.verbose, 0)
     logger.setLevel(args.verbose * 10)
+
+    # rundir is the base directory of all our intermediate and log files.
+    # if we are successful the results will be archive to ~/triggers/${ifo}/...
+    rundir = utils.get_output_path(args)
+    logger.info(f'All logs and intermediate file are in rundir: {rundir.absolute()}')
+
     if args.log_file:
         log_file = Path(args.log_file)
     else:
         # if not specified default to the output directory
-        log_file = Path(args.output_dir) / 'omicron-process.log'
+        log_file = rundir / 'omicron-process.log'
     log_file.parent.mkdir(mode=0o755, exist_ok=True, parents=True)
     logger.add_file_handler(log_file)
 
@@ -540,12 +545,12 @@ def main(args=None):
     logger.debug('Omicron version: %s' % omicronv)
 
     # -- parse configuration file and get parameters --------------------------
-    config_path = Path(args.config_file)
-    if not config_path.is_file():
-        logger.critical(f'Configuration file : {str(config_path.absolute())} does not exsit')
-
+    config_file = Path(args.config_file)
+    if not config_file.exists:
+        logger.critical(f'configuration file does not exist: {config_file.absolute()}')
+        exit(4)
     cp = configparser.ConfigParser()
-    cp.read(args.config_file)
+    cp.read(config_file)
 
     # validate
     if not cp.has_section(group):
@@ -667,8 +672,6 @@ def main(args=None):
                 statepad = (p, p)
         logger.debug("State padding: %s" % str(statepad))
 
-    rundir = utils.get_output_path(args)
-
     # convert to omicron parameters format
     oconfig = parameters.OmicronParameters.from_channel_list_config(
         cp, group, version=omicronv)
@@ -687,8 +690,7 @@ def main(args=None):
     trigdir = rundir / "triggers"
     mergedir = rundir / "merge"
     run_dir_list = [cachedir, condir, logdir, pardir, trigdir, mergedir]
-    for d in run_dir_list:
-        d.mkdir(exist_ok=True)
+    # NB: we now wait until we know there's something to do before we create these directories
 
     oconfig.set('OUTPUT', 'DIRECTORY', str(trigdir))
 
@@ -697,7 +699,7 @@ def main(args=None):
     dagpath = condir / f"{DAG_TAG}-{group}.dag"
 
     # check dagman lock file
-    running = condor.dag_is_running(dagpath)
+    running = condir.exists() and condor.dag_is_running(dagpath)
     if running:
         msg = "Detected {} already running in {}".format(
             dagpath,
@@ -788,13 +790,14 @@ def main(args=None):
 
     # -- find run segments
     # get segments from state vector
-    if (online and statechannel) or (statechannel and not stateflag) or (
-            statechannel and args.no_segdb):
+    if ((online and statechannel) or (statechannel and not stateflag) or (statechannel and args.no_segdb)) and \
+            dataduration <= 3600:
         logger.info(f'Finding segments for relevant state...  from:{datastart} length: {dataduration}s')
         logger.debug(f'For segment finding: online: {online}, statechannel: {statechannel}, '
                      f'stateflag: {stateflag} args.no_segdb: {args.no_segdb}')
         seg_qry_strt = time.time()
-        if statebits == "guardian":  # use guardian
+        if statebits == "guardian" :  # use guardian
+            # NB: guardian state data is in raw frames so readin a lot of data takes too long
             logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend} ')
             segs = segments.get_guardian_segments(
                 statechannel,
@@ -819,8 +822,7 @@ def main(args=None):
     elif stateflag:
         logger.info(f'Querying segments for relevant state: {stateflag} from:{datastart} length: {dataduration}s')
         seg_qry_strt = time.time()
-        segs = segments.query_state_segments(stateflag, datastart, dataend,
-                                             pad=statepad)
+        segs = segments.query_state_segments(stateflag, datastart, dataend, pad=statepad)
         logger.info(f'Segment query took {time.time() - seg_qry_strt:.2f}s')
 
     # Get segments from frame cache
@@ -922,6 +924,9 @@ def main(args=None):
         except IndexError:  # no data overlapping span
             alldata = False
 
+    for d in run_dir_list:
+        d.mkdir(exist_ok=True)
+
     # write cache of frames (only if creating a new DAG)
     cachefile = cachedir / "frames.lcf"
     keepfiles.append(cachefile)
@@ -989,7 +994,6 @@ def main(args=None):
     tempfiles.append(utils.astropy_config_path(rundir))
 
     # -- make parameters files then generate the DAG --------------------------
-
     fileformats = oconfig.output_formats()
 
     # generate a 'master' parameters.txt file for archival purposes
