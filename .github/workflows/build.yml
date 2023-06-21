@@ -97,6 +97,25 @@ jobs:
     - name: Run test suite
       run: python -m pytest -ra --color yes --cov omicron --pyargs omicron --junitxml=pytest.xml
 
+    - name: Test command-line interfaces
+      run: |
+        python -m coverage run -a $(which omicron-show) --help
+        python -m coverage run -a $(which omicron-process) --help
+        python -m coverage run -a $(which omicron-status) --help
+        python -m coverage run -a $(which omicron-hdf5-merge) --help
+        python -m coverage run -a $(which omicron-root-merge) --help
+
+    - name: Coverage report
+      run: python -m coverage report --show-missing
+
+    - name: Prepare codecov upload
+      run: python -m coverage xml
+
+    - name: Publish coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: coverage.xml
+        flags: Conda,${{ runner.os }},python${{ matrix.python-version }}
 
     - name: Upload test results
       if: always()
