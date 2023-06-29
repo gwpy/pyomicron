@@ -102,7 +102,7 @@ def test_from_channel_list_config():
     cp.set(section, 'fhigh', '100')
     with tempfile.NamedTemporaryFile(suffix='.ini', mode='w') as f:
         cp.write(f)
-        pars = OmicronParameters.from_channel_list_config(cp, section)
+    pars = OmicronParameters.from_channel_list_config(cp, section)
     assert pars.getlist('DATA', 'CHANNELS') == ['X1:TEST-CHANNEL',
                                                 'X1:TEST-CHANNEL_2']
     assert tuple(pars.getfloats('PARAMETER', 'FREQUENCYRANGE')) == (10., 100.)

@@ -19,7 +19,8 @@
 """Tests for omicron.io
 """
 
-from .. import (io, const)
+from .. import io
+from .. import const
 
 
 def test_get_archive_filename():
