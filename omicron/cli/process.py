@@ -797,7 +797,7 @@ def main(args=None):
                 pad=statepad,
             )
         else:
-            logger.debug(f'Using segdb for {statechannel}: {datastart}-{dataend}')
+            logger.debug(f'Using statevector for {statechannel}: {datastart}-{dataend}')
             segs = segments.get_state_segments(
                 statechannel,
                 stateft,
