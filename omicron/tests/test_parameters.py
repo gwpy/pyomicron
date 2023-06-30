@@ -102,7 +102,7 @@ def test_from_channel_list_config():
     cp.set(section, 'fhigh', '100')
     with tempfile.NamedTemporaryFile(suffix='.ini', mode='w') as f:
         cp.write(f)
-    pars = OmicronParameters.from_channel_list_config(cp, section)
+    pars = OmicronParameters.from_channel_list_config(cp, section, version='2.0.6')
     assert pars.getlist('DATA', 'CHANNELS') == ['X1:TEST-CHANNEL',
                                                 'X1:TEST-CHANNEL_2']
     assert tuple(pars.getfloats('PARAMETER', 'FREQUENCYRANGE')) == (10., 100.)
@@ -141,7 +141,7 @@ def _test_write(pars, suffix):
     with tempfile.NamedTemporaryFile(suffix=suffix, mode='w') as f:
         pars.write(f)
         f.seek(0)
-        p2 = create()
+        p2 = create(version='2.0.6')
         p2.read(f.name)
     assert pars.get('DATA', 'CHANNELS') == p2.get('DATA', 'CHANNELS')
     assert tuple(p2.getfloats('PARAMETER', 'TIMING')) == (64.0, 4.0)
@@ -165,7 +165,7 @@ def test_write_distributed(pars):
         _, files = pars.write_distributed(tmpdir, nchannels=10)
         for i, f in enumerate(files):
             cset = channels[i * 10: (i + 1) * 10]
-            p2 = create()
+            p2 = create(version=pars.version)
             p2.read(f)
             assert cset == p2.getlist('DATA', 'CHANNELS')
             assert p2.getfloat('PARAMETER', 'PSDLENGTH') == 100

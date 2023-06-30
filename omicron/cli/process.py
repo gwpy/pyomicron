@@ -796,7 +796,7 @@ def main(args=None):
         logger.debug(f'For segment finding: online: {online}, statechannel: {statechannel}, '
                      f'stateflag: {stateflag} args.no_segdb: {args.no_segdb}')
         seg_qry_strt = time.time()
-        if statebits == "guardian" :  # use guardian
+        if statebits == "guardian":  # use guardian
             # NB: guardian state data is in raw frames so readin a lot of data takes too long
             logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend} ')
             segs = segments.get_guardian_segments(
