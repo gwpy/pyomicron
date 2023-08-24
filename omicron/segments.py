@@ -25,7 +25,7 @@ from math import (floor, ceil)
 
 from igwn_auth_utils.requests import get as igwn_get
 
-from dqsegdb2.utils import get_default_host 
+from dqsegdb2.utils import get_default_host
 
 from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
 from gwpy.io.gwf import data_segments as gwf_data_segments
