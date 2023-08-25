@@ -999,10 +999,12 @@ def main(args=None):
     dag.set_dag_file(str(dagpath.with_suffix("")))
 
     # set up condor commands for all jobs
-    condorcmds = {'accounting_group': args.condor_accounting_group,
-                  'accounting_group_user': args.condor_accounting_group_user,
-                  'request_disk': args.condor_request_disk,
-                  'use_x509userproxy': 'True'}
+    condorcmds = {
+        "accounting_group": args.condor_accounting_group,
+        "accounting_group_user": args.condor_accounting_group_user,
+        "request_disk": args.condor_request_disk,
+        "request_memory": 1024,  # MB
+    }
     for cmd_ in args.condor_command:
         key, value = cmd_.split('=', 1)
         condorcmds[key.rstrip().lower()] = value.strip()
@@ -1013,8 +1015,9 @@ def main(args=None):
         args.executable,
         subdir=condir,
         logdir=logdir,
-        **condorcmds
+        **condorcmds,
     )
+
     # This allows us to start with a memory request that works maybe 80%, but bumps it if we go over
     # we also limit individual jobs to a max runtime to cause them to be vacates to deal with NFS hanging
     reqmem = condorcmds.pop('request_memory', 1024)
