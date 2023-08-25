@@ -22,8 +22,6 @@ merge te contiguous trigger files:
 +------------+-----------+-------------------------------------------------+
 | ligolw     | ``.xml `` | ``ligolw_add`` and ``gzip``                     |
 +------------+-----------+-------------------------------------------------+
-| Text       | ``.txt `` | ``?``                                           |
-+------------+-----------+-------------------------------------------------+
 
 The ``omicron-root-merge`` executable is a thin wrapper on top of
 the :meth:`omicron.io.merge_root_files` method:
