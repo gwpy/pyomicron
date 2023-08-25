@@ -1043,7 +1043,13 @@ def main(args=None):
 
     ppjob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
-    ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
+    ppjob.add_condor_cmd('environment', "\"{}\"".format(" ".join((
+        # disable file locking over NFS
+        "HDF5_USE_FILE_LOCKING=FALSE",
+        # provide the PATH so that omicron-merge-with-gaps can find the
+        # executables it needs
+        f"PATH='{os.getenv('PATH', sys.prefix)}'",
+    ))))
     ppjob.add_short_opt('e', '')
     ppnodes = []
     prog_path = dict()
