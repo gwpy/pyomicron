@@ -403,7 +403,7 @@ class OmicronParameters(configparser.ConfigParser):
         return out
 
     def output_formats(self):
-        return [fmt for fmt in ('root', 'txt', 'xml', 'hdf5') if
+        return [fmt for fmt in ('root', 'txt', 'hdf5') if
                 fmt in self.get('OUTPUT', 'FORMAT')]
 
     def output_files(self, start, end, flatten=False):
@@ -432,7 +432,6 @@ class OmicronParameters(configparser.ConfigParser):
         extension = {
             'root': 'root',
             'txt': 'txt',
-            'xml': 'xml',
             'hdf5': 'h5',
         }
 

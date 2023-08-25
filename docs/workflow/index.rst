@@ -59,8 +59,7 @@ The ``omicron-process`` executable will do the following
 The DAG will normally do something like this:
 
 #. process raw data using ``omicron.exe``
-#. merge contiguous output files with ``.root``, ``.h5``, and ``.xml`` extensions
-#. gzip ``.xml`` files to save space
+#. merge contiguous output files with ``.root`` and ``.h5`` extensions
 #. the merged files are copied to the archive directory, nominally
    ``/home/detchar/triggers/<ifo>/<channel-filetag>/<metric day>``
 #. if everything completes successfully, trigger and log files are deleted
@@ -92,7 +91,7 @@ where the path components are as follows
 
 e.g.::
 
-   ~/triggers/L1/GDS_CALIB_STRAIN_OMICRON/12345/L1-GDS_CALIB_STRAIN_OMICRON-1234567890-100.xml.gz
+   ~/triggers/L1/GDS_CALIB_STRAIN_OMICRON/12345/L1-GDS_CALIB_STRAIN_OMICRON-1234567890-100.h5
 
 -----------------------------------
 Processing a specific time interval

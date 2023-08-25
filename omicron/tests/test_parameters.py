@@ -189,7 +189,7 @@ def test_distribute_segments(pars):
 
 def test_output_files(pars):
     pars.set('PARAMETER', 'TIMING', '64 4')
-    pars.set('OUTPUT', 'FORMAT', 'root xml')
+    pars.set('OUTPUT', 'FORMAT', 'root hdf5')
     pars.set('DATA', 'CHANNELS', 'X1:TEST-CHANNEL')
     assert pars.output_files(0, 100) == {
         'X1:TEST-CHANNEL':
@@ -198,9 +198,9 @@ def test_output_files(pars):
                     './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.root',
                     './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.root',
                 ],
-                'xml': [
-                    './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.xml',
-                    './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.xml',
+                'hdf5': [
+                    './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-2-60.h5',
+                    './X1:TEST-CHANNEL/X1-TEST_CHANNEL_OMICRON-62-36.h5',
                 ],
             },
     }
