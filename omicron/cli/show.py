@@ -115,7 +115,7 @@ def create_parser():
     fopts.add_argument(
         '-t',
         '--file-type',
-        default='xml.gz',
+        default='h5',
         choices=['root', 'xml.gz', 'h5'],
         help='type of files to find',
     )

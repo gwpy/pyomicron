@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with PyOmicron.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Input/Output utilities for Omicron ROOT and LIGO_LW XML files
+"""Input/Output utilities for Omicron output files
 """
 
 import warnings
@@ -116,7 +116,7 @@ def _iter_files_in_gps_directory(channel, basepath, gps5, ext,
             yield path
 
 
-def find_omicron_files(channel, start, end, basepath, ext='xml.gz',
+def find_omicron_files(channel, start, end, basepath, ext='h5',
                        filetag=const.OMICRON_FILETAG.upper()):
     """Find Omicron files under a given starting directory
     """
@@ -132,7 +132,7 @@ def find_omicron_files(channel, start, end, basepath, ext='xml.gz',
     return cache
 
 
-def find_latest_omicron_file(channel, basepath, ext='xml.gz',
+def find_latest_omicron_file(channel, basepath, ext='h5',
                              filetag=const.OMICRON_FILETAG.upper(),
                              gps=None):
     """Find the most recent Omicron file for a given channel
@@ -151,7 +151,7 @@ def find_latest_omicron_file(channel, basepath, ext='xml.gz',
     raise RuntimeError("Failed to find any Omicron files for %r" % channel)
 
 
-def find_pending_files(channel, proddir, ext='xml.gz'):
+def find_pending_files(channel, proddir, ext='h5'):
     """Find files that have just been created, pending archival
     """
     ifo = channel.split(':', 1)[0]
@@ -159,7 +159,7 @@ def find_pending_files(channel, proddir, ext='xml.gz'):
         proddir, 'triggers', channel, '%s-*.%s' % (ifo, ext)))
 
 
-def get_archive_filename(channel, start, duration, ext='xml.gz',
+def get_archive_filename(channel, start, duration, ext='h5',
                          filetag=const.OMICRON_FILETAG.upper(),
                          archive=const.OMICRON_ARCHIVE):
     """Returns the full file path for this channel's triggers
@@ -177,7 +177,7 @@ def get_archive_filename(channel, start, duration, ext='xml.gz',
     duration : `int`
         duration (seconds) of file
     ext : `str`, optional
-        file extension, defaults to ``xml.gz``
+        file extension, defaults to ``'h5'``
     filetag : `str`, optional
         filetag to be appended after the channel name, defaults to ``OMICRON``
     archive : `str`, optional
@@ -197,7 +197,7 @@ def get_archive_filename(channel, start, duration, ext='xml.gz',
     Examples
     --------
     >>> get_archive_filename('H1:GDS-CALIB_STRAIN', 1234567890, 100, archive='/triggers')
-    '/triggers/H1/GDS_CALIB_STRAIN_OMICRON/12345/H1-GDS_CALIB_STRAIN_OMICRON-1234567890-100.xml.gz'
+    '/triggers/H1/GDS_CALIB_STRAIN_OMICRON/12345/H1-GDS_CALIB_STRAIN_OMICRON-1234567890-100.h5'
 
     """  # noqa: E501
     ifo, description = _parse_channel_and_filetag(channel, filetag)
