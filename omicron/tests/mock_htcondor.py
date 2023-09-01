@@ -19,7 +19,6 @@ class Schedd(object):
                 break
             else:
                 x[a] = eval(b)
-        match = []
 
         def match(job):
             for key in x:
