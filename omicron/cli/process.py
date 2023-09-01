@@ -1268,9 +1268,15 @@ def main(args=None):
         if newdag:
             # write shell script to seed archive
             with open(archivejob.get_executable(), 'w') as f:
+                cmd = [
+                    prog_path["omicron_archive"],
+                    "--indir", mergedir.absolute(),
+                    "--outdir", os.getenv("OMICRON_ARCHIVE", const.OMICRON_ARCHIVE),
+                    "-vv",
+                ]
                 print('#!/bin/bash -e\n', file=f)
                 print('# Archive all trigger files saved in the merge directory ', file=f)
-                print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv', file=f)
+                print(" ".join(map(str, cmd)), file=f)
 
             os.chmod(archivejob.get_executable(), 0o755)
             # write caches to disk
