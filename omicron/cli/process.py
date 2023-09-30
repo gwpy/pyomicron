@@ -276,7 +276,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         'condor job (default: %(default)s)',
     )
     # max concurrent omicron jobs
-    procg.add_argument('--max-concurrent', default=10, type=int,
+    procg.add_argument('--max-concurrent', default=25, type=int,
                        help='Max omicron jobs at one time [%(default)s]')
     procg.add_argument(
         '-x',
@@ -476,6 +476,7 @@ def main(args=None):
     log_file.parent.mkdir(mode=0o755, exist_ok=True, parents=True)
     logger.add_file_handler(log_file)
 
+    logger.debug(f'Running {__file__} - {__version__} ')
     logger.debug("Command line args:")
     for arg in vars(args):
         logger.debug(f'    {arg} = {str(getattr(args, arg))}')
@@ -1242,24 +1243,9 @@ def main(args=None):
                         print('\n'.join(operations), file=f)
                     if newdag:
                         script.chmod(0o755)
-    parent_jobs = list()
-    child_jobs = list()
-    maxcon = args.max_concurrent
-    for j in omicron_nodes:
-        if len(parent_jobs) < maxcon:
-            parent_jobs.append(j)
-        elif len(child_jobs) < maxcon:
-            child_jobs.append(j)
-        else:
-            for pj in parent_jobs:
-                for cj in child_jobs:
-                    cj.add_parent(pj)
-            parent_jobs = child_jobs
-            child_jobs = [j]
-    if len(child_jobs) > 0 and len(parent_jobs) > 0:
-        for pj in parent_jobs:
-            for cj in child_jobs:
-                cj.add_parent(pj)
+    maxcon: int = args.max_concurrent
+    dag.add_maxjobs_category('omicron', maxcon)
+    dag.add_maxjobs_category('postprocessing', maxcon)
 
     # set 'strict' option for Omicron
     # this is done after the nodes are written so that 'strict' is last in
