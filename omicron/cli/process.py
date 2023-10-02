@@ -1338,7 +1338,7 @@ def main(args=None):
             segments.write_segments(span, segfile)
             logger.info("Segments written to\n%s" % segfile)
         logger.info(f"Elapsed: {time.time() - prog_start:.1f} seconds ")
-        sys.exit(0)
+        return
 
     # -- submit the DAG and babysit -------------------------------------------
 
@@ -1369,6 +1369,8 @@ def main(args=None):
                     dagmanargs.add(x)
                 else:
                     dagmanopts[key] = val
+
+            dagmanargs.add('-import_env')
             dagid = condor.submit_dag(
                 str(dagfile),
                 *list(dagmanargs),
