@@ -236,6 +236,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
     outg.add_argument(
         '-o',
         '--output-dir',
+        default=Path.cwd(),
         type=Path,
         help='path to output directory (default: %(default)s)',
     )
@@ -376,6 +377,14 @@ https://pyomicron.readthedocs.io/en/latest/"""
              "\"-{opt} [{value}]\". "
              "Can be given multiple times (default: %(default)s)",
     )
+    condorg.add_argument('--getenv',
+                         action='append',
+                         type=str,
+                         default=['DEFAULT_SEGMENT_SERVER', 'ECP_IDP', 'GWDATAFIND_SERVER', 'HDF5_USE_FILE_LOCKING',
+                                  'HOME', 'KRB5CCNAME', 'NDSSERVER', 'X509_USER_CERT', 'OMICRON_HTML'],
+                         help='Which environment variables to pass to the condor jobs'
+                              'Can be given multiple times (default: %(default)s)'
+                         )
 
     # input data options
     datag = parser.add_argument_group('Data options')
@@ -548,8 +557,8 @@ def main(args=None):
     # -- parse configuration file and get parameters --------------------------
     config_file = Path(args.config_file)
     if not config_file.exists:
-        logger.critical(f'configuration file does not exist: {config_file.absolute()}')
-        exit(4)
+        raise FileNotFoundError(f'configuration file does not exist: {config_file.absolute()}')
+
     cp = configparser.ConfigParser()
     cp.read(config_file)
 
@@ -653,9 +662,10 @@ def main(args=None):
     if statechannel:
         logger.debug(f"State channel {statechannel}")
         if statebits == 'guardian':
-            logger.debug(f"State bits {statebits}")
+            bitstr = "guardian"
         else:
-            logger.debug("State bits = %s" % ', '.join(map(str, statebits)))
+            bitstr = ", ".join(map(str, statebits))
+        logger.debug(f"State bits = {bitstr}")
         logger.debug(f"State frametype {stateft}")
 
     # parse padding for state segments
@@ -748,7 +758,7 @@ def main(args=None):
                              "4000 seconds")
                 start = end - 4000
         else:
-            logger.debug(f"Online segment record recovered: {last_run_segment[0]} - {last_run_segment[1]}")
+            logger.debug(f"Online segment record recovered: {last_run_segment}")
     elif online:
         start, end = segments.get_last_run_segment(segfile)
         logger.debug(f"Online segment record recovered: {start} - {end}")
@@ -798,7 +808,7 @@ def main(args=None):
                      f'stateflag: {stateflag} args.no_segdb: {args.no_segdb}')
         seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
-            # NB: guardian state data is in raw frames so readin a lot of data takes too long
+            # NB: guardian state data is in raw frames so reading a lot of data takes too long without checkpointing
             logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend} ')
             segs = segments.get_guardian_segments(
                 statechannel,

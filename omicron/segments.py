@@ -25,7 +25,7 @@ from math import (floor, ceil)
 
 from igwn_auth_utils.requests import get as igwn_get
 
-from dqsegdb2.query import DEFAULT_SEGMENT_SERVER
+from dqsegdb2.query import get_default_host
 
 from gwpy.io.cache import (cache_segments as _cache_segments, file_segment)
 from gwpy.io.gwf import data_segments as gwf_data_segments
@@ -33,6 +33,8 @@ from gwpy.segments import (DataQualityFlag, Segment, SegmentList)
 from gwpy.timeseries import (StateTimeSeries, StateVector, TimeSeriesDict)
 
 from . import data
+
+DEFAULT_SEGMENT_SERVER = get_default_host()
 
 STATE_CHANNEL = {
     # each value of this dict is a 3-tuple:
