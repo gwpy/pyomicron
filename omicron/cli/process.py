@@ -381,7 +381,8 @@ https://pyomicron.readthedocs.io/en/latest/"""
                          action='append',
                          type=str,
                          default=['DEFAULT_SEGMENT_SERVER', 'ECP_IDP', 'GWDATAFIND_SERVER', 'HDF5_USE_FILE_LOCKING',
-                                  'HOME', 'KRB5CCNAME', 'NDSSERVER', 'X509_USER_CERT', 'OMICRON_HTML'],
+                                  'HOME', 'KRB5CCNAME', 'NDSSERVER', 'X509_USER_CERT', 'X509_USER_PROXY',
+                                  'OMICRON_HTML'],
                          help='Which environment variables to pass to the condor jobs'
                               'Can be given multiple times (default: %(default)s)'
                          )
@@ -518,6 +519,7 @@ def main(args=None):
     ifo = args.ifo
     group = args.group
     online = args.gps is None
+    env_vars = " ".join(args.getenv)
 
     # format file-tag as underscore-delimited upper-case string
     filetag = args.file_tag
@@ -1044,8 +1046,9 @@ def main(args=None):
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage), {reqmem}, int(3*MemoryUsage))')
     ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
                                             '|| HoldReasonCode =?= 46) && (JobStatus == 5)')
-    ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
+    ojob.add_condor_cmd('allowed_job_duration', 8 * 3600)
     ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
+    ojob.add_condor_cmd('getenv', env_vars)
 
     ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
 
@@ -1058,7 +1061,7 @@ def main(args=None):
     ppjob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
     ppjob.add_condor_cmd('request_memory',
                          f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
-    ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
+    ppjob.add_condor_cmd('allowed_job_duration', 8 * 3600)
     ppjob.add_condor_cmd('periodic_release',
                          '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
                          '|| HoldReasonCode =?= 46) && (JobStatus == 5)')
@@ -1066,6 +1069,7 @@ def main(args=None):
     ppjob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
     ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
+    ppjob.add_condor_cmd('getenv', env_vars)
     ppjob.add_short_opt('e', '')
     ppnodes = []
     prog_path = dict()
@@ -1092,12 +1096,15 @@ def main(args=None):
             subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
         rm = find_executable('rm')
         rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
+        rmjob.add_condor_cmd('getenv', env_vars)
 
     if args.archive:
         archivejob = condor.OmicronProcessJob(
             args.universe, str(condir / "archive.sh"),
             subdir=condir, logdir=logdir, tag='archive', **condorcmds)
-        archivejob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
+        archivejob.add_condor_cmd(f'+OmicronPostProcess {group}')
+        ppjob.add_condor_cmd('getenv', env_vars)
+
         archivefiles = {}
     else:
         archivejob = None
