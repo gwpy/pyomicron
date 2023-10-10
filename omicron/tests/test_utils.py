@@ -25,18 +25,14 @@ import sys
 from pathlib import Path
 from unittest import mock
 
+from packaging.version import Version
+
 import pytest
 
 from .. import utils
 
-# distutils.spawn.find_executable works differently before python-3.7
-if sys.version_info < (3, 7):
-    ISFILE_SIDE_EFFECT = (False, False, True)
-else:
-    ISFILE_SIDE_EFFECT = (False, True)
 
-
-@mock.patch("os.path.isfile", side_effect=ISFILE_SIDE_EFFECT)
+@mock.patch("os.path.exists", return_value=True)
 @mock.patch("os.access", return_value=True)
 @mock.patch.dict("os.environ")
 def test_find_omicron_path(*mocks):
@@ -60,7 +56,7 @@ def test_find_omicron_error(_):
 @mock.patch("subprocess.check_output", return_value=b"Omicron 1.2.3")
 def test_get_omicron_version(mocker):
     v = utils.get_omicron_version("omicron")
-    assert v == "1.2.3"
+    assert v == Version("1.2.3")
 
 
 @mock.patch(
