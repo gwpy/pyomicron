@@ -1079,6 +1079,7 @@ def main(args=None):
     prog_path['ligolw_add'] = find_executable('ligolw_add')
     prog_path['gzip'] = find_executable('gzip')
     prog_path['omicron_archive'] = find_executable('omicron-archive')
+    prog_path['omicron_run'] = find_executable('omicron_run.sh')
 
     goterr = list()
     for exe in prog_path.keys():
