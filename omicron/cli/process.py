@@ -1096,14 +1096,14 @@ def main(args=None):
             args.universe, str(condir / "post-process-rm.sh"),
             subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
         rm = find_executable('rm')
-        rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
+        rmjob.add_condor_cmd('+OmicronPostProcess_RM', '"{group)"')
         rmjob.add_condor_cmd('getenv', env_vars)
 
     if args.archive:
         archivejob = condor.OmicronProcessJob(
             args.universe, str(condir / "archive.sh"),
             subdir=condir, logdir=logdir, tag='archive', **condorcmds)
-        archivejob.add_condor_cmd(f'+OmicronPostProcess {group}')
+        archivejob.add_condor_cmd(f'+OmicronPostProcess_ARCHIVE', '"{group}"')
         ppjob.add_condor_cmd('getenv', env_vars)
 
         archivefiles = {}
