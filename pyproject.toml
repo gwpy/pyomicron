@@ -12,3 +12,5 @@ write_to = "omicron/_version.py"
 [tool.pytest.ini_options]
 addopts = "-r a"
 
+[tool.setuptools]
+    script-files = ["omicron/omicron_run.sh"]
