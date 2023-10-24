@@ -70,7 +70,6 @@ import re
 import sys
 import shutil
 import time
-from distutils.spawn import find_executable
 from getpass import getuser
 from pathlib import Path
 from subprocess import check_call
@@ -1028,7 +1027,7 @@ def main(args=None):
     ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
 
     # create post-processing jobs
-    ppjob = condor.OmicronProcessJob(args.universe, find_executable('bash'),
+    ppjob = condor.OmicronProcessJob(args.universe, shutil.which('bash'),
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)
     ppjob.add_condor_cmd('+OmicronPostProcess', f'"{group}"')
@@ -1047,12 +1046,12 @@ def main(args=None):
     ppjob.add_short_opt('e', '')
     ppnodes = []
     prog_path = dict()
-    prog_path['omicron-merge'] = find_executable('omicron-merge-with-gaps')
-    prog_path['rootmerge'] = find_executable('omicron-root-merge')
-    prog_path['hdf5merge'] = find_executable('omicron-hdf5-merge')
-    prog_path['ligolw_add'] = find_executable('ligolw_add')
-    prog_path['gzip'] = find_executable('gzip')
-    prog_path['omicron_archive'] = find_executable('omicron-archive')
+    prog_path['omicron-merge'] = shutil.which('omicron-merge-with-gaps')
+    prog_path['rootmerge'] = shutil.which('omicron-root-merge')
+    prog_path['hdf5merge'] = shutil.which('omicron-hdf5-merge')
+    prog_path['ligolw_add'] = shutil.which('ligolw_add')
+    prog_path['gzip'] = shutil.which('gzip')
+    prog_path['omicron_archive'] = shutil.which('omicron-archive')
 
     goterr = list()
     for exe in prog_path.keys():
@@ -1068,7 +1067,7 @@ def main(args=None):
         rmjob = condor.OmicronProcessJob(
             args.universe, str(condir / "post-process-rm.sh"),
             subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
-        rm = find_executable('rm')
+        rm = shutil.which('rm')
         rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 
     if args.archive:
@@ -1112,7 +1111,7 @@ def main(args=None):
                     node.add_var_arg(str(subseg[1]))
                     node.add_file_arg(pf)
                     # we need to ignore errors in individual nodes
-                    node.set_post_script(find_executable('bash'))
+                    node.set_post_script(shutil.which('bash'))
                     node.add_post_script_arg('-c')
                     node.add_post_script_arg('exit 0')
 
