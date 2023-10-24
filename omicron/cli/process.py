@@ -423,24 +423,11 @@ https://pyomicron.readthedocs.io/en/latest/"""
         help='skip running omicron-hdf5-merge (default: %(default)s)',
     )
     pipeg.add_argument(
-        '--skip-ligolw_add',
-        action='store_true',
-        default=False,
-        help='skip running ligolw_add (default: %(default)s)',
-    )
-    pipeg.add_argument(
-        '--skip-gzip',
-        action='store_true',
-        default=False,
-        help='skip running gzip (default: %(default)s)',
-    )
-    pipeg.add_argument(
         '--skip-postprocessing',
         action='store_true',
         default=False,
         help='skip all post-processing, equivalent to '
              '--skip-root-merge --skip-hdf5-merge '
-             '--skip-ligolw_add --skip-gzip '
              '(default: %(default)s)',
     )
     pipeg.add_argument(
@@ -484,13 +471,14 @@ def main(args=None):
                      "--executable on the command line")
 
     # validate processing options
-    if all((args.skip_root_merge, args.skip_hdf5_merge, args.skip_ligolw_add,
-            args.skip_gzip, not args.archive)):
+    if all((args.skip_root_merge, args.skip_hdf5_merge, not args.archive)):
         args.skip_postprocessing = True
     if args.archive:
         argsd = vars(args)
-        for arg in ['skip-root-merge', 'skip-hdf5-merge',
-                    'skip-ligolw-add', 'skip-gzip']:
+        for arg in [
+            'skip-root-merge',
+            'skip-hdf5-merge',
+        ]:
             if argsd[arg.replace('-', '_')]:
                 parser.error(f"Cannot use --{arg} with --archive")
 
@@ -1050,8 +1038,6 @@ def main(args=None):
     prog_path['omicron-merge'] = find_executable('omicron-merge-with-gaps')
     prog_path['rootmerge'] = find_executable('omicron-root-merge')
     prog_path['hdf5merge'] = find_executable('omicron-hdf5-merge')
-    prog_path['ligolw_add'] = find_executable('ligolw_add')
-    prog_path['gzip'] = find_executable('gzip')
     prog_path['omicron_archive'] = find_executable('omicron-archive')
 
     goterr = list()
@@ -1174,20 +1160,6 @@ def main(args=None):
                             f'  {prog_path["omicron-merge"]} {no_merge}  '
                             f' --out-dir {mergepath} {hdf5files} ')
                         rmfiles.append(hdf5files)
-
-                    # add LIGO_LW operations
-                    if 'xml' in fileformats:
-                        xmlfiles = ' '.join(omicronfiles[c]['xml'])
-                        for f in omicronfiles[c]['xml']:
-                            ppnode.add_input_file(f)
-
-                        no_merge = '--no-merge' if args.skip_ligolw_add else ''
-                        no_gzip = '--no-gzip' if args.skip_gzip else ''
-                        operations.append(
-                            f'  {prog_path["omicron-merge"]} {no_merge} {no_gzip} --uint-bug '
-                            f' --out-dir {mergepath} {xmlfiles} ')
-
-                        rmfiles.append(xmlfiles)
 
                     # add ASCII operations
                     if 'txt' in fileformats:

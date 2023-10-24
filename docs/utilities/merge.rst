@@ -1,8 +1,8 @@
 Merge trigger files
 ###################
 
-In order to not end up with millions of small ``.root``, ``.hdf5``, and
-``.xml`` files each representing a
+In order to not end up with millions of small ``.root`` and ``.hdf5``
+files each representing a
 small chunk of processed time, the ``omicron-process`` workflow will merge
 contiguous files together using the ``omicron-merge-with-gaps`` command line utility.
 The purpose of this control utility is to detect any gaps in the expected list
@@ -20,8 +20,6 @@ merge te contiguous trigger files:
 +------------+-----------+-------------------------------------------------+
 | HDF5       | ``.hdf5`` | ``omicron-hdf5-merge``                          |
 +------------+-----------+-------------------------------------------------+
-| ligolw     | ``.xml `` | ``ligolw_add`` and ``gzip``                     |
-+------------+-----------+-------------------------------------------------+
 | Text       | ``.txt `` | ``?``                                           |
 +------------+-----------+-------------------------------------------------+
 
@@ -34,8 +32,6 @@ The ``omicron-hdf5-merge`` executable is a thin wrapper on top of
 the :meth:`omicron.io.merge_hdf5_files` method:
 
 .. automethod:: omicron.io.merge_hdf5_files
-
-The ``ligolw_add`` is an external program contained in the ``lscsoft-glue`` package.
 
 
 
@@ -51,8 +47,6 @@ message of each program:
 .. command-output:: omicron-root-merge --help
 
 .. command-output:: omicron-hdf5-merge --help
-
-.. command-output:: ligolw_add --help
 
 Reducing file count and disk space
 ##################################

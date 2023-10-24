@@ -28,7 +28,6 @@ from gwpy.table import EventTable
 prog_start_time = time.time()
 import argparse
 import glob
-import gzip
 import logging
 from .. import __version__
 from pathlib import Path
@@ -52,14 +51,12 @@ logger.setLevel(logging.DEBUG)
 def get_merge_cmd(ext):
     """
     Determine the command used to coalescew individual trigger files
-    :param str ext:  file extension: xml, h5 or root
+    :param str ext:  file extension: h5 or root
     """
     if ext == 'root':
         ret = 'omicron-root-merge'
     elif ext == 'h5':
         ret = 'omicron-hdf5-merge'
-    elif 'xml' in ext:
-        ret = 'ligolw_add'
     else:
         raise AttributeError(f'Unknown trigger file typr {ext}')
     ret_path = shutil.which(ret)
@@ -68,23 +65,7 @@ def get_merge_cmd(ext):
     return ret_path
 
 
-def is_old_ligolw(path):
-    flag = "ilwd:char"
-    if 'gz' in path.name:
-        with gzip.open(str(path.absolute()), 'r') as gz:
-            for line in gz:
-                if flag in str(line):
-                    return True
-            return False
-    else:
-        with path.open('r') as fp:
-            for line in fp:
-                if flag in line:
-                    return True
-            return False
-
-
-def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
+def do_merge(opath, curfiles, chan, stime, etime, ext):
     """
     Given the list of trigger files merge them all into a single file
     :param Path opath: output directory
@@ -93,7 +74,6 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
     :param int stime: Start GPS time for file list
     :param int etime: End GPS time
     :param str ext: trigger file extension, identifying file type
-    :param boolean skip_gzip: if type is xml do not compress merged file
     """
     outfile_path = opath / f'{chan}-{stime}-{etime - stime}.{ext}'
     ret = None
@@ -108,44 +88,20 @@ def do_merge(opath, curfiles, chan, stime, etime, ext, skip_gzip):
                 returncode = 0
         else:
             cmd = [get_merge_cmd(ext)]
-            if 'xml' in ext:    # also accept xml.gz
-                outfile_path = Path(str(outfile_path.absolute()).replace('.xml.gz', '.xml'))
-                cmd.append(f'--output={outfile_path}')
-                if is_old_ligolw(curfiles[0]):
-                    cmd.append('--ilwdchar-compat')
-                    logger.debug('Working with old ligolw format')
             for cur in curfiles:
                 cmd.append(str(cur.absolute()))
-            if 'xml' not in ext:
-                cmd.append(str(outfile_path.absolute()))
+            cmd.append(str(outfile_path.absolute()))
 
             logger.info(f'Merging {len(curfiles)} {ext} files into {outfile_path}')
             logger.debug(f'Merge command:\n {" ".join(cmd)}')
             result = subprocess.run(cmd, capture_output=True)
             returncode = result.returncode
-            err_old_fmt = b"invalid type 'ilwd:char'"
-            if returncode == 1 and 'xml' in ext and err_old_fmt in result.stderr:
-                # old ligolw format seems to be the problem
-                cmd = [get_merge_cmd(ext), '--ilwdchar-compat', f'--output={outfile_path}']
-                cmd.extend(curfiles)
-                logger.info(f'Retry merging {len(curfiles)} into {outfile_path} using old xml format')
-                result = subprocess.run(cmd, capture_output=True)
-                returncode = result.returncode
-
             if returncode == 0:
                 logger.debug(f'Merge of {ext} files succeeded')
             else:
                 logger.error(f'Return code:{returncode}, stderr:\n{result.stderr.decode("UTF-8")}')
 
-        if 'xml' in ext and returncode == 0 and not skip_gzip and outfile_path.suffix != '.gz':
-            logger.info(f'Compressing {outfile_path} with gzip')
-            res2 = subprocess.run(['gzip', '-9', '--force', outfile_path], capture_output=True)
-            if res2.returncode == 0:
-                ret = str(outfile_path.absolute()) + '.gz'
-            else:
-                logger.error(f'gzip error on {outfile_path}:\n {res2.stderr.decode("UTF-8")}')
-        else:
-            ret = str(outfile_path.absolute())
+        ret = str(outfile_path.absolute())
 
     return ret
 
@@ -163,11 +119,6 @@ def valid_file(path, uint_bug):
     if path.exists():
         if path.name.endswith('.h5'):
             table = EventTable.read(path, path='/triggers')
-        elif path.name.endswith('.xml.gz') or path.name.endswith('.xml'):
-            if uint_bug:
-                sed_cmd = ['sed', '-i', '', '-e', 's/uint_8s/int_8u/g', str(path.absolute())]
-                subprocess.run(sed_cmd)
-            table = EventTable.read(path, tablename='sngl_burst')
         elif path.name.endswith('.root'):
             # reading root files fail if there is a : in the name
             cwd = Path.cwd()
@@ -200,10 +151,6 @@ def main():
     parser.add_argument('-o', '--out-dir', help='Path to output directory for merged files')
     parser.add_argument('-n', '--no-merge', action='store_true', default=False,
                         help='Do not merge files, only copy to output indir')
-    parser.add_argument('--no-gzip', action='store_true', default=False,
-                        help='Do not compress the ligolw xml files')
-    parser.add_argument('--uint-bug', default=False, action='store_true',
-                        help='Fix problem XML files created by old version of Omicron beforew merging.')
     parser.add_argument('--file-list', help='File with list of input file paths, one per line')
     parser.add_argument('infiles', nargs='*', help='List of paths to files to merge or copy')
 
@@ -309,7 +256,7 @@ def main():
             curfiles.append(inpath)
         else:
             # break in continuity or start of a new metric day
-            outfile = do_merge(out_dir, curfiles, name, start_time, end_time, ext, args.no_gzip)
+            outfile = do_merge(out_dir, curfiles, name, start_time, end_time, ext)
             if outfile:
                 outfiles.append(outfile)
             else:
@@ -320,7 +267,7 @@ def main():
             end_time = etime
             curfiles = [inpath]
     if curfiles:
-        outfile = do_merge(out_dir, curfiles, name, start_time, end_time, ext, args.no_gzip)
+        outfile = do_merge(out_dir, curfiles, name, start_time, end_time, ext)
         if outfile:
             outfiles.append(outfile)
         else:

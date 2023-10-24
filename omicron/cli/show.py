@@ -116,7 +116,7 @@ def create_parser():
         '-t',
         '--file-type',
         default='xml.gz',
-        choices=['root', 'xml.gz', 'h5'],
+        choices=['root', 'h5'],
         help='type of files to find',
     )
 
@@ -236,25 +236,11 @@ def main(args=None):
     # -- read events ----------------------------------------------------------
 
     # set default columns
-    if not args.column and args.file_type == 'xml.gz':
-        args.column = ['peak', 'peak_frequency', 'snr']
-    elif not args.column:
+    if not args.column:
         args.column = ['time', 'frequency', 'snr']
 
     # read events (with simple filter on segments)
-    if args.file_type == 'xml.gz':
-        cname = args.channel.split(':', 1)[1]
-        events = EventTable.read(
-            cache,
-            format='ligolw',
-            tablename='sngl_burst',
-            selection=[
-                ('peak', in_segmentlist, segs),
-                'channel == "{0}"'.format(cname),
-            ],
-            columns=set(args.column + ['peak', 'channel']),
-        )
-    elif args.file_type == 'root':
+    if args.file_type == 'root':
         events = EventTable.read(
             cache,
             format='root',

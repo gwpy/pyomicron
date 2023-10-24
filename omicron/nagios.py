@@ -168,7 +168,7 @@ def find_archive_latency(channel, padding, frametype=None, state=None,
     -------
     latency : `dict`
         a `dict` of `(ext, latency)` pairs for each file extension stored in
-        the archive ('root', 'xml.gz')
+        the archive ('root', 'h5')
     """
     ifo = channel[:2]
     obs = ifo[0]
@@ -182,7 +182,7 @@ def find_archive_latency(channel, padding, frametype=None, state=None,
     target -= padding
     # find latest file
     latency = {}
-    for ext in ['root', 'xml.gz']:
+    for ext in ['root', 'h5']:
         f = find_latest_omicron_file(channel, base, ext=ext)
         end = file_segment(f)[1]
         latency[ext] = (int(target - end), f)
