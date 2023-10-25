@@ -22,9 +22,10 @@
 import os
 import subprocess
 import sys
-from distutils.spawn import find_executable
-from distutils.version import StrictVersion
 from pathlib import Path
+from shutil import which
+
+from packaging.version import Version
 
 from . import const
 
@@ -62,7 +63,7 @@ def find_omicron():
     RuntimeError
         if omicron cannot be found, or is not executable
     """
-    exe = find_executable(
+    exe = which(
         "omicron",
         path=os.pathsep.join((
             os.getenv("PATH", ""),
@@ -96,7 +97,7 @@ def get_omicron_version(executable=None):
     """  # noqa: E501
     executable = executable or find_omicron()
     try:
-        return StrictVersion(
+        return Version(
             subprocess.check_output([
                 executable,
                 "version",

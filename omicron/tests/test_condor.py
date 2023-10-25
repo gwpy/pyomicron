@@ -45,7 +45,7 @@ def mock_schedd_factory(jobs):
 
 # -- tests --------------------------------------------------------------------
 
-@mock.patch('omicron.condor.find_executable', return_value=sys.executable)
+@mock.patch('shutil.which', return_value=sys.executable)
 @mock.patch('omicron.condor.check_output',
             return_value=b'1 job(s) submitted to cluster 12345')
 def test_submit_dag(shell, which):
@@ -53,7 +53,7 @@ def test_submit_dag(shell, which):
     assert dagid == 12345
 
 
-@mock.patch('omicron.condor.find_executable', return_value=sys.executable)
+@mock.patch('shutil.which', return_value=sys.executable)
 @mock.patch('omicron.condor.check_output',
             return_value=b'1 job(s) submitted to cluster 12345')
 def test_submit_dag_append(shell, which):
@@ -62,7 +62,7 @@ def test_submit_dag_append(shell, which):
                               '+OmicronDAGMan="GW"', 'test.dag'])
 
 
-@mock.patch('omicron.condor.find_executable', return_value=sys.executable)
+@mock.patch('shutil.which', return_value=sys.executable)
 @mock.patch('omicron.condor.check_output', return_value=b'Something else')
 def test_submit_dag_error(shell, which):
     with pytest.raises(AttributeError) as exc:

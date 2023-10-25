@@ -25,10 +25,10 @@ import re
 import time
 import warnings
 from datetime import datetime
-from distutils.spawn import find_executable
 from glob import glob
 from getpass import getuser
 from pathlib import Path
+from shutil import which
 from subprocess import (check_output, CalledProcessError)
 from time import sleep
 
@@ -96,7 +96,7 @@ def submit_dag(dagfile, *arguments, **options):
     subprocess.CalledProcessError
         if the call to `condor_submit_dag` fails for some reason
     """
-    cmd = [find_executable('condor_submit_dag')] + list(arguments)
+    cmd = [which("condor_submit_dag") or "condor_submit_dag"] + list(arguments)
     for opt, val in options.items():
         cmd.extend([opt, val])
     cmd.append(dagfile)
