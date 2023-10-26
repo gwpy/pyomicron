@@ -110,6 +110,7 @@ def test_from_channel_list_config():
     # assert tuple(pars.getfloats('PARAMETER', 'FREQUENCYRANGE')) == (10., 100.)
     pass
 
+
 def test_read_ini(pars):
     cp = ConfigParser()
     section = 'DATA'
