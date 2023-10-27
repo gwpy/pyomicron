@@ -181,7 +181,7 @@ def valid_file(path, uint_bug):
             os.remove(path)
         else:
             ret = True
-        logger.debug(f'valid_file: {ret}  {path.name} ({ntrig}), took {time.time()-vf_strt:.2f}')
+        logger.debug(f'valid_file: {ret}  {path.name} ({ntrig}), took {time.time() - vf_strt:.2f}')
     return ret
 
 
