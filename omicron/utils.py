@@ -24,6 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 from shutil import which
+from tempfile import gettempdir
 
 from packaging.version import Version
 
@@ -98,10 +99,10 @@ def get_omicron_version(executable=None):
     executable = executable or find_omicron()
     try:
         return Version(
-            subprocess.check_output([
-                executable,
-                "version",
-            ]).decode("utf-8").rsplit(maxsplit=1)[-1],
+            subprocess.check_output(
+                [executable, "version"],
+                env={"OMICRON_HTML": gettempdir()},
+            ).decode("utf-8").rsplit(maxsplit=1)[-1],
         )
     except subprocess.CalledProcessError as ex:
         raise RuntimeError(f"failed to determine omicron version from executable: {str(ex)}")
