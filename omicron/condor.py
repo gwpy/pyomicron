@@ -560,7 +560,6 @@ class OmicronProcessJob(pipeline.CondorDAGJob):
                 logdir, '%s-%s.err' % (tag, self.logtag)))
             self.set_stdout_file(os.path.join(
                 logdir, '%s-%s.out' % (tag, self.logtag)))
-        cmds.setdefault('getenv', 'True')
         for key, val in cmds.items():
             if hasattr(self, 'set_%s' % key.lower()):
                 getattr(self, 'set_%s' % key.lower())(val)
