@@ -263,7 +263,7 @@ def main(args=None):
     outdir.mkdir(exist_ok=True, parents=True)
     tag = args.latency_archive_tag.format(group=args.group)
 
-    filetypes = ['h5', 'xml.gz', 'root']
+    filetypes = ['h5', 'root']
 
     logger.debug("Set output directory to %s" % outdir)
     logger.debug(

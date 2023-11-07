@@ -53,7 +53,7 @@ class OmicronParameters(configparser.ConfigParser):
             'DIRECTORY': os.path.curdir,
             'PRODUCTS': 'triggers',
             'VERBOSITY': 1,
-            'FORMAT': 'root xml hdf5',
+            'FORMAT': 'root hdf5',
             'NTRIGGERMAX': 1e7,
         },
         'DATA': {
