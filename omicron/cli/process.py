@@ -331,7 +331,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
     )
     condorg.add_argument(
         '--condor-accounting-group',
-        default='ligo.prod.o3.detchar.transient.omicron',
+        default='ligo.prod.o4.detchar.transient.omicron',
         help='accounting_group for condor submission on the LIGO '
         'Data Grid (default: %(default)s)',
     )
@@ -345,7 +345,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
     )
     condorg.add_argument(
         '--condor-request-disk',
-        default='1G',
+        default='50G',
         help='Required LIGO argument: local disk use (default: %(default)s)',
     )
     condorg.add_argument(
@@ -370,7 +370,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         '--dagman-option',
         action='append',
         type=str,
-        default=['force'],
+        default=['force', '-import_env'],
         metavar="\"opt | opt=value\"",
         help="Extra options to pass to condor_submit_dag as "
              "\"-{opt} [{value}]\". "
