@@ -94,7 +94,6 @@ def test_validate_parameters(pars):
 
 
 def test_from_channel_list_config():
-
     cp = ConfigParser()
     section = 'test'
     cp.add_section(section)
@@ -107,7 +106,6 @@ def test_from_channel_list_config():
     assert pars.getlist('DATA', 'CHANNELS') == ['X1:TEST-CHANNEL',
                                                 'X1:TEST-CHANNEL_2']
     assert tuple(pars.getfloats('PARAMETER', 'FREQUENCYRANGE')) == (10., 100.)
-
 
 
 def test_read_ini(pars):
