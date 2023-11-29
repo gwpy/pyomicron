@@ -867,7 +867,7 @@ def main(args=None):
     # segment, or long enough to process safely)
     if truncate and abs(lastseg) < chunkdur * 2:
         logger.info(
-            "The final segment is too short, " f'Minimum length is {int(chunkdur*2)} '
+            "The final segment is too short, " f'Minimum length is {int(chunkdur * 2)} '
             "but ends at the limit of "
             "available data, presumably this is an active segment. It "
             "will be removed so that it can be processed properly later",
@@ -1460,7 +1460,7 @@ def main(args=None):
     clean_tempfiles(tempfiles)
 
     # and exit
-    logger.info(f"--- Processing complete. Elapsed: {time.time()-prog_start} seconds ----------------")
+    logger.info(f"--- Processing complete. Elapsed: {time.time() - prog_start} seconds ----------------")
 
 
 if __name__ == "__main__":
