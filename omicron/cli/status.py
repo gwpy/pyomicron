@@ -862,4 +862,4 @@ def main(args=None):
 if __name__ == "__main__":
     main()
     if logger:
-        logger.info(f'Run time: {(time.time()-prog_start):.1f} seconds')
+        logger.info(f'Run time: {(time.time() - prog_start):.1f} seconds')

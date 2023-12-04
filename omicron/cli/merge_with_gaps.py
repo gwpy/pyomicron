@@ -181,7 +181,7 @@ def valid_file(path, uint_bug):
             os.remove(path)
         else:
             ret = True
-        logger.debug(f'valid_file: {ret}  {path.name} ({ntrig}), took {time.time()-vf_strt:.2f}')
+        logger.debug(f'valid_file: {ret}  {path.name} ({ntrig}), took {time.time() - vf_strt:.2f}')
     return ret
 
 
@@ -203,7 +203,7 @@ def main():
     parser.add_argument('--no-gzip', action='store_true', default=False,
                         help='Do not compress the ligolw xml files')
     parser.add_argument('--uint-bug', default=False, action='store_true',
-                        help='Fix problem XML files created by old version of Omicron beforew merging.')
+                        help='Fix problem XML files created by old version of Omicron before merging.')
     parser.add_argument('--file-list', help='File with list of input file paths, one per line')
     parser.add_argument('infiles', nargs='*', help='List of paths to files to merge or copy')
 
