@@ -65,7 +65,7 @@ class OmicronParameters(configparser.ConfigParser):
         if version is None:
             try:
                 version = utils.get_omicron_version()
-            except KeyError:
+            except (KeyError, RuntimeError):
                 version = utils.OmicronVersion(const.OMICRON_VERSION)
         self.version = version
         self._set_defaults()

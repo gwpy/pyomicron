@@ -44,4 +44,4 @@ def test_logger():
 
     # test that the formatter prints the correct thing
     outhandler = logger.handlers[0]
-    assert re.match('.*TEST.*\\d{10}.*DEBUG.*FILE.*test message', outhandler.format(record))
+    assert re.match('.*TEST.*\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}.*DEBUG.*FILE.*test message', outhandler.format(record))

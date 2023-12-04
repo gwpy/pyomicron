@@ -77,8 +77,9 @@ class MaxLevelFilter(logging.Filter):
 class Logger(logging.Logger):
     """`~logging.Logger` with a nice format
     """
-    FORMAT = ('[{bold}%(name)s{reset} %(gpstime)d] %(levelname)+19s %(filename)s:%(lineno)d: '
+    FORMAT = ('[{bold}%(name)s{reset} %(asctime)s] %(levelname)+19s %(filename)s:%(lineno)d: '
               '%(message)s'.format(bold=BOLD_SEQ, reset=RESET_SEQ))
+    log_file_date_format = '%m-%d %H:%M:%S'
 
     def __init__(self, name, level=logging.DEBUG):
         try:
@@ -87,7 +88,7 @@ class Logger(logging.Logger):
             logging.Logger.__init__(self, name, level=level)
 
         # set up handlers for WARNING and above to go to stderr
-        colorformatter = ColoredFormatter(self.FORMAT)
+        colorformatter = ColoredFormatter(self.FORMAT, datefmt=self.log_file_date_format)
         stdouthandler = logging.StreamHandler(sys.stdout)
         stdouthandler.setFormatter(colorformatter)
         stderrhandler = logging.StreamHandler(sys.stderr)

@@ -271,10 +271,13 @@ https://pyomicron.readthedocs.io/en/latest/"""
         '-N',
         '--max-channels-per-job',
         type=int,
-        default=10,
+        default=20,
         help='maximum number of channels to process in a single '
         'condor job (default: %(default)s)',
     )
+    procg.add_argument('--max-online-lookback', type=int, default=1200,
+                       help='With no immediately previous run, or one that was long ago this is the max time of an '
+                            'online job. Default: %(default)d')
     # max concurrent omicron jobs
     procg.add_argument('--max-concurrent', default=10, type=int,
                        help='Max omicron jobs at one time [%(default)s]')
@@ -331,7 +334,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
     )
     condorg.add_argument(
         '--condor-accounting-group',
-        default='ligo.prod.o3.detchar.transient.omicron',
+        default='ligo.prod.o4.detchar.transient.omicron',
         help='accounting_group for condor submission on the LIGO '
         'Data Grid (default: %(default)s)',
     )
@@ -345,7 +348,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
     )
     condorg.add_argument(
         '--condor-request-disk',
-        default='1G',
+        default='50G',
         help='Required LIGO argument: local disk use (default: %(default)s)',
     )
     condorg.add_argument(
@@ -370,7 +373,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         '--dagman-option',
         action='append',
         type=str,
-        default=['force'],
+        default=['force', '-import_env'],
         metavar="\"opt | opt=value\"",
         help="Extra options to pass to condor_submit_dag as "
              "\"-{opt} [{value}]\". "
@@ -472,7 +475,7 @@ def main(args=None):
 
     logger.debug("Command line args:")
     for arg in vars(args):
-        logger.debug(f'{arg} = {str(getattr(args, arg))}')
+        logger.debug(f'    {arg} = {str(getattr(args, arg))}')
 
     # validate command line arguments
     if args.ifo is None:
@@ -644,9 +647,12 @@ def main(args=None):
                     pass
 
     if statechannel:
-        logger.debug("State channel = %s" % statechannel)
-        logger.debug("State bits = %s" % ', '.join(map(str, statebits)))
-        logger.debug("State frametype = %s" % stateft)
+        logger.debug(f"State channel {statechannel}")
+        if statebits == 'guardian':
+            logger.debug(f"State bits {statebits}")
+        else:
+            logger.debug("State bits = %s" % ', '.join(map(str, statebits)))
+        logger.debug(f"State frametype {stateft}")
 
     # parse padding for state segments
     if statechannel or stateflag:
@@ -674,7 +680,7 @@ def main(args=None):
     # -- set directories ------------------------------------------------------
 
     rundir.mkdir(exist_ok=True, parents=True)
-    logger.info(f"Using run directory\n{rundir}")
+    logger.info(f"Using run directory: {rundir}")
 
     cachedir = rundir / "cache"
     condir = rundir / "condor"
@@ -723,26 +729,31 @@ def main(args=None):
 
     segfile = str(rundir / "segments.txt")
     keepfiles.append(segfile)
+    max_lookback = args.max_online_lookback
 
     if newdag and online:
         # get limit of available data (allowing for padding)
         end = data.get_latest_data_gps(ifo, frametype) - padding
-
+        now = tconvert()
+        earliest_online = now - max_lookback
         try:  # start from where we got to last time
-            start = segments.get_last_run_segment(segfile)[1]
+            last_run_segment = segments.get_last_run_segment(segfile)
+            start = last_run_segment[1]
         except IOError:  # otherwise start with a sensible amount of data
             if args.use_dev_shm:  # process one chunk
                 logger.debug("No online segment record, starting with "
                              "%s seconds" % chunkdur)
                 start = end - chunkdur + padding
-            else:  # process the last 4000 seconds (arbitrarily)
-                logger.debug("No online segment record, starting with "
-                             "4000 seconds")
-                start = end - 4000
+            else:  # process the last requested seconds (arbitrarily)
+                logger.debug(f"No online segment record, starting with {max_lookback} seconds ago, {earliest_online}")
+                start = end - max_lookback
         else:
-            logger.debug("Online segment record recovered")
+            logger.debug(f"Online segment record recovered: {last_run_segment[0]} - {last_run_segment[1]}")
     elif online:
         start, end = segments.get_last_run_segment(segfile)
+        logger.debug(f"Online segment record recovered: {start} - {end}")
+        if end - start > max_lookback:
+            start = end - max_lookback
     else:
         start, end = args.gps
         start = int(start)
@@ -785,9 +796,11 @@ def main(args=None):
     if (online and statechannel) or (statechannel and not stateflag) or (
             statechannel and args.no_segdb):
         logger.info(f'Finding segments for relevant state...  from:{datastart} length: {dataduration}s')
+        logger.debug(f'For segment finding: online: {online}, statechannel: {statechannel}, '
+                     f'stateflag: {stateflag} args.no_segdb: {args.no_segdb}')
         seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
-            logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend}')
+            logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend} ')
             segs = segments.get_guardian_segments(
                 statechannel,
                 stateft,
@@ -854,7 +867,7 @@ def main(args=None):
     # segment, or long enough to process safely)
     if truncate and abs(lastseg) < chunkdur * 2:
         logger.info(
-            "The final segment is too short, " f'Minimum length is {int(chunkdur*2)} '
+            "The final segment is too short, " f'Minimum length is {int(chunkdur * 2)} '
             "but ends at the limit of "
             "available data, presumably this is an active segment. It "
             "will be removed so that it can be processed properly later",
@@ -1447,7 +1460,7 @@ def main(args=None):
     clean_tempfiles(tempfiles)
 
     # and exit
-    logger.info(f"--- Processing complete. Elapsed: {time.time()-prog_start} seconds ----------------")
+    logger.info(f"--- Processing complete. Elapsed: {time.time() - prog_start} seconds ----------------")
 
 
 if __name__ == "__main__":
