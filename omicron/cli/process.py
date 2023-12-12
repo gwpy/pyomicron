@@ -279,8 +279,8 @@ https://pyomicron.readthedocs.io/en/latest/"""
                        help='With no immediately previous run, or one that was long ago this is the max time of an '
                             'online job. Default: %(default)d')
     # max concurrent omicron jobs
-    procg.add_argument('--max-concurrent', default=10, type=int,
-                       help='Max omicron jobs at one time [%(default)s]')
+    procg.add_argument('--max-concurrent', default=64, type=int,
+                       help='Max omicron jobs run at one time [%(default)s]')
     procg.add_argument(
         '-x',
         '--exclude-channel',
@@ -1246,24 +1246,8 @@ def main(args=None):
                         print('\n'.join(operations), file=f)
                     if newdag:
                         script.chmod(0o755)
-    parent_jobs = list()
-    child_jobs = list()
-    maxcon = args.max_concurrent
-    for j in omicron_nodes:
-        if len(parent_jobs) < maxcon:
-            parent_jobs.append(j)
-        elif len(child_jobs) < maxcon:
-            child_jobs.append(j)
-        else:
-            for pj in parent_jobs:
-                for cj in child_jobs:
-                    cj.add_parent(pj)
-            parent_jobs = child_jobs
-            child_jobs = [j]
-    if len(child_jobs) > 0 and len(parent_jobs) > 0:
-        for pj in parent_jobs:
-            for cj in child_jobs:
-                cj.add_parent(pj)
+
+    dag.add_maxjobs_category('omicron', args.max_concurrent)
 
     # set 'strict' option for Omicron
     # this is done after the nodes are written so that 'strict' is last in
