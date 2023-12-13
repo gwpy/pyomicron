@@ -59,6 +59,9 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 
 """
 import time
+
+from omicron.utils import gps_to_hr
+
 prog_start = time.time()
 
 from gwpy.segments import SegmentList, Segment
@@ -75,8 +78,6 @@ from pathlib import Path
 from subprocess import check_call
 from tempfile import gettempdir
 from time import sleep
-
-import gwpy.time
 from glue import pipeline
 
 from gwpy.io.cache import read_cache
@@ -739,21 +740,32 @@ def main(args=None):
         try:  # start from where we got to last time
             last_run_segment = segments.get_last_run_segment(segfile)
             start = last_run_segment[1]
+            if start < earliest_online:
+                logger.warning(f'Segments.txt produced a start time for this run before max-lookback {max_lookback}'
+                               f'Found {gps_to_hr(start)} earliest is {gps_to_hr(earliest_online)}')
+                start = earliest_online
+            else:
+                logger.debug(f"Online segment record recovered: {gps_to_hr(last_run_segment[0])} - "
+                             f"{gps_to_hr(last_run_segment[1])}")
+
         except IOError:  # otherwise start with a sensible amount of data
             if args.use_dev_shm:  # process one chunk
                 logger.debug("No online segment record, starting with "
                              "%s seconds" % chunkdur)
                 start = end - chunkdur + padding
             else:  # process the last requested seconds (arbitrarily)
-                logger.debug(f"No online segment record, starting with {max_lookback} seconds ago, {earliest_online}")
-                start = end - max_lookback
-        else:
-            logger.debug(f"Online segment record recovered: {last_run_segment[0]} - {last_run_segment[1]}")
+                logger.debug(f"No online segment record, starting with {max_lookback} seconds ago, "
+                             f"{gps_to_hr(earliest_online)}")
+                start = earliest_online
+
     elif online:
         start, end = segments.get_last_run_segment(segfile)
-        logger.debug(f"Online segment record recovered: {start} - {end}")
         if end - start > max_lookback:
+
             start = end - max_lookback
+        else:
+            logger.debug(f"Online segment record recovered: {gps_to_hr(start)} - {gps_to_hr(end)}")
+
     else:
         start, end = args.gps
         start = int(start)
@@ -764,11 +776,9 @@ def main(args=None):
     dataend = end + padding
     dataduration = dataend - datastart
 
-    start_dt = gwpy.time.tconvert(datastart).strftime('%x %X')
-    end_dt = gwpy.time.tconvert(dataend).strftime('%x %X')
-    logger.info(f'Processing segment determined as: {datastart:d} - {dataend:d} : {start_dt} - {end_dt}')
+    logger.info(f'Processing segment determined as: {gps_to_hr(datastart)} - {gps_to_hr(dataend)}')
     dur_str = '{} {}'.format(int(dataduration / 86400) if dataduration > 86400 else '',
-                             time.strftime('%H:%M:%S', time.gmtime(dataduration)))
+                             time.strftime('%H:%M:%S', time.gmtime(int(dataduration))))
     logger.info(f"Duration = {dataduration} - {dur_str}")
 
     span = (start, end)
@@ -800,7 +810,7 @@ def main(args=None):
                      f'stateflag: {stateflag} args.no_segdb: {args.no_segdb}')
         seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
-            logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend} ')
+            logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend}: {(dataend-datastart)} seconds')
             segs = segments.get_guardian_segments(
                 statechannel,
                 stateft,
