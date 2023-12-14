@@ -737,6 +737,7 @@ def main(args=None):
     if newdag and online:
         # get limit of available data (allowing for padding)
         end = data.get_latest_data_gps(ifo, frametype) - padding
+        logger.info(f'Last available frame data: {gps_to_hr(end)}')
         now = tconvert()
         earliest_online = now - max_lookback
         try:  # start from where we got to last time
@@ -746,6 +747,10 @@ def main(args=None):
                 logger.warning(f'Segments.txt produced a start time for this run before max-lookback {max_lookback}\n'
                                f'  Found {gps_to_hr(start)} earliest is {gps_to_hr(earliest_online)}')
                 start = earliest_online
+                if end < start:
+                    # this happens when the available frames end before the max lookbak period
+                    logger.warning(f'Available data ends {gps_to_hr(end)} before lookback starts'
+                                   f' {gps_to_hr(earliest_online)}')
             else:
                 logger.debug(f"Online segment record recovered: {gps_to_hr(last_run_segment[0])} - "
                              f"{gps_to_hr(last_run_segment[1])}")
@@ -763,7 +768,6 @@ def main(args=None):
     elif online:
         start, end = segments.get_last_run_segment(segfile)
         if end - start > max_lookback:
-
             start = end - max_lookback
         else:
             logger.debug(f"Online segment record recovered: {gps_to_hr(start)} - {gps_to_hr(end)}")
@@ -792,8 +796,10 @@ def main(args=None):
 
     # validate span is long enough
     if dataduration < minduration and online:
-        logger.info("Segment is too short (%d < %d), please try again later"
-                    % (duration, minduration))
+        if dataduration < 0:
+            logger.info(f'Frame data is not available for interval {gps_to_hr(start)} to {gps_to_hr(end)}')
+        else:
+            logger.info(f"Segment is too short ({duration} < {minduration}), please try again later")
         clean_dirs(run_dir_list)
         clean_exit(0, tempfiles)
     elif dataduration < minduration:
