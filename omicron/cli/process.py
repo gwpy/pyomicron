@@ -506,6 +506,8 @@ def main(args=None):
     ifo = args.ifo
     group = args.group
     online = args.gps is None
+    if online:
+        logger.info('Online process. gps start, end determined automatically')
 
     # format file-tag as underscore-delimited upper-case string
     filetag = args.file_tag
@@ -741,8 +743,8 @@ def main(args=None):
             last_run_segment = segments.get_last_run_segment(segfile)
             start = last_run_segment[1]
             if start < earliest_online:
-                logger.warning(f'Segments.txt produced a start time for this run before max-lookback {max_lookback}'
-                               f'Found {gps_to_hr(start)} earliest is {gps_to_hr(earliest_online)}')
+                logger.warning(f'Segments.txt produced a start time for this run before max-lookback {max_lookback}\n'
+                               f'  Found {gps_to_hr(start)} earliest is {gps_to_hr(earliest_online)}')
                 start = earliest_online
             else:
                 logger.debug(f"Online segment record recovered: {gps_to_hr(last_run_segment[0])} - "
@@ -810,7 +812,8 @@ def main(args=None):
                      f'stateflag: {stateflag} args.no_segdb: {args.no_segdb}')
         seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
-            logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend}: {(dataend-datastart)} seconds')
+            logger.debug(f'Using guardian for {statechannel}: {gps_to_hr(datastart)}-{gps_to_hr(dataend)}:'
+                         f' {(dataend-datastart)} seconds')
             segs = segments.get_guardian_segments(
                 statechannel,
                 stateft,
@@ -853,7 +856,7 @@ def main(args=None):
     if len(segs):
         logger.info("State/frame segments recovered as")
         for seg in segs:
-            logger.info("    %d %d [%d]" % (seg[0], seg[1], abs(seg)))
+            logger.info(f"    {gps_to_hr(seg[0])} {gps_to_hr(seg[1])} [{abs(seg)}]")
         logger.info("Duration = %d seconds" % abs(segs))
 
     # if running online, we want to avoid processing up to the extent of
@@ -901,7 +904,7 @@ def main(args=None):
             step = chunkdur - overlap
         segs[-1] = type(segs[-1])(lastseg[0], t)
         dataend = segs[-1][1]
-        logger.info("This analysis will now run to %d" % dataend)
+        logger.info(f"This analysis will now run to  {gps_to_hr(dataend)}")
 
     # recalculate the processing segment
     dataspan = type(segs)([segments.Segment(datastart, dataend)])
@@ -996,7 +999,7 @@ def main(args=None):
 
     logger.info("This will output triggers for")
     for seg in trigsegs:
-        logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
+        logger.info(f"    {gps_to_hr(seg[0])} {gps_to_hr(seg[1])} {abs(seg)}")
     logger.info(f"Duration = {abs(trigsegs):d} seconds")
 
     # -- config omicron config directory --------------------------------------
