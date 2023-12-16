@@ -276,7 +276,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         help='maximum number of channels to process in a single '
         'condor job (default: %(default)s)',
     )
-    procg.add_argument('--max-online-lookback', type=int, default=1200,
+    procg.add_argument('--max-online-lookback', type=int, default=40 * 60,
                        help='With no immediately previous run, or one that was long ago this is the max time of an '
                             'online job. Default: %(default)d')
     # max concurrent omicron jobs
