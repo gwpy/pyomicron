@@ -60,7 +60,7 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 """
 import time
 
-from omicron.utils import gps_to_hr
+from omicron.utils import gps_to_hr, deltat_to_hr
 
 prog_start = time.time()
 
@@ -276,7 +276,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         help='maximum number of channels to process in a single '
         'condor job (default: %(default)s)',
     )
-    procg.add_argument('--max-online-lookback', type=int, default=40 * 60,
+    procg.add_argument('--max-online-lookback', type=int, default=60 * 60,
                        help='With no immediately previous run, or one that was long ago this is the max time of an '
                             'online job. Default: %(default)d')
     # max concurrent omicron jobs
@@ -733,12 +733,14 @@ def main(args=None):
     segfile = str(rundir / "segments.txt")
     keepfiles.append(segfile)
     max_lookback = args.max_online_lookback
+    now = tconvert()
 
     if newdag and online:
         # get limit of available data (allowing for padding)
         end = data.get_latest_data_gps(ifo, frametype) - padding
-        logger.info(f'Last available frame data: {gps_to_hr(end)}')
-        now = tconvert()
+        frame_age = deltat_to_hr(int(now - end))
+        logger.info(f'Last available frame data: {gps_to_hr(end)} age: frame_age')
+
         earliest_online = now - max_lookback
         try:  # start from where we got to last time
             last_run_segment = segments.get_last_run_segment(segfile)
@@ -783,8 +785,7 @@ def main(args=None):
     dataduration = dataend - datastart
 
     logger.info(f'Processing segment determined as: {gps_to_hr(datastart)} - {gps_to_hr(dataend)}')
-    dur_str = '{} {}'.format(int(dataduration / 86400) if dataduration > 86400 else '',
-                             time.strftime('%H:%M:%S', time.gmtime(int(dataduration))))
+    dur_str = deltat_to_hr(dataduration)
     logger.info(f"Duration = {dataduration} - {dur_str}")
 
     span = (start, end)
@@ -996,10 +997,14 @@ def main(args=None):
     trigsegs = type(segs)(type(s)(*s) for s in segs).contract(padding)
 
     # display segments
-    logger.info("Final data segments selected as")
-    for seg in segs:
-        logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
-    logger.info(f"Duration = {abs(segs):d} seconds")
+    if len(segs) == 0:
+        logger.info('No analyzable segments found. Exiting.')
+        exit(0)
+    else:
+        logger.info("Final data segments selected as")
+        for seg in segs:
+            logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
+        logger.info(f"Duration = {abs(segs):d} seconds")
 
     span = type(trigsegs)([trigsegs.extent()])
 

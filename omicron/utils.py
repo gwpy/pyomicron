@@ -22,6 +22,7 @@
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from shutil import which
 from tempfile import gettempdir
@@ -130,4 +131,18 @@ def gps_to_hr(gps):
     dt = from_gps(int(gps))
     dt_str = dt.strftime('%x %X')
     ret = f'{int(gps)} ({dt_str})'
+    return ret
+
+def deltat_to_hr(dt):
+    """
+    Convert a time in secos to human readable
+    @param int dt: delta t
+    @return str: <sec> [<day>] HH:MM:SS
+    """
+    ret = f'{dt}'
+    if dt > 0:
+        day = f'{int(dt)/86400}' if dt >= 86400 else ''
+        time_str = time.strftime('%H:%M:%S', time.gmtime(int(dt)))
+        ret += ' - ' + time_str
+
     return ret
