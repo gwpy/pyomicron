@@ -133,6 +133,7 @@ def gps_to_hr(gps):
     ret = f'{int(gps)} ({dt_str})'
     return ret
 
+
 def deltat_to_hr(dt):
     """
     Convert a time in secos to human readable
@@ -143,6 +144,6 @@ def deltat_to_hr(dt):
     if dt > 0:
         day = f'{int(dt)/86400}' if dt >= 86400 else ''
         time_str = time.strftime('%H:%M:%S', time.gmtime(int(dt)))
-        ret += ' - ' + time_str
+        ret += f' - {day}  {time_str}'
 
     return ret

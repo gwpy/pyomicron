@@ -739,7 +739,7 @@ def main(args=None):
         # get limit of available data (allowing for padding)
         end = data.get_latest_data_gps(ifo, frametype) - padding
         frame_age = deltat_to_hr(int(now - end))
-        logger.info(f'Last available frame data: {gps_to_hr(end)} age: frame_age')
+        logger.info(f'Last available frame data: {gps_to_hr(end)} age: {frame_age}')
 
         earliest_online = now - max_lookback
         try:  # start from where we got to last time
@@ -842,7 +842,8 @@ def main(args=None):
 
     # get segments from segment database
     elif stateflag:
-        logger.info(f'Querying segments for relevant state: {stateflag} from:{datastart} length: {dataduration}s')
+        logger.info(f'Querying segment database for relevant state: {stateflag} from:{datastart} length:'
+                    f' {dataduration}s {deltat_to_hr(dataduration)}')
         seg_qry_strt = time.time()
         segs = segments.query_state_segments(stateflag, datastart, dataend,
                                              pad=statepad)
@@ -850,6 +851,7 @@ def main(args=None):
 
     # Get segments from frame cache
     elif args.cache_file:
+        logger.info('Get segments from cache')
         cache = read_cache(str(args.cache_file))
         cache_segs = segments.cache_segments(cache)
         srch_span = SegmentList([Segment(datastart, dataend)])
@@ -857,7 +859,10 @@ def main(args=None):
 
     # get segments from frame availability
     else:
+        logger.info('Get segments from frame availability')
+        fa_qry_strt = time.time()
         segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
+        logger.info(f'Frame availability query took {time.time() - fa_qry_strt}s')
 
     # print frame segments recovered
     if len(segs):
