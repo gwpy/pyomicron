@@ -820,7 +820,7 @@ def main(args=None):
         seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
             logger.debug(f'Using guardian for {statechannel}: {gps_to_hr(datastart)}-{gps_to_hr(dataend)}:'
-                         f' {(dataend-datastart)} seconds')
+                         f' {(dataend - datastart)} seconds')
             segs = segments.get_guardian_segments(
                 statechannel,
                 stateft,

@@ -142,7 +142,7 @@ def deltat_to_hr(dt):
     """
     ret = f'{dt}'
     if dt > 0:
-        day = f'{int(dt)/86400}' if dt >= 86400 else ''
+        day = f'{int(dt) / 86400}' if dt >= 86400 else ''
         time_str = time.strftime('%H:%M:%S', time.gmtime(int(dt)))
         ret += f' - {day}  {time_str}'
 
