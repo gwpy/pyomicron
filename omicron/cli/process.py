@@ -751,8 +751,9 @@ def main(args=None):
                 start = earliest_online
                 if end < start:
                     # this happens when the available frames end before the max lookbak period
-                    logger.warning(f'Available data ends {gps_to_hr(end)} before lookback starts'
+                    logger.warning(f'Available data ends {gps_to_hr(end)} before lookback limit'
                                    f' {gps_to_hr(earliest_online)}')
+                    exit(0)
             else:
                 logger.debug(f"Online segment record recovered: {gps_to_hr(last_run_segment[0])} - "
                              f"{gps_to_hr(last_run_segment[1])}")
@@ -1008,15 +1009,15 @@ def main(args=None):
     else:
         logger.info("Final data segments selected as")
         for seg in segs:
-            logger.info(f"    {gps_to_hr(seg[0])} {gps_to_hr(seg[1])} {abs(seg):d}")
-        logger.info(f"Duration = {abs(segs):d} seconds")
+            logger.info(f"    {gps_to_hr(seg[0])} {gps_to_hr(seg[1])} {abs(seg)}")
+        logger.info(f"Duration = {abs(segs)} seconds")
 
     span = type(trigsegs)([trigsegs.extent()])
 
     logger.info("This will output triggers for")
     for seg in trigsegs:
         logger.info(f"    {gps_to_hr(seg[0])} {gps_to_hr(seg[1])} {abs(seg)}")
-    logger.info(f"Duration = {abs(trigsegs):d} seconds")
+    logger.info(f"Duration = {abs(trigsegs)} seconds")
 
     # -- config omicron config directory --------------------------------------
 
