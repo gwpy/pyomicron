@@ -1008,7 +1008,7 @@ def main(args=None):
     else:
         logger.info("Final data segments selected as")
         for seg in segs:
-            logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
+            logger.info(f"    {gps_to_hr(seg[0])} {gps_to_hr(seg[1])} {abs(seg):d}")
         logger.info(f"Duration = {abs(segs):d} seconds")
 
     span = type(trigsegs)([trigsegs.extent()])
