@@ -59,6 +59,7 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 
 """
 import time
+import traceback
 
 from omicron.utils import gps_to_hr, deltat_to_hr
 
@@ -805,11 +806,10 @@ def main(args=None):
         clean_dirs(run_dir_list)
         clean_exit(0, tempfiles)
     elif dataduration < minduration:
-        raise ValueError(
-            "Segment [%d, %d) is too short (%d < %d), please "
-            "extend the segment, or shorten the timing parameters."
-            % (start, end, duration, chunkdur - padding * 2),
-        )
+        ermsg = f'Segment [{start}, {end}) is too short ({duration} < {minduration}), ' \
+                f'please; extend the segment, or shorten the timing parameters.'
+        logger.critical(ermsg)
+        raise ValueError(ermsg)
 
     # -- find run segments
     # get segments from state vector
@@ -1478,4 +1478,8 @@ def main(args=None):
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (ValueError, TypeError, OSError, NameError, ArithmeticError, RuntimeError) as ex:
+        print(ex, file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
