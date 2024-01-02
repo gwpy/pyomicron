@@ -1483,3 +1483,6 @@ if __name__ == "__main__":
     except (ValueError, TypeError, OSError, NameError, ArithmeticError, RuntimeError) as ex:
         print(ex, file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
+    except Exception as ex:
+        print(f'Unknown exception {ex}', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
