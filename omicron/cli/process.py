@@ -1474,7 +1474,7 @@ def main(args=None):
     clean_tempfiles(tempfiles)
 
     # and exit
-    logger.info(f"--- Processing complete. Elapsed: {time.time() - prog_start} seconds ----------------")
+    logger.info(f"--- Processing complete. Elapsed: {time.time() - prog_start:.1f} seconds ----------------")
 
 
 if __name__ == "__main__":
@@ -1483,6 +1483,8 @@ if __name__ == "__main__":
     except (ValueError, TypeError, OSError, NameError, ArithmeticError, RuntimeError) as ex:
         print(ex, file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
+        exit(10)
     except Exception as ex:
         print(f'Unknown exception {ex}', file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
+        exit(11)
