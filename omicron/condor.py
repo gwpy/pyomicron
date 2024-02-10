@@ -424,8 +424,7 @@ def find_dagman_id(group, classad="OmicronDAGMan", user=getuser(),
                    **constraints)
     clusterid = job['ClusterId']
     if get_job_status(job) >= 3:
-        raise RuntimeError("DAGMan cluster %d found, but in state %r"
-                           % JOB_STATUS[job['JobStatus']])
+        raise RuntimeError(f"DAGMan cluster {clusterid} found, but in state {JOB_STATUS[job['JobStatus']]}")
     return clusterid
 
 
