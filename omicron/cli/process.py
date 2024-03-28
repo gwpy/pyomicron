@@ -375,7 +375,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         '--dagman-option',
         action='append',
         type=str,
-        default=['force', '-import_env'],
+        default=['force', 'import_env'],
         metavar="\"opt | opt=value\"",
         help="Extra options to pass to condor_submit_dag as "
              "\"-{opt} [{value}]\". "
