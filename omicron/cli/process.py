@@ -59,6 +59,10 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 
 """
 import time
+import traceback
+
+from omicron.utils import gps_to_hr, deltat_to_hr
+
 prog_start = time.time()
 
 from gwpy.segments import SegmentList, Segment
@@ -75,8 +79,6 @@ from pathlib import Path
 from subprocess import check_call
 from tempfile import gettempdir
 from time import sleep
-
-import gwpy.time
 from glue import pipeline
 
 from gwpy.io.cache import read_cache
@@ -275,7 +277,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         help='maximum number of channels to process in a single '
         'condor job (default: %(default)s)',
     )
-    procg.add_argument('--max-online-lookback', type=int, default=1200,
+    procg.add_argument('--max-online-lookback', type=int, default=60 * 60,
                        help='With no immediately previous run, or one that was long ago this is the max time of an '
                             'online job. Default: %(default)d')
     # max concurrent omicron jobs
@@ -373,7 +375,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         '--dagman-option',
         action='append',
         type=str,
-        default=['force', '-import_env'],
+        default=['force', 'import_env'],
         metavar="\"opt | opt=value\"",
         help="Extra options to pass to condor_submit_dag as "
              "\"-{opt} [{value}]\". "
@@ -505,6 +507,8 @@ def main(args=None):
     ifo = args.ifo
     group = args.group
     online = args.gps is None
+    if online:
+        logger.info('Online process. gps start, end determined automatically')
 
     # format file-tag as underscore-delimited upper-case string
     filetag = args.file_tag
@@ -730,30 +734,48 @@ def main(args=None):
     segfile = str(rundir / "segments.txt")
     keepfiles.append(segfile)
     max_lookback = args.max_online_lookback
+    now = tconvert()
 
     if newdag and online:
         # get limit of available data (allowing for padding)
         end = data.get_latest_data_gps(ifo, frametype) - padding
-        now = tconvert()
+        frame_age = deltat_to_hr(int(now - end))
+        logger.info(f'Last available frame data: {gps_to_hr(end)} age: {frame_age}')
+
         earliest_online = now - max_lookback
         try:  # start from where we got to last time
             last_run_segment = segments.get_last_run_segment(segfile)
             start = last_run_segment[1]
+            if start < earliest_online:
+                logger.warning(f'Segments.txt produced a start time for this run before max-lookback {max_lookback}\n'
+                               f'  Found {gps_to_hr(start)} earliest is {gps_to_hr(earliest_online)}')
+                start = earliest_online
+                if end < start:
+                    # this happens when the available frames end before the max lookbak period
+                    logger.warning(f'Available data ends {gps_to_hr(end)} before lookback limit'
+                                   f' {gps_to_hr(earliest_online)}')
+                    exit(0)
+            else:
+                logger.debug(f"Online segment record recovered: {gps_to_hr(last_run_segment[0])} - "
+                             f"{gps_to_hr(last_run_segment[1])}")
+
         except IOError:  # otherwise start with a sensible amount of data
             if args.use_dev_shm:  # process one chunk
                 logger.debug("No online segment record, starting with "
                              "%s seconds" % chunkdur)
                 start = end - chunkdur + padding
             else:  # process the last requested seconds (arbitrarily)
-                logger.debug(f"No online segment record, starting with {max_lookback} seconds ago, {earliest_online}")
-                start = end - max_lookback
-        else:
-            logger.debug(f"Online segment record recovered: {last_run_segment[0]} - {last_run_segment[1]}")
+                logger.debug(f"No online segment record, starting with {max_lookback} seconds ago, "
+                             f"{gps_to_hr(earliest_online)}")
+                start = earliest_online
+
     elif online:
         start, end = segments.get_last_run_segment(segfile)
-        logger.debug(f"Online segment record recovered: {start} - {end}")
         if end - start > max_lookback:
             start = end - max_lookback
+        else:
+            logger.debug(f"Online segment record recovered: {gps_to_hr(start)} - {gps_to_hr(end)}")
+
     else:
         start, end = args.gps
         start = int(start)
@@ -764,11 +786,8 @@ def main(args=None):
     dataend = end + padding
     dataduration = dataend - datastart
 
-    start_dt = gwpy.time.tconvert(datastart).strftime('%x %X')
-    end_dt = gwpy.time.tconvert(dataend).strftime('%x %X')
-    logger.info(f'Processing segment determined as: {datastart:d} - {dataend:d} : {start_dt} - {end_dt}')
-    dur_str = '{} {}'.format(int(dataduration / 86400) if dataduration > 86400 else '',
-                             time.strftime('%H:%M:%S', time.gmtime(dataduration)))
+    logger.info(f'Processing segment determined as: {gps_to_hr(datastart)} - {gps_to_hr(dataend)}')
+    dur_str = deltat_to_hr(dataduration)
     logger.info(f"Duration = {dataduration} - {dur_str}")
 
     span = (start, end)
@@ -780,16 +799,17 @@ def main(args=None):
 
     # validate span is long enough
     if dataduration < minduration and online:
-        logger.info("Segment is too short (%d < %d), please try again later"
-                    % (duration, minduration))
+        if dataduration < 0:
+            logger.info(f'Frame data is not available for interval {gps_to_hr(start)} to {gps_to_hr(end)}')
+        else:
+            logger.info(f"Segment is too short ({duration} < {minduration}), please try again later")
         clean_dirs(run_dir_list)
         clean_exit(0, tempfiles)
     elif dataduration < minduration:
-        raise ValueError(
-            "Segment [%d, %d) is too short (%d < %d), please "
-            "extend the segment, or shorten the timing parameters."
-            % (start, end, duration, chunkdur - padding * 2),
-        )
+        ermsg = f'Segment [{start}, {end}) is too short ({duration} < {minduration}), ' \
+                f'please; extend the segment, or shorten the timing parameters.'
+        logger.critical(ermsg)
+        raise ValueError(ermsg)
 
     # -- find run segments
     # get segments from state vector
@@ -800,7 +820,8 @@ def main(args=None):
                      f'stateflag: {stateflag} args.no_segdb: {args.no_segdb}')
         seg_qry_strt = time.time()
         if statebits == "guardian":  # use guardian
-            logger.debug(f'Using guardian for {statechannel}: {datastart}-{dataend} ')
+            logger.debug(f'Using guardian for {statechannel}: {gps_to_hr(datastart)}-{gps_to_hr(dataend)}:'
+                         f' {(dataend - datastart)} seconds')
             segs = segments.get_guardian_segments(
                 statechannel,
                 stateft,
@@ -822,7 +843,8 @@ def main(args=None):
 
     # get segments from segment database
     elif stateflag:
-        logger.info(f'Querying segments for relevant state: {stateflag} from:{datastart} length: {dataduration}s')
+        logger.info(f'Querying segment database for relevant state: {stateflag} from:{datastart} length:'
+                    f' {dataduration}s {deltat_to_hr(dataduration)}')
         seg_qry_strt = time.time()
         segs = segments.query_state_segments(stateflag, datastart, dataend,
                                              pad=statepad)
@@ -830,6 +852,7 @@ def main(args=None):
 
     # Get segments from frame cache
     elif args.cache_file:
+        logger.info('Get segments from cache')
         cache = read_cache(str(args.cache_file))
         cache_segs = segments.cache_segments(cache)
         srch_span = SegmentList([Segment(datastart, dataend)])
@@ -837,13 +860,16 @@ def main(args=None):
 
     # get segments from frame availability
     else:
+        logger.info('Get segments from frame availability')
+        fa_qry_strt = time.time()
         segs = segments.get_frame_segments(ifo, frametype, datastart, dataend)
+        logger.info(f'Frame availability query took {time.time() - fa_qry_strt}s')
 
     # print frame segments recovered
     if len(segs):
         logger.info("State/frame segments recovered as")
         for seg in segs:
-            logger.info("    %d %d [%d]" % (seg[0], seg[1], abs(seg)))
+            logger.info(f"    {gps_to_hr(seg[0])} {gps_to_hr(seg[1])} [{abs(seg)}]")
         logger.info("Duration = %d seconds" % abs(segs))
 
     # if running online, we want to avoid processing up to the extent of
@@ -891,7 +917,7 @@ def main(args=None):
             step = chunkdur - overlap
         segs[-1] = type(segs[-1])(lastseg[0], t)
         dataend = segs[-1][1]
-        logger.info("This analysis will now run to %d" % dataend)
+        logger.info(f"This analysis will now run to  {gps_to_hr(dataend)}")
 
     # recalculate the processing segment
     dataspan = type(segs)([segments.Segment(datastart, dataend)])
@@ -977,17 +1003,21 @@ def main(args=None):
     trigsegs = type(segs)(type(s)(*s) for s in segs).contract(padding)
 
     # display segments
-    logger.info("Final data segments selected as")
-    for seg in segs:
-        logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
-    logger.info(f"Duration = {abs(segs):d} seconds")
+    if len(segs) == 0:
+        logger.info('No analyzable segments found. Exiting.')
+        exit(0)
+    else:
+        logger.info("Final data segments selected as")
+        for seg in segs:
+            logger.info(f"    {gps_to_hr(seg[0])} {gps_to_hr(seg[1])} {abs(seg)}")
+        logger.info(f"Duration = {abs(segs)} seconds")
 
     span = type(trigsegs)([trigsegs.extent()])
 
     logger.info("This will output triggers for")
     for seg in trigsegs:
-        logger.info(f"    {seg[0]:d} {seg[1]:d} {abs(seg):d}")
-    logger.info(f"Duration = {abs(trigsegs):d} seconds")
+        logger.info(f"    {gps_to_hr(seg[0])} {gps_to_hr(seg[1])} {abs(seg)}")
+    logger.info(f"Duration = {abs(trigsegs)} seconds")
 
     # -- config omicron config directory --------------------------------------
 
@@ -1448,4 +1478,8 @@ def main(args=None):
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (ValueError, TypeError, OSError, NameError, ArithmeticError, RuntimeError) as ex:
+        print(ex, file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
