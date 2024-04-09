@@ -1156,10 +1156,19 @@ def main(args=None):
                     node.add_var_arg(str(subseg[0]))
                     node.add_var_arg(str(subseg[1]))
                     node.add_file_arg(pf)
-                    # we need to ignore errors in individual nodes
-                    node.set_post_script(shutil.which('bash'))
-                    node.add_post_script_arg('-c')
-                    node.add_post_script_arg('exit 0')
+                    # we need to ignore errors in individual omicron jobs after retrying
+                    node.set_post_script(shutil.which('omicron-post-script'))
+                    # -vvv --return $RETURN --retry $RETRY --max-retry $MAX_RETRIES --log pscript.log
+                    node.add_post_script_arg('-vvv')
+                    node.add_post_script_arg('--return')
+                    node.add_post_script_arg('$RETURN')
+                    node.add_post_script_arg('--retry')
+                    node.add_post_script_arg('$RETRY')
+                    node.add_post_script_arg('--max-retry')
+                    node.add_post_script_arg('$MAX_RETRIES')
+                    node.add_post_script_arg('--log')
+                    post_script_log_file = condir / 'post_script.log'
+                    node.add_post_script_arg(str(post_script_log_file.absolute()))
 
                     for chan in chanlist:
                         for form, flist in nodefiles[chan].items():
