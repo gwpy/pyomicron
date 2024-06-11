@@ -200,9 +200,18 @@ https://pyomicron.readthedocs.io/en/latest/"""
         action='version',
         version=__version__,
     )
+    ifo = const.IFO
+    if ifo:
+        grp_file = Path.home() / 'omicron' / 'online' / f'{ifo.lower()}-groups.txt'
+        with grp_file.open('r') as grp_fp:
+            all_groups = re.sub('\n(?<!$)', ', ', grp_fp.read())
+        all_groups = f'({all_groups})'
+    else:
+        all_groups = ''
+
     parser.add_argument(
         'group',
-        help='name of configuration group to process',
+        help=f'name of configuration group to process {all_groups} default=all groups',
     )
     parser.add_argument(
         '-t',
@@ -350,7 +359,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
     )
     condorg.add_argument(
         '--condor-request-disk',
-        default='50G',
+        default='20G',
         help='Required LIGO argument: local disk use (default: %(default)s)',
     )
     condorg.add_argument(
@@ -1046,6 +1055,12 @@ def main(args=None):
         "accounting_group_user": args.condor_accounting_group_user,
         "request_disk": args.condor_request_disk,
         "request_memory": 1024,  # MB
+        # scitokens needed for dqsegdb
+        'use_oauth_services': 'igwn',
+        'igwn_oauth_options_dqsegdb': '--role detchar-dev-scitoken-la --credkey '
+                                      'detchar-dev-scitoken-la/robot/detchar.ligo-la.caltech.edu',
+        'igwn_oauth_resource_dqsegdb': 'https: // segments.ligo.org',
+        'igwn_oauth_permissions_dqsegdb': 'dqsegdb.read',
     }
     for cmd_ in args.condor_command:
         key, value = cmd_.split('=', 1)
@@ -1066,25 +1081,26 @@ def main(args=None):
     ojob.add_condor_cmd('+InitialRequestMemory', f'{reqmem}')
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage), {reqmem}, int(3*MemoryUsage))')
     ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
-                                            '|| HoldReasonCode =?= 46) && (JobStatus == 5)')
+                                            '|| HoldReasonCode =?= 46) && (JobStatus == 5) '
+                                            '&& (time() - EnteredCurrentStatus > 10)')
     ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
     ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
-    ojob.add_condor_cmd('+OmicronProcess', f'"{group}"')
+    ojob.add_condor_cmd('my.OmicronProcess', f'"{group}"')
 
     # create post-processing jobs
     ppjob = condor.OmicronProcessJob(args.universe, shutil.which('bash'),
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)
-    ppjob.add_condor_cmd('+OmicronPostProcess', f'"{group}"')
+    ppjob.add_condor_cmd('my.OmicronPostProcess', f'"{group}"')
     ppmem = 1024
-    ppjob.add_condor_cmd('+InitialRequestMemory', f'{ppmem}')
+    ppjob.add_condor_cmd('my.InitialRequestMemory', f'{ppmem}')
     ppjob.add_condor_cmd('request_memory',
-                         f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(3*MemoryUsage))')
+                         f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(1.5*MemoryUsage))')
     ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
     ppjob.add_condor_cmd('periodic_release',
                          '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
-                         '|| HoldReasonCode =?= 46) && (JobStatus == 5)')
+                         '|| HoldReasonCode =?= 46) && (JobStatus == 5) && (time() - EnteredCurrentStatus > 10)')
 
     ppjob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
