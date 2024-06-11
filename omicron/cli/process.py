@@ -1055,10 +1055,10 @@ def main(args=None):
         "accounting_group_user": args.condor_accounting_group_user,
         "request_disk": args.condor_request_disk,
         "request_memory": 1024,  # MB
+
         # scitokens needed for dqsegdb
         'use_oauth_services': 'igwn',
-        'igwn_oauth_options_dqsegdb': '--role detchar-dev-scitoken-la --credkey '
-                                      'detchar-dev-scitoken-la/robot/detchar.ligo-la.caltech.edu',
+        'igwn_oauth_options_dqsegdb': "--role $ENV('TOKEN_ROLE') --credkey $ENV('TOKEN_CREDKEY')",
         'igwn_oauth_resource_dqsegdb': 'https: // segments.ligo.org',
         'igwn_oauth_permissions_dqsegdb': 'dqsegdb.read',
     }
@@ -1078,7 +1078,7 @@ def main(args=None):
     # This allows us to start with a memory request that works maybe 80%, but bumps it if we go over
     # we also limit individual jobs to a max runtime to cause them to be vacates to deal with NFS hanging
     reqmem = condorcmds.pop('request_memory', 1024)
-    ojob.add_condor_cmd('+InitialRequestMemory', f'{reqmem}')
+    ojob.add_condor_cmd('my.InitialRequestMemory', f'{reqmem}')
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage), {reqmem}, int(3*MemoryUsage))')
     ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
                                             '|| HoldReasonCode =?= 46) && (JobStatus == 5) '
@@ -1114,6 +1114,7 @@ def main(args=None):
     prog_path['ligolw_add'] = shutil.which('ligolw_add')
     prog_path['gzip'] = shutil.which('gzip')
     prog_path['omicron_archive'] = shutil.which('omicron-archive')
+    prog_path['clean_logs'] = shutil.which('omicron-clean-logs')
 
     goterr = list()
     for exe in prog_path.keys():
@@ -1141,7 +1142,9 @@ def main(args=None):
     else:
         archivejob = None
 
+
     omicron_nodes = list()
+
 
     # loop over data segments
     for s, e in segs:
