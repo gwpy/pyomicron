@@ -220,7 +220,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         nargs=2,
         type=to_gps,
         metavar='GPSTIME',
-        help='GPS times for offline processing')
+        help='GPS times or date/time for offline processing')
     parser.add_argument(
         '-f',
         '--config-file',
@@ -1061,7 +1061,7 @@ def main(args=None):
         "accounting_group": args.condor_accounting_group,
         "accounting_group_user": args.condor_accounting_group_user,
         "request_disk": args.condor_request_disk,
-        "request_memory": '1024M',
+        "request_memory": '1024',
     }
     condor_igwn_auth = {
         # scitokens needed for dqsegdb
