@@ -60,6 +60,7 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 """
 import time
 import traceback
+from typing import Dict, Any
 
 from omicron.utils import gps_to_hr, deltat_to_hr
 
@@ -289,9 +290,6 @@ https://pyomicron.readthedocs.io/en/latest/"""
     procg.add_argument('--max-online-lookback', type=int, default=60 * 60,
                        help='With no immediately previous run, or one that was long ago this is the max time of an '
                             'online job. Default: %(default)d')
-    # max concurrent omicron jobs
-    procg.add_argument('--max-concurrent', default=64, type=int,
-                       help='Max omicron jobs run at one time [%(default)s]')
     procg.add_argument(
         '-x',
         '--exclude-channel',
@@ -343,6 +341,9 @@ https://pyomicron.readthedocs.io/en/latest/"""
         help='number of times to retry each job if failed '
              '(default: %(default)s)',
     )
+    condorg.add_argument('--max-concurrent', default=64, type=int,
+                       help='Max omicron jobs run at one time [%(default)s]')
+
     condorg.add_argument(
         '--condor-accounting-group',
         default='ligo.prod.o4.detchar.transient.omicron',
@@ -389,6 +390,12 @@ https://pyomicron.readthedocs.io/en/latest/"""
         help="Extra options to pass to condor_submit_dag as "
              "\"-{opt} [{value}]\". "
              "Can be given multiple times (default: %(default)s)",
+    )
+    condorg.add_argument(
+        '--auth-type',
+        choices=['x509', 'igwn', 'scitoken'],
+        default='x509',
+        help='How to authenticate to dqsegdb, datafind, and cvmfs'
     )
 
     # input data options
@@ -1050,18 +1057,38 @@ def main(args=None):
     dag.set_dag_file(str(dagpath.with_suffix("")))
 
     # set up condor commands for all jobs
-    condorcmds = {
+    base_condorcmds = {
         "accounting_group": args.condor_accounting_group,
         "accounting_group_user": args.condor_accounting_group_user,
         "request_disk": args.condor_request_disk,
-        "request_memory": 1024,  # MB
-
+        "request_memory": '1024M',
+    }
+    condor_igwn_auth = {
         # scitokens needed for dqsegdb
         'use_oauth_services': 'igwn',
         'igwn_oauth_options_dqsegdb': "--role $ENV('TOKEN_ROLE') --credkey $ENV('TOKEN_CREDKEY')",
         'igwn_oauth_resource_dqsegdb': 'https: // segments.ligo.org',
         'igwn_oauth_permissions_dqsegdb': 'dqsegdb.read',
+        'environment':  '"BEARER_TOKEN_FILE=$$(_CONDOR_SCRATCH_DIR)/.condor_creds/igwn_dqsegdb.use"'
     }
+    condor_apissuer_auth = {
+        'use_oauth_services': 'scitokens',
+    }
+    condor_x509_auth = {
+        'getenv': 'X509_USER_PROXY'
+    }
+    if args.auth_type == 'x509':
+        condorcmds = dict(base_condorcmds | condor_x509_auth)
+    elif args.auth_type == 'igwn':
+        condorcmds = dict(base_condorcmds | condor_igwn_auth)
+    elif args.auth_type == 'scitokens':
+        condorcmds = dict(base_condorcmds | condor_apissuer_auth)
+    else:
+        condorcmds = base_condorcmds.copy()
+        logger.warning('We do not know how to authenticate to dqsegdb or cvmfs')
+
+    condorcmds: dict[str, str]
+
     for cmd_ in args.condor_command:
         key, value = cmd_.split('=', 1)
         condorcmds[key.rstrip().lower()] = value.strip()
