@@ -34,8 +34,6 @@ start_time = time.time()
 import argparse
 import logging
 from pathlib import Path
-import re
-import subprocess
 import sys
 import traceback
 
@@ -79,10 +77,10 @@ def main():
     logger.setLevel(logging.DEBUG)
 
     epilog = textwrap.dedent("""
-    This progam is designed to be run as a post script in a Condor DAG. For available arguments see: 
+    This progam is designed to be run as a post script in a Condor DAG. For available arguments see:
     https://htcondor.readthedocs.io/en/latest/automated-workflows/dagman-scripts.html#special-script-argument-macros
     A typical lne in the DAG might look like:
-    python omicron_post_script.py -vvv --return $(RETURN) --retry $(RETRY) --max-retry $(MAX_RETRIES) --log 
+    python omicron_post_script.py -vvv --return $(RETURN) --retry $(RETRY) --max-retry $(MAX_RETRIES) --log
     <path_to_log>
     """)
 
