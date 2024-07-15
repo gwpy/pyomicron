@@ -60,7 +60,6 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 """
 import time
 import traceback
-from typing import Dict, Any
 
 from omicron.utils import gps_to_hr, deltat_to_hr
 
@@ -342,7 +341,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
              '(default: %(default)s)',
     )
     condorg.add_argument('--max-concurrent', default=64, type=int,
-                       help='Max omicron jobs run at one time [%(default)s]')
+                         help='Max omicron jobs run at one time [%(default)s]')
 
     condorg.add_argument(
         '--condor-accounting-group',
@@ -1069,7 +1068,7 @@ def main(args=None):
         'igwn_oauth_options_dqsegdb': "--role $ENV('TOKEN_ROLE') --credkey $ENV('TOKEN_CREDKEY')",
         'igwn_oauth_resource_dqsegdb': 'https: // segments.ligo.org',
         'igwn_oauth_permissions_dqsegdb': 'dqsegdb.read',
-        'environment':  '"BEARER_TOKEN_FILE=$$(_CONDOR_SCRATCH_DIR)/.condor_creds/igwn_dqsegdb.use"'
+        'environment': '"BEARER_TOKEN_FILE=$$(_CONDOR_SCRATCH_DIR)/.condor_creds/igwn_dqsegdb.use"'
     }
     condor_apissuer_auth = {
         'use_oauth_services': 'scitokens',
@@ -1107,11 +1106,12 @@ def main(args=None):
     reqmem = condorcmds.pop('request_memory', 1024)
     ojob.add_condor_cmd('my.InitialRequestMemory', f'{reqmem}')
     ojob.add_condor_cmd('request_memory', f'ifthenelse(isUndefined(MemoryUsage), {reqmem}, int(3*MemoryUsage))')
-    ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34 '
-                                            '|| HoldReasonCode =?= 46) && (JobStatus == 5) '
+    ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) '
+                                            ' && (JobStatus == 5) '
                                             '&& (time() - EnteredCurrentStatus > 10)')
     ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
-    ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
+    ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1 && MemoryUsage >= 7000 '
+                                           '|| (HoldReasonCode =?= 46 )')
 
     ojob.add_condor_cmd('my.OmicronProcess', f'"{group}"')
 
@@ -1169,9 +1169,7 @@ def main(args=None):
     else:
         archivejob = None
 
-
     omicron_nodes = list()
-
 
     # loop over data segments
     for s, e in segs:
