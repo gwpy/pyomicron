@@ -1204,18 +1204,6 @@ def main(args=None):
 
                         rmfiles.append(xmlfiles)
 
-                    # add ASCII operations
-                    if 'txt' in fileformats:
-                        txtfiles = ' '.join(omicronfiles[c]['txt'])
-                        for f in omicronfiles[c]['txt']:
-                            ppnode.add_input_file(f)
-                        if args.archive:
-                            try:
-                                archivefiles[target].append(txtfiles)
-                            except KeyError:
-                                archivefiles[target] = [txtfiles]
-                            rmfiles.append(txtfiles)
-
                 ppnode.set_category('postprocessing')
                 ppnode.set_retry(str(args.condor_retry))
                 if not args.skip_omicron:
