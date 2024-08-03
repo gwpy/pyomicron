@@ -1074,7 +1074,7 @@ def main(args=None):
         'use_oauth_services': 'scitokens',
     }
     condor_x509_auth = {
-        'getenv': 'X509_USER_PROXY'
+        'getenv': 'X509_USER_PROXY, KRB5CNAME'
     }
     if args.auth_type == 'x509':
         condorcmds = dict(base_condorcmds | condor_x509_auth)
@@ -1109,7 +1109,7 @@ def main(args=None):
     ojob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) '
                                             ' && (JobStatus == 5) && (time() - EnteredCurrentStatus > 10)')
     ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
-    ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1 && MemoryUsage >= 7000 || (HoldReasonCode =?= 46 )')
+    ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1 && MemoryUsage >= 7000 || (HoldReasonCode =?= 46 ))')
 
     ojob.add_condor_cmd('my.OmicronProcess', f'"{group}"')
 
