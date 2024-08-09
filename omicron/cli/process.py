@@ -1143,7 +1143,7 @@ def main(args=None):
     goterr = list()
     for exe in prog_path.keys():
         if not prog_path[exe]:
-            logger.critical(f'required program: {prog_path[exe]} not found')
+            logger.critical(f'required program: {exe} not found')
             goterr.append(exe)
     if goterr:
         raise ValueError(f'Required programs not found in current environment: {", ".join(goterr)}')
