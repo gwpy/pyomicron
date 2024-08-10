@@ -61,6 +61,9 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 import time
 import traceback
 
+from omicron_utils.conda_fns import get_conda_run
+from omicron_utils.omicron_config import OmicronConfig
+
 from omicron.utils import gps_to_hr, deltat_to_hr
 
 prog_start = time.time()
@@ -96,6 +99,8 @@ except RuntimeError:
 DAG_TAG = "omicron"
 
 logger = log.Logger('omicron-process')
+omicron_config = OmicronConfig(logger=logger)
+config = omicron_config.get_config()
 
 
 def clean_exit(exitcode, tempfiles=None):
@@ -170,11 +175,14 @@ def clean_tempfiles(tempfiles):
         logger.debug("Deleted path '{}'".format(f))
 
 
-def create_parser():
+def create_parser(config):
     """Create a command-line parser for this entry point
+    @param configparser.ConfigParser config: config for our pipelines not Omicron itself
+
     """
 
-    epilog = """This source code for this project is available here:
+    epilog = """
+This source code for this project is available here:
 
 https://github.com/gwpy/pyomicron/
 
@@ -183,7 +191,8 @@ interface, bug reports and feature requests are encouraged.
 
 Documentation is available here:
 
-https://pyomicron.readthedocs.io/en/latest/"""
+https://pyomicron.readthedocs.io/en/latest/
+"""
 
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -331,8 +340,15 @@ https://pyomicron.readthedocs.io/en/latest/"""
     condorg.add_argument(
         '--executable',
         default=OMICRON_PATH,
-        help='omicron executable (default: %(default)s)',
+        help='path to omicron executable (default: %(default)s)',
     )
+    if config.has_option('conda', 'environment'):
+        conda_env = config['conda']['environment']
+    else:
+        conda_env = os.getenv('CONDA_PREFIX')
+    condorg.add_argument('--conda-env', default=conda_env,
+                         help='conda environment (name or path) for all programs in DAG [%(defaul)s]')
+
     condorg.add_argument(
         '--condor-retry',
         type=int,
@@ -366,8 +382,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         '--submit-rescue-dag',
         type=int,
         default=0,
-        help='number of times to automatically submit the '
-             'rescue DAG (default: %(default)s)',
+        help='number of times to automatically submit the rescue DAG (default: %(default)s)',
     )
     condorg.add_argument(
         '-c',
@@ -376,8 +391,7 @@ https://pyomicron.readthedocs.io/en/latest/"""
         type=str,
         default=[],
         metavar="\"key=value\"",
-        help="Extra commands to add to the HTCondor submit files, can be "
-             "given multiple times",
+        help="Extra commands to add to the HTCondor submit files, can be given multiple times",
     )
     condorg.add_argument(
         '-d',
@@ -475,8 +489,16 @@ https://pyomicron.readthedocs.io/en/latest/"""
 
 
 def main(args=None):
+    omicron_config = OmicronConfig(logger=logger)
 
-    parser = create_parser()
+    config = omicron_config.get_config()
+    default_env = config['conda']['environment'] if config.has_option('conda', 'environment') else None
+    conda_env = os.getenv('CONDA_PREFIX', default_env)
+    if conda_env is None:
+        logger.critical('Cannot determine conda environment')
+        exit(10)
+
+    parser = create_parser(config)
     args = parser.parse_args(args=args)
 
     # apply verbosity to logger
@@ -1092,14 +1114,21 @@ def main(args=None):
         key, value = cmd_.split('=', 1)
         condorcmds[key.rstrip().lower()] = value.strip()
 
+    conda_exe, conda_args = get_conda_run(config, args.conda_env, logger)
+    conda_arg_list = conda_args.split()
     # create omicron job
     ojob = condor.OmicronProcessJob(
         args.universe,
-        args.executable,
+        conda_exe,
+        tag='omicron',
         subdir=condir,
         logdir=logdir,
         **condorcmds,
     )
+    for job_arg in conda_arg_list:
+        ojob.add_arg(job_arg)
+
+    ojob.add_arg('omicron')
 
     # This allows us to start with a memory request that works maybe 80%, but bumps it if we go over
     # we also limit individual jobs to a max runtime to cause them to be vacates to deal with NFS hanging
@@ -1110,26 +1139,30 @@ def main(args=None):
                                             ' && (JobStatus == 5) && (time() - EnteredCurrentStatus > 10)')
     ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
     ojob.add_condor_cmd('periodic_remove', '(JobStatus == 1 && MemoryUsage >= 7000 || (HoldReasonCode =?= 46 ))')
+    ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
 
     ojob.add_condor_cmd('my.OmicronProcess', f'"{group}"')
 
     # create post-processing jobs
-    ppjob = condor.OmicronProcessJob(args.universe, shutil.which('bash'),
+    ppjob = condor.OmicronProcessJob(args.universe, conda_exe,
                                      subdir=condir, logdir=logdir,
                                      tag='post-processing', **condorcmds)
+    for job_arg in conda_arg_list:
+        ppjob.add_arg(job_arg)
+
+    ppjob.add_arg(shutil.which('bash'))
+    ppjob.add_arg('-e')
     ppjob.add_condor_cmd('my.OmicronPostProcess', f'"{group}"')
     ppmem = 1024
     ppjob.add_condor_cmd('my.InitialRequestMemory', f'{ppmem}')
     ppjob.add_condor_cmd('request_memory',
                          f'ifthenelse(isUndefined(MemoryUsage), {ppmem}, int(1.5*MemoryUsage))')
-    ojob.add_condor_cmd('allowed_job_duration', 3 * 3600)
     ppjob.add_condor_cmd('periodic_release', '(HoldReasonCode =?= 26 || HoldReasonCode =?= 34) '
                          '&& (JobStatus == 5) && (time() - EnteredCurrentStatus > 10)')
 
     ppjob.add_condor_cmd('periodic_remove', '((JobStatus == 1) && MemoryUsage >= 7000) || (HoldReasonCode =?= 46)')
 
     ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
-    ppjob.add_short_opt('e', '')
     ppnodes = []
     prog_path = dict()
     prog_path['omicron-merge'] = shutil.which('omicron-merge-with-gaps')
@@ -1152,15 +1185,24 @@ def main(args=None):
     rmfiles = []
     if not args.skip_rm:
         rmjob = condor.OmicronProcessJob(
-            args.universe, str(condir / "post-process-rm.sh"),
+            args.universe, conda_exe,
             subdir=condir, logdir=logdir, tag='post-processing-rm', **condorcmds)
         rm = shutil.which('rm')
+
+        for job_arg in conda_arg_list:
+            rmjob.add_arg(job_arg)
+        rmjob.add_arg(str(condir / "post-process-rm.sh"))
+
         rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 
     if args.archive:
         archivejob = condor.OmicronProcessJob(
-            args.universe, str(condir / "archive.sh"),
+            args.universe, conda_exe,
             subdir=condir, logdir=logdir, tag='archive', **condorcmds)
+        for job_arg in conda_arg_list:
+            archivejob.add_arg(job_arg)
+        archivejob.add_arg(str(condir / "archive.sh"))
+
         archivejob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
         archivefiles = {}
     else:
