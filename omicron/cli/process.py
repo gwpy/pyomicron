@@ -1191,7 +1191,8 @@ def main(args=None):
 
         for job_arg in conda_arg_list:
             rmjob.add_arg(job_arg)
-        rmjob.add_arg(str(condir / "post-process-rm.sh"))
+        rmscript = condir / "post-process-rm.sh"
+        rmjob.add_arg(str(rmscript))
 
         rmjob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
 
@@ -1201,7 +1202,9 @@ def main(args=None):
             subdir=condir, logdir=logdir, tag='archive', **condorcmds)
         for job_arg in conda_arg_list:
             archivejob.add_arg(job_arg)
-        archivejob.add_arg(str(condir / "archive.sh"))
+
+        archive_script = condir / "archive.sh"
+        archivejob.add_arg(str(archive_script))
 
         archivejob.add_condor_cmd('+OmicronPostProcess', '"%s"' % group)
         archivefiles = {}
@@ -1382,12 +1385,12 @@ def main(args=None):
         acache = {fmt: list() for fmt in fileformats}
         if newdag:
             # write shell script to seed archive
-            with open(archivejob.get_executable(), 'w') as f:
+            with open(archive_script, 'w') as f:
                 print('#!/bin/bash -e\n', file=f)
                 print('# Archive all trigger files saved in the merge directory ', file=f)
                 print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv', file=f)
 
-            os.chmod(archivejob.get_executable(), 0o755)
+            archive_script.chmod(0o755)
             # write caches to disk
             for fmt, fcache in acache.items():
                 cachefile = cachedir / "omicron-{0}.lcf".format(fmt)
@@ -1399,13 +1402,12 @@ def main(args=None):
         archivenode.set_retry(args.condor_retry)
         archivenode.set_category('archive')
         dag.add_node(archivenode)
-        tempfiles.append(archivejob.get_executable())
+        tempfiles.append(archive_script)
 
     # add rm job right at the end
     rmnode = None
     if not args.skip_rm:
         rmnode = pipeline.CondorDAGNode(rmjob)
-        rmscript = rmjob.get_executable()
         with open(rmscript, 'w') as f:
             print('#!/bin/bash -e\n#', file=f)
             print("# omicron-process post-processing-rm", file=f)
@@ -1419,7 +1421,7 @@ def main(args=None):
             for rmset in rmfiles:
                 print('%s -f %s' % (rm, rmset), file=f)
         if newdag:
-            os.chmod(rmscript, 0o755)
+            rmscript.chmod(0o755)
         tempfiles.append(rmscript)
         rmnode.set_category('postprocessing')
     if rmnode:
