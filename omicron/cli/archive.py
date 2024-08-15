@@ -62,7 +62,7 @@ __process_name__ = 'archive'
 # example channel indir: L1:SUS-PR3_M1_DAMP_T_IN1_DQ
 chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
 # example trigger file: L1-SUS_PR3_M1_DAMP_T_IN1_DQ_OMICRON-1336799058-8064.h5
-tfpat = re.compile("([A-Z][0-9])-(.+)-(\\d+)-(\\d+)\\.(.*)$")
+tfpat = re.compile("([A-Z][0-9])[-_:](.+)(\\d+)-(\\d+)\\.(.*)$")
 
 
 def scandir(otrigdir):
@@ -134,7 +134,10 @@ def process_dir(dir_path, outdir, logger, keep_files):
 
 
 def main():
-    logging.basicConfig()
+    # global logger
+    log_file_format = "%(asctime)s - %(levelname)s - %(funcName)s %(lineno)d: %(message)s"
+    log_file_date_format = '%m-%d %H:%M:%S'
+    logging.basicConfig(format=log_file_format, datefmt=log_file_date_format)
     logger = logging.getLogger(__process_name__)
     logger.setLevel(logging.DEBUG)
 

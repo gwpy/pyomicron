@@ -98,6 +98,7 @@ except RuntimeError:
 
 DAG_TAG = "omicron"
 
+
 logger = log.Logger('omicron-process')
 omicron_config = OmicronConfig(logger=logger)
 config = omicron_config.get_config()
@@ -347,7 +348,7 @@ https://pyomicron.readthedocs.io/en/latest/
     else:
         conda_env = os.getenv('CONDA_PREFIX')
     condorg.add_argument('--conda-env', default=conda_env,
-                         help='conda environment (name or path) for all programs in DAG [%(defaul)s]')
+                         help='conda environment (name or path) for all programs in DAG [%(default)s]')
 
     condorg.add_argument(
         '--condor-retry',
