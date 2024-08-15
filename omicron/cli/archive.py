@@ -62,7 +62,7 @@ __process_name__ = 'archive'
 # example channel indir: L1:SUS-PR3_M1_DAMP_T_IN1_DQ
 chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
 # example trigger file: L1-SUS_PR3_M1_DAMP_T_IN1_DQ_OMICRON-1336799058-8064.h5
-tfpat = re.compile("([A-Z][0-9])[-_:](.+)(\\d+)-(\\d+)\\.(.*)$")
+tfpat = re.compile("([A-Z][0-9])[-_:](.+)-(\\d+)-(\\d+)\\.(.*)$")
 
 
 def scandir(otrigdir):
@@ -116,14 +116,17 @@ def process_dir(dir_path, outdir, logger, keep_files):
             tspan = Segment(strt, strt + dur)
 
             otrigdir = outdir / ifo / chan / str(int(strt / 1e5))
+
+            logger.debug(f'Trigger file:\n'
+                         f'    {tfile_path.name}\n'
+                         f'    ifo: [{ifo}], chan: [{chan}], strt: {strt}, duration: {dur} ext: [{ext}]\n'
+                         f'    outdir: {str(otrigdir.absolute())}')
+
             if str(otrigdir.absolute()) not in dest_segs.keys():
                 dest_segs[str(otrigdir.absolute())] = scandir(otrigdir)
 
-            logger.debug(
-                f'ifo: [{ifo}], chan: [{chan}], strt: {strt}, ext: [{ext}] -> {str(otrigdir.absolute())}')
-
             if dest_segs[str(otrigdir.absolute())].intersects_segment(tspan):
-                logger.warn(f'{tfile_path.name} ignored because it would overlap')
+                logger.warning(f'{tfile_path.name} ignored because it would overlap')
             else:
                 otrigdir.mkdir(mode=0o755, parents=True, exist_ok=True)
                 shutil.copy(tfile, str(otrigdir.absolute()))
