@@ -1358,7 +1358,7 @@ def main(args=None):
                         # add header
                         print('#!/bin/bash -e\n#', file=f)
                         print("# omicron-process post-processing", file=f)
-                        print(f'#\n# File created by\n# {sys.argv[0]}\n#', file=f)
+                        print(f'#\n# File created by\n# {sys.argv[0]}  version: {__version__}\n#', file=f)
                         print("# Group: %s" % group, file=f)
                         print("# Segment: [%d, %d)" % (s, e), file=f)
                         print("# Channels:\n#", file=f)
@@ -1385,7 +1385,8 @@ def main(args=None):
             with archive_script.open('w') as f:
                 print('#!/bin/bash -e\n', file=f)
                 print('# Archive all trigger files saved in the merge directory ', file=f)
-                print(f'#\n# File created by\n# {" ".join(sys.argv)}\n#', file=f)
+                print(f'#\n# File created by this command:\n# {" ".join(sys.argv)}\n#', file=f)
+                print(f'{sys.argv[0]} version {__version__}\n', file=f)
 
                 print(f'{conda_exe} {conda_args} ',end=None, file=f)
                 print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv', file=f)
