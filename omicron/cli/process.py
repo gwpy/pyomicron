@@ -1117,6 +1117,7 @@ def main(args=None):
 
     conda_exe, conda_args = get_conda_run(config, args.conda_env, logger)
     conda_arg_list = conda_args.split()
+    conda_run_prefix = conda_exe + ' ' + conda_args
     # create omicron job
     ojob = condor.OmicronProcessJob(
         args.universe,
@@ -1277,7 +1278,7 @@ def main(args=None):
             # post-process (one post-processing job per channel
             #               per data segment)
             if not args.skip_postprocessing:
-                script = condir / "post-process-{}-{}-{}.sh".format(i, s, e)
+                script = condir / f"post-process-{i}-{s}-{e}.sh"
                 ppnode = pipeline.CondorDAGNode(ppjob)
                 ppnode.add_var_arg(str(script))
                 operations = []
@@ -1300,7 +1301,7 @@ def main(args=None):
                             ppnode.add_input_file(f)
                         no_merge = '--no-merge' if args.skip_root_merge else ''
 
-                        operations.append(f'  {prog_path["omicron-merge"]} {no_merge}  '
+                        operations.append(f'  {conda_run_prefix} {prog_path["omicron-merge"]} {no_merge}  '
                                           f'--out-dir {mergepath} {rootfiles} ')
                         rmfiles.append(rootfiles)
 
@@ -1312,7 +1313,7 @@ def main(args=None):
                         no_merge = '--no-merge' if args.skip_hdf5_merge else ''
 
                         operations.append(
-                            f'  {prog_path["omicron-merge"]} {no_merge}  '
+                            f'  {conda_run_prefix} {prog_path["omicron-merge"]} {no_merge}  '
                             f' --out-dir {mergepath} {hdf5files} ')
                         rmfiles.append(hdf5files)
 
@@ -1325,7 +1326,7 @@ def main(args=None):
                         no_merge = '--no-merge' if args.skip_ligolw_add else ''
                         no_gzip = '--no-gzip' if args.skip_gzip else ''
                         operations.append(
-                            f'  {prog_path["omicron-merge"]} {no_merge} {no_gzip} --uint-bug '
+                            f'  {conda_run_prefix} {prog_path["omicron-merge"]} {no_merge} {no_gzip} --uint-bug '
                             f' --out-dir {mergepath} {xmlfiles} ')
 
                         rmfiles.append(xmlfiles)
@@ -1357,12 +1358,7 @@ def main(args=None):
                         # add header
                         print('#!/bin/bash -e\n#', file=f)
                         print("# omicron-process post-processing", file=f)
-                        print(
-                            '#\n# File created by\n# {}\n#'.format(
-                                ' '.join(sys.argv),
-                            ),
-                            file=f,
-                        )
+                        print(f'#\n# File created by\n# {sys.argv[0]}\n#', file=f)
                         print("# Group: %s" % group, file=f)
                         print("# Segment: [%d, %d)" % (s, e), file=f)
                         print("# Channels:\n#", file=f)
@@ -1386,9 +1382,12 @@ def main(args=None):
         acache = {fmt: list() for fmt in fileformats}
         if newdag:
             # write shell script to seed archive
-            with open(archive_script, 'w') as f:
+            with archive_script.open('w') as f:
                 print('#!/bin/bash -e\n', file=f)
                 print('# Archive all trigger files saved in the merge directory ', file=f)
+                print(f'#\n# File created by\n# {" ".join(sys.argv)}\n#', file=f)
+
+                print(f'{conda_exe} {conda_args} ',end=None, file=f)
                 print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv', file=f)
 
             archive_script.chmod(0o755)
