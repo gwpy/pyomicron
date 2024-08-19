@@ -144,7 +144,7 @@ def main():
     logger = logging.getLogger(__process_name__)
     logger.setLevel(logging.DEBUG)
 
-    home = os.getenv('HOME')
+    home = Path.home()
     outdir_default = os.getenv('OMICRON_HOME', f'{home}/triggers')
     parser = argparse.ArgumentParser(description=textwrap.dedent(__doc__),
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -174,6 +174,10 @@ def main():
         logger.setLevel(logging.INFO)
     else:
         logger.setLevel(logging.DEBUG)
+
+    logger.debug("Command line args:")
+    for arg in vars(args):
+        logger.debug(f'    {arg} = {str(getattr(args, arg))}')
 
     indir = Path(args.indir)
     outdir = Path(args.outdir)

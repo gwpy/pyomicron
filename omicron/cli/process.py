@@ -1386,10 +1386,10 @@ def main(args=None):
                 print('#!/bin/bash -e\n', file=f)
                 print('# Archive all trigger files saved in the merge directory ', file=f)
                 print(f'#\n# File created by this command:\n# {" ".join(sys.argv)}\n#', file=f)
-                print(f'{sys.argv[0]} version {__version__}\n', file=f)
+                print(f'# Running: {sys.argv[0]} version {__version__}\n', file=f)
 
-                print(f'{conda_exe} {conda_args} ',end=None, file=f)
-                print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv', file=f)
+                print(f'{conda_exe} {conda_args} ',end=' ', file=f)
+                print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vvv', file=f)
 
             archive_script.chmod(0o755)
             # write caches to disk
