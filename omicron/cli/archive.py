@@ -90,7 +90,7 @@ def scandir(otrigdir):
 def process_dir(dir_path, outdir, logger, keep_files):
     """
     Copy all trigget files to appropriate directory
-    @param logger: program'sclogger
+    @param logger: program's logger
     @param Path dir_path: input directory
     @param Path outdir: top level output directory eg ${HOME}/triggers
     @param boolean keep_files: Do not delete files after copying to archive

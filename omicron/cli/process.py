@@ -332,9 +332,14 @@ https://pyomicron.readthedocs.io/en/latest/
         default=False,
         help='do not submit the DAG to condor (default: %(default)s)',
     )
+    if config.has_option('condor', 'universe'):
+        def_universe = config.get('condor', 'universe')
+    else:
+        def_universe = 'vanilla'
+
     condorg.add_argument(
         '--universe',
-        default='vanilla',
+        default=def_universe,
         choices=['vanilla', 'local'],
         help='condor universe (default: %(default)s)',
     )
@@ -1566,7 +1571,13 @@ def main(args=None):
 
     # clean up temporary files
     tempfiles.extend(trigdir.glob("ffconvert.*.ffl"))
-    clean_tempfiles(tempfiles)
+    if tempfiles is not None:
+        logger.debug('Temporary files that cn be deleted')
+        for f in tempfiles:
+            isd = 'dir:' if Path(f).is_dir() else 'fil:'
+            logger.debug(f'Delete {isd} {f}')
+
+    # clean_tempfiles(tempfiles)
 
     # and exit
     logger.info(f"--- Processing complete. Elapsed: {time.time() - prog_start} seconds ----------------")
