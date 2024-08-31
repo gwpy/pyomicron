@@ -495,14 +495,13 @@ https://pyomicron.readthedocs.io/en/latest/
 
 
 def main(args=None):
-    omicron_config = OmicronConfig(logger=logger)
-
-    config = omicron_config.get_config()
     default_env = config['conda']['environment'] if config.has_option('conda', 'environment') else None
     conda_env = os.getenv('CONDA_PREFIX', default_env)
     if conda_env is None:
         logger.critical('Cannot determine conda environment')
         exit(10)
+    else:
+        logger.debug(f'Running in {conda_env}')
 
     parser = create_parser(config)
     args = parser.parse_args(args=args)
@@ -518,6 +517,7 @@ def main(args=None):
     log_file.parent.mkdir(mode=0o755, exist_ok=True, parents=True)
     logger.add_file_handler(log_file)
 
+    logger.debug(f'Running: {Path(__file__)} version {__version__}')
     logger.debug("Command line args:")
     for arg in vars(args):
         logger.debug(f'    {arg} = {str(getattr(args, arg))}')
