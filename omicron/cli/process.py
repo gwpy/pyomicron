@@ -296,7 +296,7 @@ https://pyomicron.readthedocs.io/en/latest/
         help='maximum number of channels to process in a single '
         'condor job (default: %(default)s)',
     )
-    procg.add_argument('--max-online-lookback', type=int, default=60 * 60,
+    procg.add_argument('--max-online-lookback', type=int, default=30 * 60,
                        help='With no immediately previous run, or one that was long ago this is the max time of an '
                             'online job. Default: %(default)d')
     procg.add_argument(
@@ -856,8 +856,7 @@ def main(args=None):
 
     # -- find run segments
     # get segments from state vector
-    if (online and statechannel) or (statechannel and not stateflag) or (
-            statechannel and args.no_segdb):
+    if (online and statechannel) or (statechannel and not stateflag) or (statechannel and args.no_segdb):
         logger.info(f'Finding segments for relevant state...  from:{datastart} length: {dataduration}s')
         logger.debug(f'For segment finding: online: {online}, statechannel: {statechannel}, '
                      f'stateflag: {stateflag} args.no_segdb: {args.no_segdb}')
@@ -1580,7 +1579,7 @@ def main(args=None):
     # clean_tempfiles(tempfiles)
 
     # and exit
-    logger.info(f"--- Processing complete. Elapsed: {time.time() - prog_start} seconds ----------------")
+    logger.info(f"--- Processing complete. Elapsed: {(time.time() - prog_start):1f} seconds ----------------")
 
 
 if __name__ == "__main__":
