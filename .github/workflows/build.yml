@@ -37,7 +37,6 @@ jobs:
           - macOS
           - Ubuntu
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
     runs-on: ${{ matrix.os }}-latest
