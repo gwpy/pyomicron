@@ -1058,7 +1058,13 @@ def main(args=None):
 
     ppjob.add_condor_cmd('periodic_remove', '(JobStatus == 1) && MemoryUsage >= 7G')
 
-    ppjob.add_condor_cmd('environment', '"HDF5_USE_FILE_LOCKING=FALSE"')
+    ppjob.add_condor_cmd('environment', "\"{}\"".format(" ".join((
+        # disable file locking over NFS
+        "HDF5_USE_FILE_LOCKING=FALSE",
+        # provide the PATH so that omicron-merge-with-gaps can find the
+        # executables it needs
+        f"PATH='{os.getenv('PATH', sys.prefix)}'",
+    ))))
     ppjob.add_short_opt('e', '')
     ppnodes = []
     prog_path = dict()
@@ -1261,9 +1267,15 @@ def main(args=None):
         if newdag:
             # write shell script to seed archive
             with open(archivejob.get_executable(), 'w') as f:
+                cmd = [
+                    prog_path["omicron_archive"],
+                    "--indir", mergedir.absolute(),
+                    "--outdir", os.getenv("OMICRON_ARCHIVE", const.OMICRON_ARCHIVE),
+                    "-vv",
+                ]
                 print('#!/bin/bash -e\n', file=f)
                 print('# Archive all trigger files saved in the merge directory ', file=f)
-                print(f'{prog_path["omicron_archive"]} --indir {str(mergedir.absolute())} -vv', file=f)
+                print(" ".join(map(str, cmd)), file=f)
 
             os.chmod(archivejob.get_executable(), 0o755)
             # write caches to disk
