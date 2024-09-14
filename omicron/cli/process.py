@@ -58,6 +58,7 @@ The output of `omicron-process` is a Directed Acyclic Graph (DAG) that is
 *automatically* submitted to condor for processing.
 
 """
+import logging
 import time
 import traceback
 
@@ -100,8 +101,11 @@ DAG_TAG = "omicron"
 
 
 logger = log.Logger('omicron-process')
+old_level = logger.getEffectiveLevel()
+logger.setLevel(logging.CRITICAL)
 omicron_config = OmicronConfig(logger=logger)
 config = omicron_config.get_config()
+logger.setLevel(old_level)
 
 
 def clean_exit(exitcode, tempfiles=None):
