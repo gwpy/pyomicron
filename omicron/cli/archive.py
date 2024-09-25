@@ -90,7 +90,7 @@ def scandir(otrigdir):
 def process_dir(dir_path, outdir, logger, keep_files):
     """
     Copy all trigget files to appropriate directory
-    @param logger: program'sclogger
+    @param logger: program's logger
     @param Path dir_path: input directory
     @param Path outdir: top level output directory eg ${HOME}/triggers
     @param boolean keep_files: Do not delete files after copying to archive
@@ -116,14 +116,17 @@ def process_dir(dir_path, outdir, logger, keep_files):
             tspan = Segment(strt, strt + dur)
 
             otrigdir = outdir / ifo / chan / str(int(strt / 1e5))
+
+            logger.debug(f'Trigger file:\n'
+                         f'    {tfile_path.name}\n'
+                         f'    ifo: [{ifo}], chan: [{chan}], strt: {strt}, duration: {dur} ext: [{ext}]\n'
+                         f'    outdir: {str(otrigdir.absolute())}')
+
             if str(otrigdir.absolute()) not in dest_segs.keys():
                 dest_segs[str(otrigdir.absolute())] = scandir(otrigdir)
 
-            logger.debug(
-                f'ifo: [{ifo}], chan: [{chan}], strt: {strt}, ext: [{ext}] -> {str(otrigdir.absolute())}')
-
             if dest_segs[str(otrigdir.absolute())].intersects_segment(tspan):
-                logger.warn(f'{tfile_path.name} ignored because it would overlap')
+                logger.warning(f'{tfile_path.name} ignored because it would overlap')
             else:
                 otrigdir.mkdir(mode=0o755, parents=True, exist_ok=True)
                 shutil.copy(tfile, str(otrigdir.absolute()))
@@ -134,11 +137,14 @@ def process_dir(dir_path, outdir, logger, keep_files):
 
 
 def main():
-    logging.basicConfig()
+    # global logger
+    log_file_format = "%(asctime)s - %(levelname)s - %(funcName)s %(lineno)d: %(message)s"
+    log_file_date_format = '%m-%d %H:%M:%S'
+    logging.basicConfig(format=log_file_format, datefmt=log_file_date_format)
     logger = logging.getLogger(__process_name__)
     logger.setLevel(logging.DEBUG)
 
-    home = os.getenv('HOME')
+    home = Path.home()
     outdir_default = os.getenv('OMICRON_HOME', f'{home}/triggers')
     parser = argparse.ArgumentParser(description=textwrap.dedent(__doc__),
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -168,6 +174,10 @@ def main():
         logger.setLevel(logging.INFO)
     else:
         logger.setLevel(logging.DEBUG)
+
+    logger.debug("Command line args:")
+    for arg in vars(args):
+        logger.debug(f'    {arg} = {str(getattr(args, arg))}')
 
     indir = Path(args.indir)
     outdir = Path(args.outdir)

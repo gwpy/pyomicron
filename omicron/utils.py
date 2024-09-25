@@ -22,10 +22,12 @@
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from shutil import which
 from tempfile import gettempdir
 
+from gwpy.time import from_gps
 from packaging.version import Version
 
 from . import const
@@ -118,3 +120,30 @@ def astropy_config_path(parent, update_environ=True):
     if update_environ:
         os.environ["XDG_CONFIG_HOME"] = str(confpath)
     return confpath
+
+
+def gps_to_hr(gps):
+    """
+    Convert a gps time to a human readable string for our log files
+    @param LIGOTimeGPS | int | float gps: time to consider
+    @return str: hr string eg: "1386527433 (12/13/23 18:30:16)"
+    """
+    dt = from_gps(int(gps))
+    dt_str = dt.strftime('%x %X')
+    ret = f'{int(gps)} ({dt_str})'
+    return ret
+
+
+def deltat_to_hr(dt):
+    """
+    Convert a time in seconds to a human readable string
+    @param int dt: delta t
+    @return str: <sec> [<day>] HH:MM:SS
+    """
+    ret = f'{dt}'
+    if dt > 0:
+        day = f'{int(dt) / 86400}' if dt >= 86400 else ''
+        time_str = time.strftime('%H:%M:%S', time.gmtime(int(dt)))
+        ret += f' - {day}  {time_str}'
+
+    return ret
