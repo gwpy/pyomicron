@@ -62,7 +62,7 @@ __process_name__ = 'archive'
 # example channel indir: L1:SUS-PR3_M1_DAMP_T_IN1_DQ
 chpat = re.compile(".*/?([A-Z][1-2]):(.+)$")
 # example trigger file: L1-SUS_PR3_M1_DAMP_T_IN1_DQ_OMICRON-1336799058-8064.h5
-tfpat = re.compile("([A-Z][0-9])[-_:](.+)-(\\d+)-(\\d+)\\.(.*)$")
+tfpat = re.compile("([A-Z][0-9])-(.+)-(\\d+)-(\\d+)\\.(.*)$")
 
 
 def scandir(otrigdir):

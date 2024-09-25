@@ -136,7 +136,7 @@ def gps_to_hr(gps):
 
 def deltat_to_hr(dt):
     """
-    Convert a time in secos to human readable
+    Convert a time in seconds to a human readable string
     @param int dt: delta t
     @return str: <sec> [<day>] HH:MM:SS
     """

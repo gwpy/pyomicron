@@ -1091,7 +1091,7 @@ def main(args=None):
         "accounting_group": args.condor_accounting_group,
         "accounting_group_user": args.condor_accounting_group_user,
         "request_disk": args.condor_request_disk,
-        "request_memory": '1024',
+        "request_memory": '1024',   # units are MB but  cannot be specified here
     }
     condor_igwn_auth = {
         # scitokens needed for dqsegdb
