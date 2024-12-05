@@ -145,13 +145,13 @@ def write_segments(segmentlist, outfile, coltype=int):
 
 
 @integer_segments
-def query_state_segments(flag, start, end, url=DEFAULT_SEGMENT_SERVER,
+def query_state_segments(flag, start, end, host=DEFAULT_SEGMENT_SERVER,
                          pad=(0, 0)):
     """Query a segment database for active segments associated with a flag
     """
     # NOTE: DQF.pad pads forward in time at end
     return DataQualityFlag.query(
-        flag, start - pad[0], end + pad[1], url=url,
+        flag, start - pad[0], end + pad[1], host=host,
     ).coalesce().pad(pad[0], -pad[1]).active
 
 
@@ -287,26 +287,26 @@ def segmentlist_from_tree(tree, coalesce=False):
     return segs
 
 
-def get_flag_coverage(flag, url=DEFAULT_SEGMENT_SERVER):
+def get_flag_coverage(flag, host=DEFAULT_SEGMENT_SERVER):
     """Return the coverage data for the given flag
     """
     ifo, name, version = flag.rsplit(':', 2)
-    flagu = '/dq/%s/%s/%s' % (ifo, name, version)
-    raw = igwn_get('%s/report/coverage' % url)
+    flagu = f'/dq/{ifo}/{name}/{version}'
+    raw = igwn_get(f'{host}/report/coverage')
     return raw.json()['results'][flagu]
 
 
-def get_latest_active_gps(flag, url=DEFAULT_SEGMENT_SERVER):
+def get_latest_active_gps(flag, host=DEFAULT_SEGMENT_SERVER):
     """Return the end time of the latest active segment for this flag
     """
-    # return get_flag_coverage(flag, url=url)['latest_active_segment']
+    # return get_flag_coverage(flag, host=host)['latest_active_segment']
     raise NameError('get_latest_active_gps is no longer available')
 
 
-def get_latest_known_gps(flag, url=DEFAULT_SEGMENT_SERVER):
+def get_latest_known_gps(flag, host=DEFAULT_SEGMENT_SERVER):
     """Return the end time of the latest known segment for this flag
     """
-    # return get_flag_coverage(flag, url=url)['latest_known_segment']
+    # return get_flag_coverage(flag, host=host)['latest_known_segment']
     raise NameError('get_latest_known_gps is no longer available')
 
 
